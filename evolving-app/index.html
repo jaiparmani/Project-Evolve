@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evolving App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 600px;
+      padding: 48px 24px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #5ee0c8, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: #888;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .version {
+      display: inline-block;
+      padding: 4px 12px;
+      background: rgba(94,224,200,0.1);
+      color: #5ee0c8;
+      border-radius: 999px;
+      font-size: 12px;
+      font-family: ui-monospace, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Evolving App</h1>
+    <p>This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
+    <p>Watch it grow.</p>
+    <span class="version">v0.1.0</span>
+  </div>
+</body>
+</html>

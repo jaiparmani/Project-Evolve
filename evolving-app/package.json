@@ -1,0 +1,12 @@
+{
+  "name": "evolving-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo 'Static app, no build needed'"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
