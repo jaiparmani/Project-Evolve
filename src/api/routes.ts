@@ -8,6 +8,7 @@ import { runCycle } from "../worker/cycle.js";
 import { childLogger } from "../core/logger.js";
 import { evaluateRoadmap, ROADMAP } from "../core/roadmap.js";
 import { config } from "../core/config.js";
+import { backupDb } from "../db/persist.js";
 
 const log = childLogger("api");
 export const apiRouter = Router();
@@ -150,6 +151,7 @@ export async function ensureProjectAndRunCycle() {
   } finally {
     setRunning(false);
     setCycleId(null);
+    try { backupDb(); } catch (e) { log.warn({ error: (e as Error).message }, "DB backup failed"); }
   }
 }
 

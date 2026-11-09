@@ -4,7 +4,7 @@ import { config } from "../core/config.js";
 import { childLogger } from "../core/logger.js";
 import { apiRouter } from "../api/routes.js";
 import { resolve } from "path";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 
 const log = childLogger("server");
 const app = express();
@@ -16,6 +16,17 @@ app.use("/api", apiRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Serve the evolving child app under /app
+app.use("/app", express.static(config.app.dir));
+app.get("/app", (_req, res) => {
+  const indexPath = resolve(config.app.dir, "index.html");
+  if (existsSync(indexPath)) {
+    res.type("html").send(readFileSync(indexPath, "utf-8"));
+  } else {
+    res.type("html").send("<html><body style='background:#0a0a0a;color:#888;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui'><p>Child app not built yet. Run an evolution cycle first.</p></body></html>");
+  }
 });
 
 app.get("/{*path}", (_req, res) => {
@@ -377,9 +388,9 @@ function getDashboardHtml(): string {
             <div class="stat-label">\${w.cycles_ran_today || s.today_cycles || 0} cycles today · \${state.loop?.active ? 'Continuous' : 'Manual'}</div>
           </div>
           <div class="card">
-            <div class="card-header"><span class="dot \${d.running ? 'green' : 'red'}"></span> DEPLOYMENT</div>
-            <div class="stat">\${d.running ? 'Live' : 'Stopped'}</div>
-            <div class="stat-label">\${d.url || 'No deployment'}</div>
+            <div class="card-header"><span class="dot \${d.running ? 'green' : 'red'}"></span> CHILD APP</div>
+            <div class="stat">\${d.running ? 'Live' : 'Available'}</div>
+            <div class="stat-label"><a href="/app" target="_blank" style="color:var(--accent)">Open Child App →</a></div>
           </div>
           <div class="card">
             <div class="card-header"><span class="dot blue"></span> EVOLUTION STATS</div>
