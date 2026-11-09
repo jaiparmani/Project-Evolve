@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, schema } from "../db/index.js";
 import { eq, desc, sql, count } from "drizzle-orm";
-import { getWorkerStatus, getRunning, setRunning, setCycleId, incrementCycles, canRunCycle } from "../worker/state.js";
+import { getWorkerStatus, getRunning, setRunning, setCycleId, incrementCycles, canRunCycle, startLoop, stopLoop, isLoopActive } from "../worker/state.js";
 import { getDeployStatus } from "../deploy/deployer.js";
 import { getClient } from "../llm/openrouter.js";
 import { runCycle } from "../worker/cycle.js";
@@ -126,6 +126,33 @@ apiRouter.post("/config", async (req, res) => {
   res.json({ ok: true });
 });
 
+export async function ensureProjectAndRunCycle() {
+  setRunning(true);
+  try {
+    let projects = await db.select().from(schema.projects).limit(1);
+    if (!projects.length) {
+      const { nanoid } = await import("nanoid");
+      const id = nanoid();
+      const now = new Date().toISOString();
+      await db.insert(schema.projects).values({
+        id,
+        name: "Evolving App",
+        description: "An application that improves itself autonomously",
+        appDir: config.app.dir,
+        identity: "A modern web application that continuously evolves",
+        createdAt: now,
+        updatedAt: now,
+      });
+      projects = await db.select().from(schema.projects).limit(1);
+    }
+    await runCycle(projects[0].id);
+    incrementCycles();
+  } finally {
+    setRunning(false);
+    setCycleId(null);
+  }
+}
+
 apiRouter.post("/evolve", async (_req, res) => {
   if (getRunning()) {
     return res.status(409).json({ error: "A cycle is already running" });
@@ -135,36 +162,24 @@ apiRouter.post("/evolve", async (_req, res) => {
   }
 
   res.json({ ok: true, message: "Evolution cycle triggered" });
+  setImmediate(() => { ensureProjectAndRunCycle().catch((e) => log.error({ error: (e as Error).message }, "Manual cycle failed")); });
+});
 
-  setImmediate(async () => {
-    setRunning(true);
-    try {
-      let projects = await db.select().from(schema.projects).limit(1);
-      if (!projects.length) {
-        const { nanoid } = await import("nanoid");
-        const id = nanoid();
-        const now = new Date().toISOString();
-        const { config } = await import("../core/config.js");
-        await db.insert(schema.projects).values({
-          id,
-          name: "Evolving App",
-          description: "An application that improves itself autonomously",
-          appDir: config.app.dir,
-          identity: "A modern web application that continuously evolves",
-          createdAt: now,
-          updatedAt: now,
-        });
-        projects = await db.select().from(schema.projects).limit(1);
-      }
-      await runCycle(projects[0].id);
-      incrementCycles();
-    } catch (e) {
-      log.error({ error: (e as Error).message }, "Manual cycle failed");
-    } finally {
-      setRunning(false);
-      setCycleId(null);
-    }
-  });
+apiRouter.post("/loop/start", (_req, res) => {
+  if (isLoopActive()) {
+    return res.json({ ok: true, message: "Loop already running" });
+  }
+  startLoop(ensureProjectAndRunCycle);
+  res.json({ ok: true, message: "Evolution loop started — cycles will run back-to-back" });
+});
+
+apiRouter.post("/loop/stop", (_req, res) => {
+  stopLoop();
+  res.json({ ok: true, message: "Evolution loop stopped" });
+});
+
+apiRouter.get("/loop/status", (_req, res) => {
+  res.json({ active: isLoopActive(), ...getWorkerStatus() });
 });
 
 apiRouter.get("/commits", async (_req, res) => {

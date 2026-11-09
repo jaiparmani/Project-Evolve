@@ -1,9 +1,14 @@
 import { config } from "../core/config.js";
+import { childLogger } from "../core/logger.js";
+
+const log = childLogger("worker");
 
 let isRunning = false;
 let currentCycleId: string | null = null;
 let cyclesRanToday = 0;
 let lastDayReset = new Date().toDateString();
+let loopActive = false;
+let loopTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getWorkerStatus() {
   return {
@@ -12,6 +17,7 @@ export function getWorkerStatus() {
     cyclesRanToday,
     maxCyclesPerDay: config.evolution.maxCyclesPerDay,
     intervalMinutes: config.evolution.intervalMinutes,
+    loopActive,
   };
 }
 
@@ -27,4 +33,44 @@ export function canRunCycle(): boolean {
   const today = new Date().toDateString();
   if (today !== lastDayReset) { cyclesRanToday = 0; lastDayReset = today; }
   return cyclesRanToday < config.evolution.maxCyclesPerDay;
+}
+
+export function isLoopActive() { return loopActive; }
+
+const DELAY_BETWEEN_CYCLES_MS = 30_000;
+
+export function startLoop(runOneCycle: () => Promise<void>) {
+  if (loopActive) return;
+  loopActive = true;
+  log.info("Evolution loop STARTED — cycles will run back-to-back");
+
+  async function tick() {
+    if (!loopActive) return;
+    if (!canRunCycle()) {
+      log.info("Daily cycle limit reached — loop pausing until tomorrow");
+      loopTimer = setTimeout(tick, 60 * 60 * 1000);
+      return;
+    }
+    if (isRunning) {
+      loopTimer = setTimeout(tick, 10_000);
+      return;
+    }
+    try {
+      await runOneCycle();
+    } catch (e) {
+      log.error({ error: (e as Error).message }, "Loop cycle failed");
+    }
+    if (loopActive) {
+      log.info({ delayMs: DELAY_BETWEEN_CYCLES_MS }, "Next cycle in %d seconds", DELAY_BETWEEN_CYCLES_MS / 1000);
+      loopTimer = setTimeout(tick, DELAY_BETWEEN_CYCLES_MS);
+    }
+  }
+
+  tick();
+}
+
+export function stopLoop() {
+  loopActive = false;
+  if (loopTimer) { clearTimeout(loopTimer); loopTimer = null; }
+  log.info("Evolution loop STOPPED");
 }
