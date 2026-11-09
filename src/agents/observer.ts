@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { readdirSync, readFileSync, statSync, existsSync } from "fs";
 import { resolve, extname } from "path";
 import { execSync } from "child_process";
+import { evaluateRoadmap } from "../core/roadmap.js";
 
 const log = childLogger("observer");
 
@@ -31,11 +32,21 @@ interface QualityDimensions {
   reliability: number | null;
 }
 
+interface RoadmapContext {
+  currentStageId: string;
+  currentStageName: string;
+  currentStageGoals: string[];
+  stageProgress: Array<{ id: string; name: string; percentComplete: number; isComplete: boolean }>;
+  overallProgress: number;
+  failingGates: string[];
+}
+
 interface ObservationResult {
   observations: Observation[];
   appSummary: string;
   qualityScore: number;
   qualityDimensions: QualityDimensions;
+  roadmap: RoadmapContext;
 }
 
 function scanDirectory(
@@ -150,6 +161,28 @@ export async function observe(
   const codeContent = readFullFiles(appDir, scan.files);
   const verifiedFacts = gatherVerifiableFacts(appDir);
 
+  const roadmapEval = evaluateRoadmap(appDir);
+  const failingGates = roadmapEval.stageStatuses
+    .flatMap((ss) => ss.gateResults.filter((g) => !g.passed).map((g) => `[${ss.stage.name}] ${g.gate.description}`));
+  const roadmapContext: RoadmapContext = {
+    currentStageId: roadmapEval.currentStage.id,
+    currentStageName: roadmapEval.currentStage.name,
+    currentStageGoals: roadmapEval.currentStage.goals,
+    stageProgress: roadmapEval.stageStatuses.map((ss) => ({
+      id: ss.stage.id,
+      name: ss.stage.name,
+      percentComplete: ss.percentComplete,
+      isComplete: ss.isComplete,
+    })),
+    overallProgress: roadmapEval.overallProgress,
+    failingGates,
+  };
+
+  log.info(
+    { stage: roadmapContext.currentStageName, progress: roadmapContext.overallProgress, failingGates: failingGates.length },
+    "Roadmap evaluated"
+  );
+
   const recentCycles = await db
     .select()
     .from(schema.evolutionCycles)
@@ -192,6 +225,19 @@ APPLICATION STATE:
 
 VERIFIED FACTS (ground truth from automated checks):
 ${verifiedFacts}
+
+EVOLUTION ROADMAP:
+Current Stage: ${roadmapContext.currentStageName} (${roadmapContext.overallProgress}% overall progress)
+Stage Goals:
+${roadmapContext.currentStageGoals.map((g) => `  - ${g}`).join("\n")}
+
+Failing Gates (things that must be fixed to advance):
+${failingGates.length > 0 ? failingGates.map((g) => `  - ${g}`).join("\n") : "  None — all gates pass for current stage"}
+
+Stage Progress:
+${roadmapContext.stageProgress.map((s) => `  ${s.name}: ${s.percentComplete}%${s.isComplete ? " ✓" : ""}`).join("\n")}
+
+IMPORTANT: Focus your observations on issues that block the CURRENT STAGE goals. Observations aligned with the roadmap should have higher severity.
 
 FULL SOURCE CODE:
 ${codeContent.slice(0, 8000)}
@@ -272,6 +318,7 @@ Focus on meaningful, evidence-backed improvements. Prefer fewer high-confidence 
     qualityDimensions: raw.qualityDimensions
       ? { ...defaultDimensions, ...(raw.qualityDimensions as Partial<QualityDimensions>) }
       : calculateBaselineDimensions(appDir),
+    roadmap: roadmapContext,
   };
 
   const now = new Date().toISOString();

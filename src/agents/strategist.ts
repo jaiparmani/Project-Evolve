@@ -50,6 +50,14 @@ export async function strategize(
     appSummary: string;
     qualityScore: number;
     qualityDimensions?: Record<string, unknown>;
+    roadmap?: {
+      currentStageId: string;
+      currentStageName: string;
+      currentStageGoals: string[];
+      stageProgress: Array<{ id: string; name: string; percentComplete: number; isComplete: boolean }>;
+      overallProgress: number;
+      failingGates: string[];
+    };
   }
 ): Promise<StrategyResult> {
   log.info({ projectId, cycleId }, "Starting strategy");
@@ -73,12 +81,28 @@ export async function strategize(
     (o) => (o.severity === "high" || o.severity === "critical") && o.verified
   ).length;
 
+  const roadmap = observations.roadmap;
+  const roadmapSection = roadmap ? `
+EVOLUTION ROADMAP:
+Current Stage: ${roadmap.currentStageName} (overall progress: ${roadmap.overallProgress}%)
+Stage Goals (what the app needs to achieve NOW):
+${roadmap.currentStageGoals.map((g) => `  - ${g}`).join("\n")}
+
+Failing Gates (blocking advancement to next stage):
+${roadmap.failingGates.length > 0 ? roadmap.failingGates.map((g) => `  - ${g}`).join("\n") : "  None"}
+
+All Stages:
+${roadmap.stageProgress.map((s) => `  ${s.name}: ${s.percentComplete}%${s.isComplete ? " COMPLETE" : ""}`).join("\n")}
+
+CRITICAL RULE: Improvements MUST advance the current stage ("${roadmap.currentStageName}"). Do NOT propose features or polish when foundation work is incomplete. Each idea must specify which stage goal it advances.
+` : "";
+
   const prompt = `You are a product strategist for a self-improving application.
 
 APPLICATION SUMMARY: ${observations.appSummary}
 QUALITY SCORE: ${observations.qualityScore}/100
 QUALITY DIMENSIONS: ${JSON.stringify(observations.qualityDimensions || {})}
-
+${roadmapSection}
 OBSERVATIONS (${observations.observations.length} total, ${highSeverityCount} high/critical, ${verifiedHighCount} verified high/critical):
 ${observations.observations.map((o) => {
   const prefix = o.verified ? "[VERIFIED]" : "[HYPOTHESIS]";
@@ -110,7 +134,8 @@ Return JSON:
       "effort": 1-10,
       "strategicValue": 1-10,
       "reason": "Why this matters — cite the observation",
-      "addressesObservation": "Which observation this fixes"
+      "addressesObservation": "Which observation this fixes",
+      "advancesStageGoal": "Which roadmap stage goal this advances (copy exact text)"
     }
   ],
   "selectedIdea": { same shape as above } or null,

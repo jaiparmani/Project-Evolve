@@ -6,6 +6,8 @@ import { getDeployStatus } from "../deploy/deployer.js";
 import { getClient } from "../llm/openrouter.js";
 import { runCycle } from "../worker/cycle.js";
 import { childLogger } from "../core/logger.js";
+import { evaluateRoadmap, ROADMAP } from "../core/roadmap.js";
+import { config } from "../core/config.js";
 
 const log = childLogger("api");
 export const apiRouter = Router();
@@ -173,6 +175,35 @@ apiRouter.get("/commits", async (_req, res) => {
 apiRouter.get("/deployments", async (_req, res) => {
   const deployments = await db.select().from(schema.deployments).orderBy(desc(schema.deployments.createdAt)).limit(50);
   res.json(deployments);
+});
+
+apiRouter.get("/roadmap", (_req, res) => {
+  try {
+    const result = evaluateRoadmap(config.app.dir);
+    res.json({
+      currentStage: {
+        id: result.currentStage.id,
+        name: result.currentStage.name,
+        description: result.currentStage.description,
+        goals: result.currentStage.goals,
+      },
+      stages: result.stageStatuses.map((ss) => ({
+        id: ss.stage.id,
+        name: ss.stage.name,
+        description: ss.stage.description,
+        percentComplete: ss.percentComplete,
+        isComplete: ss.isComplete,
+        gates: ss.gateResults.map((g) => ({
+          id: g.gate.id,
+          description: g.gate.description,
+          passed: g.passed,
+        })),
+      })),
+      overallProgress: result.overallProgress,
+    });
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
+  }
 });
 
 apiRouter.post("/snapshots/capture", async (_req, res) => {
