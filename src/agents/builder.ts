@@ -27,9 +27,14 @@ export async function build(
     filesToCreate: string[];
     filesToModify: string[];
     filesToDelete: string[];
+  },
+  previousAttempt?: {
+    rejectionReason: string;
+    feedback: string;
+    attempt: number;
   }
 ): Promise<BuildResult> {
-  log.info({ workDir, title: implementationPlan.title }, "Starting build");
+  log.info({ workDir, title: implementationPlan.title, retry: previousAttempt?.attempt }, "Starting build");
 
   const existingFiles: Record<string, string> = {};
   const toModify = Array.isArray(implementationPlan.filesToModify) ? implementationPlan.filesToModify : [];
@@ -47,8 +52,16 @@ export async function build(
     .map(([path, content]) => `--- ${path} ---\n${content.slice(0, 2000)}`)
     .join("\n\n");
 
-  const prompt = `You are a senior developer implementing changes to an application.
+  const retryContext = previousAttempt
+    ? `\n\nPREVIOUS ATTEMPT #${previousAttempt.attempt} WAS REJECTED:
+Rejection reason: ${previousAttempt.rejectionReason}
+Reviewer feedback: ${previousAttempt.feedback}
 
+You MUST fix the issues described above. Do not repeat the same mistakes. Address each point from the reviewer feedback specifically.\n`
+    : "";
+
+  const prompt = `You are a senior developer implementing changes to an application.
+${retryContext}
 IMPLEMENTATION PLAN:
 Title: ${implementationPlan.title}
 Approach: ${implementationPlan.approach}

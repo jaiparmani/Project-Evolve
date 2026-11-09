@@ -59,6 +59,7 @@ export const config = {
     maxRequestsPerCycle: envInt("EVOLVE_MAX_REQUESTS_PER_CYCLE", 20),
     maxTokensPerCycle: envInt("EVOLVE_MAX_TOKENS_PER_CYCLE", 50000),
     dailyBudgetUsd: parseFloat(env("EVOLVE_DAILY_BUDGET_USD", "0")),
+    maxBuildRetries: envInt("EVOLVE_MAX_BUILD_RETRIES", 3),
   },
 
   server: {

@@ -146,80 +146,106 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
       implementationPlan: JSON.stringify(implPlan),
     });
 
-    // Phase 4: Build (in worktree)
-    await updatePhase(cycleId, "building");
-    log.info({ cycleId }, "Phase 4: Building");
-
+    // Phase 4 & 5: Build and Evaluate (with retry loop)
+    const maxRetries = config.evolution.maxBuildRetries;
     let worktree: { path: string; branch: string } | null = null;
     let buildDir = proj.appDir;
+    let evalResult!: Awaited<ReturnType<typeof evaluate>>;
+    let buildResult!: Awaited<ReturnType<typeof build>>;
+    let experimentId = "";
+    let previousAttempt: { rejectionReason: string; feedback: string; attempt: number } | undefined;
 
-    try {
-      worktree = await git.createWorktree(cycleId);
-      buildDir = worktree.path;
-    } catch (e) {
-      log.warn("Worktree creation failed, building in-place: %s", (e as Error).message);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const isRetry = attempt > 1;
+
+      await updatePhase(cycleId, "building");
+      log.info({ cycleId, attempt, maxRetries }, isRetry ? `Phase 4: Rebuilding (attempt ${attempt}/${maxRetries})` : "Phase 4: Building");
+
+      if (attempt === 1) {
+        try {
+          worktree = await git.createWorktree(cycleId);
+          buildDir = worktree.path;
+        } catch (e) {
+          log.warn("Worktree creation failed, building in-place: %s", (e as Error).message);
+        }
+      }
+
+      experimentId = nanoid();
+      await db.insert(schema.experiments).values({
+        id: experimentId,
+        cycleId,
+        ideaId: null,
+        worktreePath: worktree?.path || null,
+        branchName: worktree?.branch || null,
+        status: "running",
+        createdAt: new Date().toISOString(),
+      });
+
+      const safePlan = {
+        ...implPlan,
+        steps: Array.isArray(implPlan.steps) ? implPlan.steps : [],
+        filesToCreate: Array.isArray(implPlan.filesToCreate) ? implPlan.filesToCreate : [],
+        filesToModify: Array.isArray(implPlan.filesToModify) ? implPlan.filesToModify : [],
+        filesToDelete: Array.isArray(implPlan.filesToDelete) ? implPlan.filesToDelete : [],
+      };
+      buildResult = await build(buildDir, safePlan, previousAttempt);
+
+      await db
+        .update(schema.experiments)
+        .set({
+          status: "completed",
+          filesChanged: JSON.stringify(buildResult.filesChanged),
+          linesAdded: buildResult.linesAdded,
+          linesRemoved: buildResult.linesRemoved,
+          implementationLog: buildResult.log,
+          completedAt: new Date().toISOString(),
+        })
+        .where(eq(schema.experiments.id, experimentId));
+
+      await updatePhase(cycleId, "building", {
+        filesModified: JSON.stringify(buildResult.filesChanged),
+      });
+
+      // Evaluate
+      await updatePhase(cycleId, "evaluating");
+      log.info({ cycleId, attempt }, `Phase 5: Evaluating (attempt ${attempt}/${maxRetries})`);
+
+      evalResult = await evaluate(buildDir, buildResult, strategy.selectedIdea);
+
+      const evaluationId = nanoid();
+      await db.insert(schema.evaluations).values({
+        id: evaluationId,
+        experimentId,
+        cycleId,
+        typescriptCheck: JSON.stringify(evalResult.typescriptCheck),
+        buildCheck: JSON.stringify(evalResult.buildCheck),
+        unitTests: JSON.stringify(evalResult.testCheck),
+        overallResult: evalResult.overallPassed ? "passed" : "failed",
+        qualityScore: evalResult.codeReview.qualityScore,
+        criticFeedback: JSON.stringify({
+          feedback: evalResult.codeReview.feedback,
+          findings: evalResult.codeReview.findings,
+        }),
+        rejected: !evalResult.overallPassed,
+        rejectionReason: evalResult.rejectionReason || null,
+        createdAt: new Date().toISOString(),
+      });
+
+      if (evalResult.overallPassed) {
+        log.info({ cycleId, attempt }, "Evaluation passed");
+        break;
+      }
+
+      if (attempt < maxRetries) {
+        log.warn({ cycleId, attempt, reason: evalResult.rejectionReason }, `Attempt ${attempt} rejected, retrying with feedback`);
+        previousAttempt = {
+          rejectionReason: evalResult.rejectionReason || "Unknown",
+          feedback: evalResult.codeReview.feedback,
+          attempt,
+        };
+        await addMemory(projectId, "retry", `Attempt ${attempt} for "${strategy.selectedIdea.title}" rejected: ${evalResult.rejectionReason}. Retrying.`);
+      }
     }
-
-    const experimentId = nanoid();
-    await db.insert(schema.experiments).values({
-      id: experimentId,
-      cycleId,
-      ideaId: null,
-      worktreePath: worktree?.path || null,
-      branchName: worktree?.branch || null,
-      status: "running",
-      createdAt: new Date().toISOString(),
-    });
-
-    const safePlan = {
-      ...implPlan,
-      steps: Array.isArray(implPlan.steps) ? implPlan.steps : [],
-      filesToCreate: Array.isArray(implPlan.filesToCreate) ? implPlan.filesToCreate : [],
-      filesToModify: Array.isArray(implPlan.filesToModify) ? implPlan.filesToModify : [],
-      filesToDelete: Array.isArray(implPlan.filesToDelete) ? implPlan.filesToDelete : [],
-    };
-    const buildResult = await build(buildDir, safePlan);
-
-    await db
-      .update(schema.experiments)
-      .set({
-        status: "completed",
-        filesChanged: JSON.stringify(buildResult.filesChanged),
-        linesAdded: buildResult.linesAdded,
-        linesRemoved: buildResult.linesRemoved,
-        implementationLog: buildResult.log,
-        completedAt: new Date().toISOString(),
-      })
-      .where(eq(schema.experiments.id, experimentId));
-
-    await updatePhase(cycleId, "building", {
-      filesModified: JSON.stringify(buildResult.filesChanged),
-    });
-
-    // Phase 5: Evaluate
-    await updatePhase(cycleId, "evaluating");
-    log.info({ cycleId }, "Phase 5: Evaluating");
-
-    const evalResult = await evaluate(buildDir, buildResult, strategy.selectedIdea);
-
-    const evaluationId = nanoid();
-    await db.insert(schema.evaluations).values({
-      id: evaluationId,
-      experimentId,
-      cycleId,
-      typescriptCheck: JSON.stringify(evalResult.typescriptCheck),
-      buildCheck: JSON.stringify(evalResult.buildCheck),
-      unitTests: JSON.stringify(evalResult.testCheck),
-      overallResult: evalResult.overallPassed ? "passed" : "failed",
-      qualityScore: evalResult.codeReview.qualityScore,
-      criticFeedback: JSON.stringify({
-        feedback: evalResult.codeReview.feedback,
-        findings: evalResult.codeReview.findings,
-      }),
-      rejected: !evalResult.overallPassed,
-      rejectionReason: evalResult.rejectionReason || null,
-      createdAt: new Date().toISOString(),
-    });
 
     if (!evalResult.overallPassed) {
       if (worktree) await git.removeWorktree(worktree.path);
@@ -229,10 +255,10 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
         qualityAfter: evalResult.codeReview.qualityScore,
         completedAt: new Date().toISOString(),
         errorMessage: evalResult.rejectionReason,
-        lessonsLearned: `Rejected: ${evalResult.rejectionReason}`,
+        lessonsLearned: `Rejected after ${maxRetries} attempts: ${evalResult.rejectionReason}`,
       });
 
-      await addMemory(projectId, "failure", `Failed attempt: ${strategy.selectedIdea.title} - ${evalResult.rejectionReason}`);
+      await addMemory(projectId, "failure", `Failed after ${maxRetries} attempts: ${strategy.selectedIdea.title} - ${evalResult.rejectionReason}`);
 
       return {
         cycleId,
