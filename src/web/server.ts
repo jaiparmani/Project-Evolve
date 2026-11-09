@@ -245,9 +245,20 @@ function getDashboardHtml(): string {
     let currentTab = 'overview';
     let refreshInterval;
 
+    function toSnake(str) { return str.replace(/([A-Z])/g, '_$1').toLowerCase(); }
+    function snakeKeys(obj) {
+      if (Array.isArray(obj)) return obj.map(snakeKeys);
+      if (obj && typeof obj === 'object') {
+        const out = {};
+        for (const [k, v] of Object.entries(obj)) out[toSnake(k)] = snakeKeys(v);
+        return out;
+      }
+      return obj;
+    }
+
     async function fetchApi(path) {
       const res = await fetch('/api' + path);
-      return res.json();
+      return snakeKeys(await res.json());
     }
 
     async function loadData() {
@@ -471,18 +482,19 @@ function getDashboardHtml(): string {
 
       const allVersions = [];
       // Add current app state as "live"
-      allVersions.push({ version: 'current', cycleId: null, label: 'Live', createdAt: new Date().toISOString() });
+      allVersions.push({ version: 'current', cycleId: null, label: 'Live', created_at: new Date().toISOString() });
       // Add snapshot versions
       const seen = new Set();
       for (const s of timelineSnapshots) {
-        if (!seen.has(s.cycleId)) {
-          seen.add(s.cycleId);
-          const cycle = cycleMap[s.cycleId];
+        const cid = s.cycle_id || s.cycleId;
+        if (!seen.has(cid)) {
+          seen.add(cid);
+          const cycle = cycleMap[cid];
           allVersions.push({
             version: s.version,
-            cycleId: s.cycleId,
+            cycleId: cid,
             label: 'v' + s.version,
-            createdAt: s.createdAt,
+            created_at: s.created_at || s.createdAt,
             cycle
           });
         }
@@ -496,7 +508,7 @@ function getDashboardHtml(): string {
             \${allVersions.map(v => \`
               <div class="version-card \${activeVersionCycleId === v.cycleId ? 'active' : ''}" data-cycle="\${v.cycleId}" onclick="viewVersion('\${v.cycleId}', '\${v.version}')">
                 <div class="v-num">\${v.label}</div>
-                <div class="v-meta">\${new Date(v.createdAt).toLocaleDateString()}</div>
+                <div class="v-meta">\${new Date(v.created_at).toLocaleDateString()}</div>
                 \${v.cycle ? '<div class="v-cycle">#' + v.cycle.cycle_number + ': ' + (v.cycle.selected_improvement || '').slice(0,40) + '</div>' : ''}
               </div>
             \`).join('')}
@@ -548,8 +560,9 @@ function getDashboardHtml(): string {
       }
 
       const currentFile = activeVersionFiles[activeFileIndex];
-      const isHtml = currentFile.filePath.endsWith('.html') || currentFile.filePath.endsWith('.htm');
-      const ext = currentFile.filePath.split('.').pop() || '';
+      const isHtml = (currentFile.file_path||currentFile.filePath||'').endsWith('.html') || (currentFile.file_path||currentFile.filePath||'').endsWith('.htm');
+      const fp = currentFile.file_path || currentFile.filePath || '';
+      const ext = fp.split('.').pop() || '';
       const langMap = { js: 'javascript', ts: 'typescript', json: 'json', css: 'css', html: 'html', md: 'markdown' };
 
       const lines = currentFile.content.split('\\n');
@@ -566,12 +579,12 @@ function getDashboardHtml(): string {
           <div class="version-sidebar">
             \${activeVersionFiles.map((f, i) => \`
               <div class="file-item \${i === activeFileIndex ? 'active' : ''}" onclick="selectFile(\${i})">
-                \${getFileIcon(f.filePath)} \${f.filePath}
+                \${getFileIcon(f.file_path||f.filePath)} \${f.file_path||f.filePath}
               </div>
             \`).join('')}
           </div>
           <div class="version-code">
-            <div class="version-header">\${currentFile.filePath} · v\${version} · \${lines.length} lines</div>
+            <div class="version-header">\${fp} · v\${version} · \${lines.length} lines</div>
             \${versionViewMode === 'preview' && isHtml
               ? '<div class="version-iframe-wrap"><iframe id="previewFrame" sandbox="allow-scripts"></iframe></div>'
               : '<pre>' + numberedLines + '</pre>'
