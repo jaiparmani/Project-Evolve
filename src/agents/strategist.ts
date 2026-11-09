@@ -188,6 +188,38 @@ Return JSON:
     noActionJustification: raw.noActionJustification ? String(raw.noActionJustification) : undefined,
   };
 
+  if (!data.selectedIdea && data.ideas.length > 0) {
+    const best = data.ideas.reduce((a, b) => {
+      const scoreA = (a.impact * a.confidence * a.strategicValue) / Math.max(a.effort, 1);
+      const scoreB = (b.impact * b.confidence * b.strategicValue) / Math.max(b.effort, 1);
+      return scoreB > scoreA ? b : a;
+    });
+    data.selectedIdea = best;
+    data.selectionReason = `Auto-selected highest-scored idea (LLM returned no selection)`;
+    log.warn({ selected: best.title }, "LLM returned no selectedIdea — auto-selecting best idea");
+  }
+
+  if (!data.selectedIdea && highSeverityCount > 0) {
+    const highObs = observations.observations.find((o) => o.severity === "high" || o.severity === "critical");
+    if (highObs) {
+      const fallbackIdea: Idea = {
+        title: `Fix: ${highObs.description.slice(0, 60)}`,
+        description: highObs.details || highObs.description,
+        category: highObs.category as Idea["category"],
+        impact: 8,
+        confidence: highObs.confidence ?? 7,
+        effort: 5,
+        strategicValue: 8,
+        reason: `Auto-selected: highest severity finding`,
+        addressesObservation: highObs.description,
+      };
+      data.ideas.push(fallbackIdea);
+      data.selectedIdea = fallbackIdea;
+      data.selectionReason = "Auto-selected: LLM returned no ideas, picked highest severity observation";
+      log.warn({ selected: fallbackIdea.title }, "No ideas from LLM — auto-creating from highest severity observation");
+    }
+  }
+
   if (!data.selectedIdea && verifiedHighCount > 0) {
     data.flaggedForReview = true;
     log.warn(
