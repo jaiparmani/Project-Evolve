@@ -249,22 +249,29 @@ Focus on meaningful, evidence-backed improvements. Prefer fewer high-confidence 
     reliability: null,
   };
 
+  let parsedObservations: Observation[] = Array.isArray(raw.observations) ? raw.observations.map((o: Record<string, unknown>) => ({
+    category: String(o.category || "architecture"),
+    description: String(o.description || ""),
+    severity: (["low", "medium", "high", "critical"].includes(String(o.severity)) ? String(o.severity) : "medium") as Observation["severity"],
+    details: String(o.details || ""),
+    filePath: o.filePath ? String(o.filePath) : undefined,
+    lineRange: o.lineRange ? String(o.lineRange) : undefined,
+    confidence: typeof o.confidence === "number" ? Math.min(1, Math.max(0, o.confidence)) : 0.5,
+    verified: typeof o.verified === "boolean" ? o.verified : false,
+  })) : [];
+
+  if (parsedObservations.length === 0) {
+    log.warn("LLM returned zero observations — generating baseline from automated checks");
+    parsedObservations = generateBaselineObservations(appDir, verifiedFacts);
+  }
+
   const data: ObservationResult = {
-    observations: Array.isArray(raw.observations) ? raw.observations.map((o: Record<string, unknown>) => ({
-      category: String(o.category || "architecture"),
-      description: String(o.description || ""),
-      severity: (["low", "medium", "high", "critical"].includes(String(o.severity)) ? String(o.severity) : "medium") as Observation["severity"],
-      details: String(o.details || ""),
-      filePath: o.filePath ? String(o.filePath) : undefined,
-      lineRange: o.lineRange ? String(o.lineRange) : undefined,
-      confidence: typeof o.confidence === "number" ? Math.min(1, Math.max(0, o.confidence)) : 0.5,
-      verified: typeof o.verified === "boolean" ? o.verified : false,
-    })) : [],
-    appSummary: String(raw.appSummary || ""),
-    qualityScore: typeof raw.qualityScore === "number" ? raw.qualityScore : 0,
+    observations: parsedObservations,
+    appSummary: String(raw.appSummary || `Application with ${scan.files.length} files, ${scan.totalLines} lines of code`),
+    qualityScore: typeof raw.qualityScore === "number" && raw.qualityScore > 0 ? raw.qualityScore : calculateBaselineScore(appDir),
     qualityDimensions: raw.qualityDimensions
       ? { ...defaultDimensions, ...(raw.qualityDimensions as Partial<QualityDimensions>) }
-      : defaultDimensions,
+      : calculateBaselineDimensions(appDir),
   };
 
   const now = new Date().toISOString();
@@ -297,4 +304,155 @@ Focus on meaningful, evidence-backed improvements. Prefer fewer high-confidence 
   );
 
   return data;
+}
+
+function generateBaselineObservations(appDir: string, verifiedFacts: string): Observation[] {
+  const observations: Observation[] = [];
+  const pkgPath = resolve(appDir, "package.json");
+
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+      if (!pkg.scripts?.test || pkg.scripts.test.includes("no test specified")) {
+        observations.push({
+          category: "testing",
+          description: "No test suite configured — package.json has no meaningful test script",
+          severity: "high",
+          details: `package.json scripts.test is "${pkg.scripts?.test || "missing"}"`,
+          filePath: "package.json",
+          confidence: 1.0,
+          verified: true,
+        });
+      }
+      if (!pkg.scripts?.lint) {
+        observations.push({
+          category: "architecture",
+          description: "No linting configured — no lint script in package.json",
+          severity: "medium",
+          details: "Missing lint script means code style is not enforced",
+          filePath: "package.json",
+          confidence: 1.0,
+          verified: true,
+        });
+      }
+    } catch {}
+  }
+
+  if (!existsSync(resolve(appDir, "tsconfig.json"))) {
+    const hasJsFiles = verifiedFacts.includes(".js");
+    if (hasJsFiles) {
+      observations.push({
+        category: "architecture",
+        description: "No TypeScript — application uses plain JavaScript without type checking",
+        severity: "medium",
+        details: "No tsconfig.json found. TypeScript would catch type errors at compile time.",
+        filePath: "package.json",
+        confidence: 1.0,
+        verified: true,
+      });
+    }
+  }
+
+  if (verifiedFacts.includes("TypeScript check:") && verifiedFacts.includes("errors")) {
+    const match = verifiedFacts.match(/TypeScript check: (\d+) errors/);
+    if (match && parseInt(match[1]) > 0) {
+      observations.push({
+        category: "architecture",
+        description: `TypeScript compilation has ${match[1]} errors`,
+        severity: "high",
+        details: `Verified by running tsc --noEmit: ${match[1]} type errors found`,
+        filePath: "tsconfig.json",
+        confidence: 1.0,
+        verified: true,
+      });
+    }
+  }
+
+  const serverFiles = ["server.js", "server.ts", "src/server.ts", "src/index.ts", "index.js"];
+  for (const sf of serverFiles) {
+    const serverPath = resolve(appDir, sf);
+    if (existsSync(serverPath)) {
+      try {
+        const content = readFileSync(serverPath, "utf-8");
+        if (!content.includes("try") && !content.includes("catch") && !content.includes(".on('error')") && !content.includes(".on(\"error\")")) {
+          observations.push({
+            category: "reliability",
+            description: `No error handling in ${sf} — server has no try/catch or error event handlers`,
+            severity: "high",
+            details: `${sf} lacks error handling. Unhandled errors will crash the process.`,
+            filePath: sf,
+            confidence: 0.9,
+            verified: true,
+          });
+        }
+      } catch {}
+      break;
+    }
+  }
+
+  const htmlFiles = readdirSync(appDir).filter((f) => f.endsWith(".html"));
+  for (const hf of htmlFiles) {
+    try {
+      const content = readFileSync(resolve(appDir, hf), "utf-8");
+      if (!content.includes("aria-") && !content.includes("role=")) {
+        observations.push({
+          category: "accessibility",
+          description: `${hf} has no ARIA attributes — screen readers may not navigate correctly`,
+          severity: "medium",
+          details: `No aria-label, aria-describedby, role, or other ARIA attributes found in ${hf}`,
+          filePath: hf,
+          confidence: 0.8,
+          verified: true,
+        });
+      }
+    } catch {}
+  }
+
+  return observations;
+}
+
+function calculateBaselineScore(appDir: string): number {
+  let score = 30;
+  const pkgPath = resolve(appDir, "package.json");
+  if (existsSync(pkgPath)) {
+    score += 10;
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+      if (pkg.scripts?.start) score += 5;
+      if (pkg.scripts?.test && !pkg.scripts.test.includes("no test specified")) score += 10;
+      if (pkg.scripts?.build) score += 5;
+      if (pkg.scripts?.lint) score += 5;
+    } catch {}
+  }
+  if (existsSync(resolve(appDir, "tsconfig.json"))) score += 10;
+  if (existsSync(resolve(appDir, ".gitignore"))) score += 5;
+  return Math.min(100, score);
+}
+
+function calculateBaselineDimensions(appDir: string): QualityDimensions {
+  const dims: QualityDimensions = {
+    functionality: null,
+    correctness: null,
+    accessibility: null,
+    performance: null,
+    security: null,
+    testCoverage: 0,
+    reliability: null,
+  };
+
+  const pkgPath = resolve(appDir, "package.json");
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+      if (pkg.scripts?.test && !pkg.scripts.test.includes("no test specified")) {
+        dims.testCoverage = 20;
+      }
+    } catch {}
+  }
+
+  if (existsSync(resolve(appDir, "tsconfig.json"))) {
+    dims.correctness = 50;
+  }
+
+  return dims;
 }
