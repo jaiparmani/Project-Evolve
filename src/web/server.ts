@@ -223,6 +223,7 @@ function getDashboardHtml(): string {
       <button data-tab="config">Config</button>
     </nav>
     <div class="actions">
+      <button id="loopBtn" onclick="toggleLoop()" style="background:var(--surface-2);color:var(--text)">⏸ Loop</button>
       <button id="evolveBtn" onclick="triggerEvolve()">Evolve Now</button>
     </div>
   </div>
@@ -247,7 +248,7 @@ function getDashboardHtml(): string {
   </div>
 
   <script>
-    let state = { status: null, cycles: [], ideas: [], usage: null, configs: [] };
+    let state = { status: null, cycles: [], ideas: [], usage: null, configs: [], roadmap: null, loop: null };
     let currentTab = 'overview';
     let refreshInterval;
 
@@ -267,16 +268,69 @@ function getDashboardHtml(): string {
       return snakeKeys(await res.json());
     }
 
+    function tryParseJson(str) {
+      if (!str) return null;
+      try { return typeof str === 'string' ? JSON.parse(str) : str; } catch { return null; }
+    }
+
+    function severityColor(s) {
+      return s === 'critical' ? 'var(--rose)' : s === 'high' ? 'var(--amber)' : s === 'medium' ? 'var(--blue)' : 'var(--text-3)';
+    }
+
+    function renderObservations(raw) {
+      const obs = tryParseJson(raw);
+      if (!obs || !Array.isArray(obs) || !obs.length) return '<p style="color:var(--text-3)">No observations</p>';
+      return obs.map(o => \`
+        <div style="padding:10px 12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px;border-left:3px solid \${severityColor(o.severity)}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font:600 12px/1.4 var(--sans);color:var(--text)">\${o.category || 'general'}</span>
+            <span class="badge \${o.severity === 'high' || o.severity === 'critical' ? 'red' : o.severity === 'medium' ? 'amber' : 'blue'}">\${o.severity}</span>
+          </div>
+          <p style="font-size:12px;color:var(--text);margin-bottom:4px">\${escapeHtml(o.description || '')}</p>
+          \${o.file_path || o.filePath ? '<span style="font-size:10px;color:var(--accent)">📄 ' + escapeHtml(o.file_path || o.filePath) + '</span>' : ''}
+          \${o.confidence != null ? '<span style="font-size:10px;color:var(--text-3);margin-left:8px">conf: ' + (o.confidence * 100).toFixed(0) + '%</span>' : ''}
+          \${o.verified ? '<span style="font-size:10px;color:var(--good);margin-left:8px">✓ verified</span>' : ''}
+        </div>
+      \`).join('');
+    }
+
+    function renderPlan(raw) {
+      const plan = tryParseJson(raw);
+      if (!plan) return '<p style="color:var(--text-3)">No plan</p>';
+      let html = '';
+      if (plan.title) html += '<div style="font:600 13px/1.4 var(--sans);color:var(--text);margin-bottom:8px">' + escapeHtml(plan.title) + '</div>';
+      if (plan.approach) html += '<p style="font-size:12px;color:var(--text-2);margin-bottom:12px">' + escapeHtml(plan.approach) + '</p>';
+      if (plan.steps && Array.isArray(plan.steps)) {
+        html += '<ol style="padding-left:20px;margin:0">';
+        plan.steps.forEach(s => {
+          const step = typeof s === 'string' ? s : (s.description || s.action || JSON.stringify(s));
+          html += '<li style="font-size:12px;color:var(--text);margin-bottom:6px">' + escapeHtml(step) + '</li>';
+        });
+        html += '</ol>';
+      }
+      if (plan.files_to_create || plan.filesToCreate) {
+        const files = plan.files_to_create || plan.filesToCreate || [];
+        if (files.length) html += '<div style="margin-top:8px;font-size:11px;color:var(--accent)">New files: ' + files.map(f => typeof f === 'string' ? f : f.path).join(', ') + '</div>';
+      }
+      if (plan.files_to_modify || plan.filesToModify) {
+        const files = plan.files_to_modify || plan.filesToModify || [];
+        if (files.length) html += '<div style="font-size:11px;color:var(--amber)">Modified: ' + files.map(f => typeof f === 'string' ? f : f.path).join(', ') + '</div>';
+      }
+      return html || '<pre>' + escapeHtml(JSON.stringify(plan, null, 2).slice(0, 1000)) + '</pre>';
+    }
+
     async function loadData() {
       try {
-        const [status, cycles, ideas, usage, configs] = await Promise.all([
+        const [status, cycles, ideas, usage, configs, roadmap, loop] = await Promise.all([
           fetchApi('/status'),
           fetchApi('/cycles?limit=20'),
           fetchApi('/ideas'),
           fetchApi('/usage'),
           fetchApi('/config'),
+          fetchApi('/roadmap').catch(() => null),
+          fetchApi('/loop/status').catch(() => null),
         ]);
-        state = { status, cycles: cycles.cycles, ideas, usage, configs };
+        state = { status, cycles: cycles.cycles, ideas, usage, configs, roadmap, loop };
         render();
         document.getElementById('loading').style.display = 'none';
         document.getElementById('content').style.display = 'block';
@@ -292,6 +346,7 @@ function getDashboardHtml(): string {
       renderIdeas();
       renderUsage();
       renderConfig();
+      updateLoopButton();
     }
 
     function renderOverview() {
@@ -312,9 +367,9 @@ function getDashboardHtml(): string {
             <div class="stat-label">Version \${p.current_version || '0.0.0'} · Quality \${p.quality_score || 0}/100</div>
           </div>
           <div class="card">
-            <div class="card-header"><span class="dot \${w.isRunning ? 'amber' : 'green'}"></span> EVOLUTION ENGINE</div>
-            <div class="stat">\${w.isRunning ? 'Running' : 'Idle'}</div>
-            <div class="stat-label">\${s.todayCycles || 0} cycles today · Every \${w.intervalMinutes || 30}min</div>
+            <div class="card-header"><span class="dot \${w.is_running ? 'amber' : state.loop?.active ? 'green' : 'red'}"></span> EVOLUTION ENGINE</div>
+            <div class="stat">\${w.is_running ? 'Running' : state.loop?.active ? 'Loop Active' : 'Stopped'}</div>
+            <div class="stat-label">\${w.cycles_ran_today || s.today_cycles || 0} cycles today · \${state.loop?.active ? 'Continuous' : 'Manual'}</div>
           </div>
           <div class="card">
             <div class="card-header"><span class="dot \${d.running ? 'green' : 'red'}"></span> DEPLOYMENT</div>
@@ -342,6 +397,34 @@ function getDashboardHtml(): string {
             }).join('')}
             <span class="phase \${runningCycle.status === 'completed' ? 'done' : ''}">complete</span>
           </div>
+        </div>\` : ''}
+
+        \${state.roadmap ? \`
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><span class="dot blue"></span> EVOLUTION ROADMAP</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="font:600 18px/1 var(--sans);color:var(--accent)">\${state.roadmap.current_stage?.name || 'Unknown'}</div>
+            <span class="badge blue">\${state.roadmap.overall_progress || 0}% overall</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-2);margin-bottom:16px">\${state.roadmap.current_stage?.description || ''}</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            \${(state.roadmap.stages || []).map(s => \`
+              <div style="flex:1;min-width:140px;padding:12px;border-radius:8px;background:var(--surface-2);border:1px solid \${s.is_complete ? 'var(--good)' : s.id === state.roadmap.current_stage?.id ? 'var(--accent)' : 'var(--border)'}">
+                <div style="font:600 12px/1.4 var(--sans);color:\${s.is_complete ? 'var(--good)' : s.id === state.roadmap.current_stage?.id ? 'var(--accent)' : 'var(--text-2)'}">\${s.is_complete ? '✓ ' : ''}\${s.name}</div>
+                <div style="margin-top:6px;height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden">
+                  <div style="height:100%;width:\${s.percent_complete}%;background:\${s.is_complete ? 'var(--good)' : 'var(--accent)'};border-radius:2px;transition:width 0.3s"></div>
+                </div>
+                <div style="font-size:10px;color:var(--text-3);margin-top:4px">\${s.percent_complete}%</div>
+              </div>
+            \`).join('')}
+          </div>
+          <div style="font:600 10px/1 var(--sans);color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Gate Checks</div>
+          \${(state.roadmap.stages || []).filter(s => s.id === state.roadmap.current_stage?.id).flatMap(s => s.gates || []).map(g => \`
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:14px">\${g.passed ? '✅' : '❌'}</span>
+              <span style="font-size:12px;color:\${g.passed ? 'var(--good)' : 'var(--text)'}">\${g.description}</span>
+            </div>
+          \`).join('')}
         </div>\` : ''}
 
         <div class="card">
@@ -640,13 +723,13 @@ function getDashboardHtml(): string {
             \${detail.commit_sha ? '<div class="stat-label">Commit: ' + detail.commit_sha.slice(0,7) + '</div>' : ''}
           </div>
 
-          \${detail.observation ? '<div class="detail-section"><h3>Observations</h3><pre>' + detail.observation.slice(0,2000) + '</pre></div>' : ''}
-          \${detail.selection_reason ? '<div class="detail-section"><h3>Selection Reason</h3><p style="color:var(--text-2)">' + detail.selection_reason + '</p></div>' : ''}
-          \${detail.implementation_plan ? '<div class="detail-section"><h3>Implementation Plan</h3><pre>' + detail.implementation_plan.slice(0,2000) + '</pre></div>' : ''}
-          \${detail.files_modified ? '<div class="detail-section"><h3>Files Modified</h3><pre>' + detail.files_modified + '</pre></div>' : ''}
-          \${detail.test_results ? '<div class="detail-section"><h3>Test Results</h3><pre>' + detail.test_results.slice(0,1000) + '</pre></div>' : ''}
-          \${detail.lessons_learned ? '<div class="detail-section"><h3>Lessons Learned</h3><p style="color:var(--text-2)">' + detail.lessons_learned + '</p></div>' : ''}
-          \${detail.error_message ? '<div class="detail-section"><h3>Error</h3><pre style="color:var(--rose)">' + detail.error_message + '</pre></div>' : ''}
+          \${detail.observation ? '<div class="detail-section"><h3>Observations</h3>' + renderObservations(detail.observation) + '</div>' : ''}
+          \${detail.selection_reason ? '<div class="detail-section"><h3>Why This Was Chosen</h3><p style="font-size:13px;color:var(--text);line-height:1.6">' + escapeHtml(detail.selection_reason) + '</p></div>' : ''}
+          \${detail.implementation_plan ? '<div class="detail-section"><h3>Implementation Plan</h3>' + renderPlan(detail.implementation_plan) + '</div>' : ''}
+          \${detail.files_modified ? '<div class="detail-section"><h3>Files Modified</h3><div style="display:flex;flex-wrap:wrap;gap:6px">' + detail.files_modified.split(',').map(f => '<span class="badge blue">📄 ' + f.trim() + '</span>').join('') + '</div></div>' : ''}
+          \${detail.test_results ? '<div class="detail-section"><h3>Test Results</h3><pre style="font-size:11px">' + escapeHtml(detail.test_results.slice(0,1000)) + '</pre></div>' : ''}
+          \${detail.lessons_learned ? '<div class="detail-section"><h3>Lessons Learned</h3><p style="font-size:13px;color:var(--text);line-height:1.6;background:var(--surface-2);padding:12px;border-radius:8px">' + escapeHtml(detail.lessons_learned) + '</p></div>' : ''}
+          \${detail.error_message ? '<div class="detail-section"><h3>Error</h3><div style="background:rgba(239,95,123,0.08);border:1px solid rgba(239,95,123,0.2);border-radius:8px;padding:12px;color:var(--rose);font-size:12px">' + escapeHtml(detail.error_message) + '</div></div>' : ''}
 
           <div class="detail-section"><h3>Quality</h3>
             <div class="stat-row"><span>Before</span><span>\${detail.quality_before ?? 'N/A'}</span></div>
@@ -695,6 +778,26 @@ function getDashboardHtml(): string {
     document.getElementById('detailModal').addEventListener('click', (e) => {
       if (e.target === document.getElementById('detailModal')) closeDetail();
     });
+
+    async function toggleLoop() {
+      const btn = document.getElementById('loopBtn');
+      const isActive = state.loop?.active;
+      btn.disabled = true;
+      try {
+        await fetch('/api/loop/' + (isActive ? 'stop' : 'start'), { method: 'POST' });
+        await loadData();
+      } catch (e) { console.error(e); }
+      btn.disabled = false;
+    }
+
+    function updateLoopButton() {
+      const btn = document.getElementById('loopBtn');
+      if (!btn) return;
+      const active = state.loop?.active;
+      btn.textContent = active ? '⏸ Stop Loop' : '▶ Start Loop';
+      btn.style.background = active ? 'var(--accent-dim)' : 'var(--surface-2)';
+      btn.style.color = active ? 'var(--accent)' : 'var(--text)';
+    }
 
     loadData();
     refreshInterval = setInterval(loadData, 10000);
