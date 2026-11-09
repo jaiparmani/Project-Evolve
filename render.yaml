@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: project-evolve
+    runtime: node
+    plan: free
+    buildCommand: npm install && npx tsx src/db/migrate.ts
+    startCommand: npx tsx src/web/server.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: LLM_PROVIDER
+        value: gateway
+      - key: LLM_GATEWAY_URL
+        value: https://llm-gateway.brain-store.workers.dev
+      - key: LLM_GATEWAY_TOKEN
+        sync: false
+      - key: EVOLVE_APP_DIR
+        value: ./evolving-app
+      - key: DEPLOY_PORT
+        value: 3001
+      - key: EVOLVE_INTERVAL_MINUTES
+        value: 30
+      - key: EVOLVE_MAX_CYCLES_PER_DAY
+        value: 48
