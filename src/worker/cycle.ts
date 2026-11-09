@@ -104,16 +104,29 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
 
     const strategy = await strategize(projectId, cycleId, observations);
     if (!strategy.selectedIdea) {
+      const flagNote = strategy.flaggedForReview
+        ? " [FLAGGED: high-severity issues were found but not addressed]"
+        : "";
+      const dismissedNote = strategy.dismissedFindings.length > 0
+        ? `\nDismissed findings: ${strategy.dismissedFindings.map((d) => `${d.observation}: ${d.reason}`).join("; ")}`
+        : "";
+
       await updatePhase(cycleId, "completed", {
-        selectedImprovement: "No improvement needed",
-        selectionReason: strategy.selectionReason || "System decided no change adds value",
+        selectedImprovement: `No improvement selected${flagNote}`,
+        selectionReason: strategy.noActionJustification || strategy.selectionReason || "System decided no change adds value",
         completedAt: new Date().toISOString(),
-        lessonsLearned: "Application was in good state, no changes warranted",
+        lessonsLearned: `No action taken. ${strategy.noActionJustification || "No justified reason."}${dismissedNote}`,
       });
+
+      if (strategy.flaggedForReview) {
+        await addMemory(projectId, "review_flag", `Cycle ${cycleNumber} flagged: high-severity issues found but no action taken. Dismissed: ${JSON.stringify(strategy.dismissedFindings)}`);
+      }
+
       return {
         cycleId,
         status: "completed",
-        improvement: "No change needed",
+        improvement: `No change needed${flagNote}`,
+        qualityBefore: observations.qualityScore,
         tokensUsed,
       };
     }
@@ -196,9 +209,13 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
       cycleId,
       typescriptCheck: JSON.stringify(evalResult.typescriptCheck),
       buildCheck: JSON.stringify(evalResult.buildCheck),
+      unitTests: JSON.stringify(evalResult.testCheck),
       overallResult: evalResult.overallPassed ? "passed" : "failed",
       qualityScore: evalResult.codeReview.qualityScore,
-      criticFeedback: evalResult.codeReview.feedback,
+      criticFeedback: JSON.stringify({
+        feedback: evalResult.codeReview.feedback,
+        findings: evalResult.codeReview.findings,
+      }),
       rejected: !evalResult.overallPassed,
       rejectionReason: evalResult.rejectionReason || null,
       createdAt: new Date().toISOString(),

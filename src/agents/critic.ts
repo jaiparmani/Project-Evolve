@@ -6,22 +6,40 @@ import { resolve } from "path";
 
 const log = childLogger("critic");
 
+interface CheckResult {
+  passed: boolean;
+  output: string;
+}
+
+interface CodeReview {
+  approved: boolean;
+  feedback: string;
+  qualityScore: number;
+  findings: Array<{
+    issue: string;
+    severity: string;
+    confidence: number;
+    filePath?: string;
+  }>;
+}
+
 interface EvaluationResult {
-  typescriptCheck: { passed: boolean; output: string };
-  buildCheck: { passed: boolean; output: string };
-  codeReview: { approved: boolean; feedback: string; qualityScore: number };
+  typescriptCheck: CheckResult;
+  buildCheck: CheckResult;
+  testCheck: CheckResult;
+  codeReview: CodeReview;
   overallPassed: boolean;
   rejectionReason?: string;
 }
 
-function runCommand(cmd: string, cwd: string): { success: boolean; output: string } {
+function runCommand(cmd: string, cwd: string): CheckResult {
   try {
     const output = execSync(cmd, { cwd, timeout: 60000, encoding: "utf-8", stdio: "pipe" });
-    return { success: true, output: output.slice(-2000) };
+    return { passed: true, output: output.slice(-2000) };
   } catch (e: unknown) {
     const err = e as { stdout?: string; stderr?: string; message?: string };
     return {
-      success: false,
+      passed: false,
       output: (err.stdout || err.stderr || err.message || "Command failed").slice(-2000),
     };
   }
@@ -37,7 +55,8 @@ export async function evaluate(
   const hasPackageJson = existsSync(resolve(workDir, "package.json"));
   const hasTsConfig = existsSync(resolve(workDir, "tsconfig.json"));
 
-  let tsCheck = { passed: true, output: "No TypeScript config found" };
+  // 1. TypeScript check
+  let tsCheck: CheckResult = { passed: true, output: "No TypeScript config found" };
   if (hasTsConfig) {
     if (hasPackageJson) {
       runCommand("npm install --ignore-scripts 2>&1 || true", workDir);
@@ -46,7 +65,8 @@ export async function evaluate(
     tsCheck.passed = !tsCheck.output.includes("error TS");
   }
 
-  let buildCheck = { passed: true, output: "No build script" };
+  // 2. Build check
+  let buildCheck: CheckResult = { passed: true, output: "No build script" };
   if (hasPackageJson) {
     try {
       const pkg = JSON.parse(readFileSync(resolve(workDir, "package.json"), "utf-8"));
@@ -56,11 +76,23 @@ export async function evaluate(
     } catch {}
   }
 
+  // 3. Test execution
+  let testCheck: CheckResult = { passed: true, output: "No test script defined" };
+  if (hasPackageJson) {
+    try {
+      const pkg = JSON.parse(readFileSync(resolve(workDir, "package.json"), "utf-8"));
+      if (pkg.scripts?.test && pkg.scripts.test !== "echo \"Error: no test specified\" && exit 1") {
+        testCheck = runCommand("npm test 2>&1", workDir);
+      }
+    } catch {}
+  }
+
+  // 4. Read changed files for review
   const changedContent: string[] = [];
   for (const f of changes.filesChanged.slice(0, 5)) {
     try {
       const content = readFileSync(resolve(workDir, f), "utf-8");
-      changedContent.push(`--- ${f} ---\n${content.slice(0, 1500)}`);
+      changedContent.push(`--- ${f} ---\n${content.slice(0, 2000)}`);
     } catch {}
   }
 
@@ -75,62 +107,94 @@ ${changes.log}
 CHANGED CODE:
 ${changedContent.join("\n\n").slice(0, 4000)}
 
-TypeScript check: ${tsCheck.passed ? "PASSED" : "FAILED"} - ${tsCheck.output.slice(0, 500)}
-Build check: ${buildCheck.passed ? "PASSED" : "FAILED"} - ${buildCheck.output.slice(0, 500)}
+AUTOMATED CHECKS:
+- TypeScript: ${tsCheck.passed ? "PASSED" : "FAILED"} — ${tsCheck.output.slice(0, 500)}
+- Build: ${buildCheck.passed ? "PASSED" : "FAILED"} — ${buildCheck.output.slice(0, 500)}
+- Tests: ${testCheck.passed ? "PASSED" : "FAILED"} — ${testCheck.output.slice(0, 500)}
 
-Evaluate these changes critically. Return JSON:
+Evaluate these changes. For each finding, include a confidence score (0.0-1.0).
+
+Return JSON:
 {
   "approved": true/false,
-  "feedback": "Specific feedback",
+  "feedback": "Specific, evidence-based feedback",
   "qualityScore": 0-100,
-  "issues": ["issue 1", "issue 2"],
-  "rejectionReason": "Only if rejected - specific reason"
+  "findings": [
+    {
+      "issue": "Description of the issue",
+      "severity": "low|medium|high|critical",
+      "confidence": 0.0-1.0,
+      "filePath": "path/to/file if applicable"
+    }
+  ],
+  "rejectionReason": "Only if rejected — the single most important reason"
 }
 
 Reject if:
-- Changes introduce bugs or regressions
-- Code quality is poor
-- Changes don't match the stated goal
-- Changes are meaningless or cosmetic only
-- Security vulnerabilities are introduced
+- Changes introduce bugs or regressions (cite the specific bug)
+- TypeScript or build checks failed
+- Changes don't achieve the stated goal
+- Changes are purely cosmetic with no functional value
+- Security vulnerabilities are introduced (cite the vulnerable code)
 
-Approve if the changes are reasonable and move the application forward.`;
+Approve if the changes are reasonable, pass checks, and move the application forward.`;
 
-  let codeReview = { approved: true, feedback: "Review skipped", qualityScore: 50 };
+  let codeReview: CodeReview = {
+    approved: true,
+    feedback: "Review skipped — automated checks only",
+    qualityScore: 50,
+    findings: [],
+  };
   let rejectionReason: string | undefined;
 
   try {
     const result = await chatForTask("review", [
-      { role: "system", content: "You are a strict code reviewer. Reply with ONLY valid JSON." },
+      { role: "system", content: "You are a strict but fair code reviewer. Every claim must cite specific code. Reply with ONLY valid JSON." },
       { role: "user", content: prompt },
     ], { jsonMode: true });
 
-    const reviewData = (result as { data: { approved: boolean; feedback: string; qualityScore: number; rejectionReason?: string } }).data;
+    const reviewData = (result as { data: Record<string, unknown> }).data;
     codeReview = {
-      approved: reviewData.approved,
-      feedback: reviewData.feedback,
-      qualityScore: reviewData.qualityScore,
+      approved: reviewData.approved === true,
+      feedback: String(reviewData.feedback || ""),
+      qualityScore: typeof reviewData.qualityScore === "number" ? reviewData.qualityScore : 50,
+      findings: Array.isArray(reviewData.findings) ? (reviewData.findings as CodeReview["findings"]) : [],
     };
-    rejectionReason = reviewData.rejectionReason;
+    if (reviewData.rejectionReason) {
+      rejectionReason = String(reviewData.rejectionReason);
+    }
   } catch (e) {
     log.warn("Code review LLM call failed, using automated checks only");
   }
 
-  const overallPassed = tsCheck.passed && buildCheck.passed && codeReview.approved;
+  const overallPassed = tsCheck.passed && buildCheck.passed && testCheck.passed && codeReview.approved;
 
   if (!overallPassed && !rejectionReason) {
     const reasons: string[] = [];
-    if (!tsCheck.passed) reasons.push("TypeScript errors");
+    if (!tsCheck.passed) reasons.push("TypeScript errors detected");
     if (!buildCheck.passed) reasons.push("Build failed");
-    if (!codeReview.approved) reasons.push(codeReview.feedback);
+    if (!testCheck.passed) reasons.push("Tests failed");
+    if (!codeReview.approved) reasons.push(codeReview.feedback.slice(0, 200));
     rejectionReason = reasons.join("; ");
   }
 
-  log.info({ passed: overallPassed, quality: codeReview.qualityScore }, "Evaluation complete");
+  log.info(
+    {
+      passed: overallPassed,
+      quality: codeReview.qualityScore,
+      tsCheck: tsCheck.passed,
+      buildCheck: buildCheck.passed,
+      testCheck: testCheck.passed,
+      reviewApproved: codeReview.approved,
+      findings: codeReview.findings.length,
+    },
+    "Evaluation complete"
+  );
 
   return {
     typescriptCheck: tsCheck,
     buildCheck,
+    testCheck,
     codeReview,
     overallPassed,
     rejectionReason,
