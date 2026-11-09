@@ -278,12 +278,16 @@ Return JSON:
 Set a dimension to null if you cannot measure it. Do not invent scores — only score what you can verify from the code.
 Focus on meaningful, evidence-backed improvements. Prefer fewer high-confidence findings over many speculative ones.`;
 
-  const result = await chatForTask("observe", [
-    { role: "system", content: "You are a senior software engineer performing an evidence-based application review. Every finding must cite specific code. Reply with ONLY valid JSON." },
-    { role: "user", content: prompt },
-  ], { jsonMode: true });
-
-  const raw = (result as { data: Record<string, unknown> }).data;
+  let raw: Record<string, unknown> = {};
+  try {
+    const result = await chatForTask("observe", [
+      { role: "system", content: "You are a senior software engineer performing an evidence-based application review. Every finding must cite specific code. Reply with ONLY valid JSON." },
+      { role: "user", content: prompt },
+    ], { jsonMode: true });
+    raw = (result as { data: Record<string, unknown> }).data;
+  } catch (llmErr) {
+    log.warn({ error: (llmErr as Error).message }, "LLM call failed — falling back to baseline observations");
+  }
 
   const defaultDimensions: QualityDimensions = {
     functionality: null,

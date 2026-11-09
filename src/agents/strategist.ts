@@ -147,12 +147,37 @@ Return JSON:
   "noActionJustification": "Only if selectedIdea is null — detailed evidence that no change improves the app"
 }`;
 
-  const result = await chatForTask("strategize", [
-    { role: "system", content: "You are a thoughtful product strategist. Every decision must be justified. Reply with ONLY valid JSON." },
-    { role: "user", content: prompt },
-  ], { jsonMode: true });
-
-  const raw = (result as { data: Record<string, unknown> }).data;
+  let raw: Record<string, unknown> = {};
+  try {
+    const result = await chatForTask("strategize", [
+      { role: "system", content: "You are a thoughtful product strategist. Every decision must be justified. Reply with ONLY valid JSON." },
+      { role: "user", content: prompt },
+    ], { jsonMode: true });
+    raw = (result as { data: Record<string, unknown> }).data;
+  } catch (llmErr) {
+    log.warn({ error: (llmErr as Error).message }, "LLM call failed — selecting highest-severity observation as default strategy");
+    const highObs = observations.observations.find((o) => o.severity === "high" || o.severity === "critical");
+    if (highObs) {
+      const fallbackIdea: Idea = {
+        title: `Fix: ${highObs.description.slice(0, 60)}`,
+        description: highObs.details || highObs.description,
+        category: highObs.category as Idea["category"],
+        impact: 8,
+        confidence: highObs.confidence ?? 7,
+        effort: 5,
+        strategicValue: 8,
+        reason: `Auto-selected: highest severity verified finding`,
+        addressesObservation: highObs.description,
+      };
+      raw = {
+        ideas: [fallbackIdea],
+        selectedIdea: fallbackIdea,
+        selectionReason: "LLM unavailable — auto-selected highest severity finding",
+        dismissedFindings: [],
+        flaggedForReview: false,
+      };
+    }
+  }
 
   const data: StrategyResult = {
     ideas: Array.isArray(raw.ideas) ? raw.ideas as Idea[] : [],
