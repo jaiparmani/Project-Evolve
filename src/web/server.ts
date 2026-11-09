@@ -263,9 +263,14 @@ function getDashboardHtml(): string {
       return obj;
     }
 
-    async function fetchApi(path) {
-      const res = await fetch('/api' + path);
-      return snakeKeys(await res.json());
+    async function fetchApi(path, fallback = null) {
+      try {
+        const res = await fetch('/api' + path);
+        if (!res.ok) return fallback;
+        const text = await res.text();
+        if (!text) return fallback;
+        return snakeKeys(JSON.parse(text));
+      } catch { return fallback; }
     }
 
     function tryParseJson(str) {
@@ -322,13 +327,13 @@ function getDashboardHtml(): string {
     async function loadData() {
       try {
         const [status, cycles, ideas, usage, configs, roadmap, loop] = await Promise.all([
-          fetchApi('/status'),
-          fetchApi('/cycles?limit=20'),
-          fetchApi('/ideas'),
-          fetchApi('/usage'),
-          fetchApi('/config'),
-          fetchApi('/roadmap').catch(() => null),
-          fetchApi('/loop/status').catch(() => null),
+          fetchApi('/status', {}),
+          fetchApi('/cycles?limit=20', { cycles: [], total: 0 }),
+          fetchApi('/ideas', []),
+          fetchApi('/usage', { usage: [], totals: {} }),
+          fetchApi('/config', []),
+          fetchApi('/roadmap'),
+          fetchApi('/loop/status'),
         ]);
         state = { status, cycles: cycles.cycles, ideas, usage, configs, roadmap, loop };
         render();
