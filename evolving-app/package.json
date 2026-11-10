@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "build": "echo 'Static app, no build needed'"
+    "build": "echo 'Static app, no build needed'",
+    "test": "node test.js"
   },
   "dependencies": {
     "express": "^5.1.0"
