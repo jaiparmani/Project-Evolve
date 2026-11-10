@@ -290,6 +290,16 @@ apiRouter.get("/snapshots/:cycleId", async (req, res) => {
   res.json(files);
 });
 
+apiRouter.get("/snapshots/:cycleId/preview", async (req, res) => {
+  const file = await db
+    .select()
+    .from(schema.versionSnapshots)
+    .where(sql`${schema.versionSnapshots.cycleId} = ${req.params.cycleId} AND ${schema.versionSnapshots.filePath} = 'index.html'`)
+    .limit(1);
+  if (!file.length) return res.status(404).type("html").send("<html><body style='background:#0a0a0a;color:#888;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui'><p>No preview available for this version.</p></body></html>");
+  res.type("html").send(file[0].content);
+});
+
 apiRouter.get("/snapshots/:cycleId/:filePath", async (req, res) => {
   const filePath = req.params.filePath;
   const file = await db

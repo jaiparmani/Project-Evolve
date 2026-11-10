@@ -166,6 +166,36 @@ function getDashboardHtml(): string {
     .badge.red { background: rgba(239,95,123,0.1); color: var(--rose); }
     .badge.blue { background: rgba(96,165,250,0.1); color: var(--blue); }
 
+    .app-preview { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); }
+    .app-preview-bar {
+      display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+      background: var(--surface-2); border-bottom: 1px solid var(--border);
+    }
+    .app-preview-bar .dots { display: flex; gap: 5px; }
+    .app-preview-bar .dots span { width: 8px; height: 8px; border-radius: 50%; }
+    .app-preview-bar .dots .r { background: #ef5f7b; }
+    .app-preview-bar .dots .y { background: #e9a830; }
+    .app-preview-bar .dots .g { background: #4ade80; }
+    .app-preview-bar .url-bar {
+      flex: 1; padding: 4px 12px; border-radius: 6px; background: var(--surface-3);
+      font: 11px/1.4 var(--mono); color: var(--text-2); border: 1px solid var(--border);
+    }
+    .app-preview-bar a {
+      font: 500 11px/1 var(--sans); color: var(--accent); white-space: nowrap;
+    }
+    .app-preview iframe { width: 100%; height: 500px; border: none; background: #fff; }
+
+    .version-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+    .version-pill {
+      padding: 5px 14px; border-radius: 20px; font: 500 11px/1.4 var(--sans);
+      background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .version-pill:hover { border-color: var(--accent); color: var(--text); }
+    .version-pill.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+    .version-pill .pill-label { font-weight: 600; }
+    .version-pill .pill-meta { font-size: 9px; color: var(--text-3); margin-left: 6px; }
+
     .version-viewer { display: grid; grid-template-columns: 240px 1fr; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; min-height: 500px; }
     .version-sidebar { background: var(--surface-2); border-right: 1px solid var(--border); overflow-y: auto; max-height: 70vh; }
     .version-sidebar .file-item {
@@ -178,27 +208,6 @@ function getDashboardHtml(): string {
     .version-code pre { margin: 0; padding: 16px; font-size: 11px; line-height: 1.6; white-space: pre; }
     .version-code .line-num { display: inline-block; width: 40px; color: var(--text-3); text-align: right; margin-right: 12px; user-select: none; }
     .version-header { padding: 10px 16px; border-bottom: 1px solid var(--border); font: 500 11px/1.4 var(--sans); color: var(--text-2); background: var(--surface-2); }
-
-    .timeline-versions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-    .version-card {
-      padding: 12px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border);
-      cursor: pointer; min-width: 140px; transition: border-color 0.2s;
-    }
-    .version-card:hover { border-color: var(--accent); }
-    .version-card.active { border-color: var(--accent); background: var(--accent-dim); }
-    .version-card .v-num { font: 600 14px/1.4 var(--sans); color: var(--text); }
-    .version-card .v-meta { font-size: 10px; color: var(--text-2); margin-top: 2px; }
-    .version-card .v-cycle { font-size: 10px; color: var(--text-3); }
-
-    .version-iframe-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 16px; }
-    .version-iframe-wrap iframe { width: 100%; height: 500px; border: none; background: #fff; }
-    .version-tabs { display: flex; gap: 2px; margin-top: 16px; margin-bottom: 0; }
-    .version-tabs button {
-      padding: 6px 14px; border-radius: 6px 6px 0 0; font: 500 11px/1.4 var(--sans);
-      color: var(--text-2); background: none; border: none; cursor: pointer;
-      border-bottom: 2px solid transparent;
-    }
-    .version-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
 
     #loading { display: flex; align-items: center; justify-content: center; height: 60vh; }
     #loading .spinner { width: 24px; height: 24px; border: 2px solid var(--border-2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -355,9 +364,11 @@ function getDashboardHtml(): string {
       }
     }
 
-    function render() {
+    async function render() {
+      await loadTimeline();
       renderOverview();
-      if (currentTab === 'timeline' && !activeVersionCycleId) renderTimeline();
+      renderVersionPills('overviewVersionPills', 'switchAppPreview');
+      if (currentTab === 'timeline') renderTimeline();
       renderHistory();
       renderIdeas();
       renderUsage();
@@ -388,14 +399,22 @@ function getDashboardHtml(): string {
             <div class="stat-label">\${w.cycles_ran_today || s.today_cycles || 0} cycles today · \${state.loop?.active ? 'Continuous' : 'Manual'}</div>
           </div>
           <div class="card">
-            <div class="card-header"><span class="dot \${d.running ? 'green' : 'red'}"></span> CHILD APP</div>
-            <div class="stat">\${d.running ? 'Live' : 'Available'}</div>
-            <div class="stat-label"><a href="/app" target="_blank" style="color:var(--accent)">Open Child App →</a></div>
-          </div>
-          <div class="card">
             <div class="card-header"><span class="dot blue"></span> EVOLUTION STATS</div>
             <div class="stat">\${p.total_cycles || 0}</div>
             <div class="stat-label">\${p.successful_cycles || 0} successful · \${p.failed_cycles || 0} failed</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><span class="dot green"></span> CHILD APP PREVIEW</div>
+          <div class="version-pills" id="overviewVersionPills"></div>
+          <div class="app-preview">
+            <div class="app-preview-bar">
+              <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+              <div class="url-bar" id="previewUrlBar">/app/</div>
+              <a href="/app" target="_blank">Open in new tab</a>
+            </div>
+            <iframe id="appPreviewFrame" src="/app/" sandbox="allow-scripts allow-same-origin"></iframe>
           </div>
         </div>
 
@@ -566,142 +585,173 @@ function getDashboardHtml(): string {
     let activeVersionFiles = [];
     let activeFileIndex = 0;
     let versionViewMode = 'code';
+    let currentPreviewVersion = 'live';
 
     async function loadTimeline() {
       try {
-        timelineSnapshots = await fetchApi('/snapshots');
+        timelineSnapshots = await fetchApi('/snapshots') || [];
       } catch { timelineSnapshots = []; }
     }
 
-    async function renderTimeline() {
-      await loadTimeline();
-
+    function buildVersionList() {
       const cycleMap = {};
       state.cycles.forEach(c => { cycleMap[c.id] = c; });
-
-      if (!timelineSnapshots.length && !state.cycles.length) {
-        document.getElementById('tab-timeline').innerHTML = \`
-          <div class="card"><div class="empty"><p>No versions yet. Trigger an evolution cycle to create the first version.</p></div></div>\`;
-        return;
-      }
-
-      const allVersions = [];
-      // Add current app state as "live"
-      allVersions.push({ version: 'current', cycleId: null, label: 'Live', created_at: new Date().toISOString() });
-      // Add snapshot versions
+      const versions = [{ id: 'live', label: 'Live', cycleId: null }];
       const seen = new Set();
       for (const s of timelineSnapshots) {
         const cid = s.cycle_id || s.cycleId;
         if (!seen.has(cid)) {
           seen.add(cid);
           const cycle = cycleMap[cid];
-          allVersions.push({
-            version: s.version,
-            cycleId: cid,
+          versions.push({
+            id: cid,
             label: 'v' + s.version,
-            created_at: s.created_at || s.createdAt,
-            cycle
+            cycleId: cid,
+            cycle,
+            date: s.created_at || s.createdAt
           });
         }
       }
+      return versions;
+    }
+
+    function renderVersionPills(containerId, onSelect) {
+      const versions = buildVersionList();
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = versions.map(v => \`
+        <button class="version-pill \${currentPreviewVersion === v.id ? 'active' : ''}" onclick="\${onSelect}('\${v.id}', '\${v.cycleId}')">
+          <span class="pill-label">\${v.label}</span>
+          \${v.cycle ? '<span class="pill-meta">#' + v.cycle.cycle_number + '</span>' : ''}
+        </button>
+      \`).join('');
+    }
+
+    function switchAppPreview(versionId, cycleId) {
+      currentPreviewVersion = versionId;
+      const frame = document.getElementById('appPreviewFrame');
+      const urlBar = document.getElementById('previewUrlBar');
+      if (!frame) return;
+
+      if (versionId === 'live' || cycleId === 'null') {
+        frame.removeAttribute('srcdoc');
+        frame.src = '/app/';
+        if (urlBar) urlBar.textContent = '/app/ (live)';
+      } else {
+        frame.src = '/api/snapshots/' + cycleId + '/preview';
+        if (urlBar) urlBar.textContent = '/api/snapshots/' + cycleId + '/preview';
+      }
+
+      document.querySelectorAll('#overviewVersionPills .version-pill').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('#overviewVersionPills .version-pill').forEach(p => {
+        if (p.textContent.includes(buildVersionList().find(v => v.id === versionId)?.label || '')) p.classList.add('active');
+      });
+      renderVersionPills('overviewVersionPills', 'switchAppPreview');
+    }
+
+    async function renderTimeline() {
+      await loadTimeline();
+      const versions = buildVersionList();
 
       document.getElementById('tab-timeline').innerHTML = \`
         <div class="card" style="margin-bottom:16px">
-          <div class="card-header">APP VERSIONS TIMELINE</div>
-          <p style="font-size:11px;color:var(--text-2);margin-bottom:12px">Click a version to browse its files and preview the app at that point in time.</p>
-          <div class="timeline-versions">
-            \${allVersions.map(v => \`
-              <div class="version-card \${activeVersionCycleId === v.cycleId ? 'active' : ''}" data-cycle="\${v.cycleId}" onclick="viewVersion('\${v.cycleId}', '\${v.version}')">
-                <div class="v-num">\${v.label}</div>
-                <div class="v-meta">\${new Date(v.created_at).toLocaleDateString()}</div>
-                \${v.cycle ? '<div class="v-cycle">#' + v.cycle.cycle_number + ': ' + (v.cycle.selected_improvement || '').slice(0,40) + '</div>' : ''}
-              </div>
-            \`).join('')}
+          <div class="card-header">APP VERSION TIMELINE</div>
+          <p style="font-size:11px;color:var(--text-2);margin-bottom:12px">Click a version to preview it. Each version is a snapshot from an evolution cycle.</p>
+          <div class="version-pills" id="timelineVersionPills"></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="app-preview">
+            <div class="app-preview-bar">
+              <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+              <div class="url-bar" id="timelineUrlBar">/app/ (live)</div>
+              <a href="/app" target="_blank">Open in new tab</a>
+            </div>
+            <iframe id="timelinePreviewFrame" src="/app/" sandbox="allow-scripts allow-same-origin"></iframe>
           </div>
         </div>
-        <div id="version-content"></div>
+        <div id="version-files-content"></div>
       \`;
+
+      renderVersionPills('timelineVersionPills', 'switchTimelinePreview');
     }
 
-    async function viewVersion(cycleId, version) {
-      activeVersionCycleId = cycleId;
-      activeFileIndex = 0;
-      versionViewMode = 'code';
+    function switchTimelinePreview(versionId, cycleId) {
+      currentPreviewVersion = versionId;
+      const frame = document.getElementById('timelinePreviewFrame');
+      const urlBar = document.getElementById('timelineUrlBar');
 
-      if (cycleId === 'null' || !cycleId) {
-        // Show live app files
-        try {
-          const statusData = await fetchApi('/status');
-          document.getElementById('version-content').innerHTML = \`
-            <div class="card">
-              <div class="card-header"><span class="dot green"></span> LIVE VERSION</div>
-              <p style="color:var(--text-2);font-size:12px">This is the current live version of the evolving app. It reflects the latest state on disk.</p>
-              \${statusData.deploy?.url ? '<div style="margin-top:12px"><a href="' + statusData.deploy.url + '" target="_blank" style="font:500 12px/1 var(--sans)">Open Live App →</a></div>' : ''}
-            </div>
-          \`;
-        } catch (e) {
-          document.getElementById('version-content').innerHTML = '<div class="card"><p style="color:var(--rose)">Error loading live state</p></div>';
+      if (versionId === 'live' || cycleId === 'null') {
+        frame.removeAttribute('srcdoc');
+        frame.src = '/app/';
+        if (urlBar) urlBar.textContent = '/app/ (live)';
+        document.getElementById('version-files-content').innerHTML = '';
+      } else {
+        frame.src = '/api/snapshots/' + cycleId + '/preview';
+        if (urlBar) urlBar.textContent = 'Version ' + (buildVersionList().find(v => v.id === versionId)?.label || versionId);
+        loadVersionFiles(cycleId);
+      }
+
+      renderVersionPills('timelineVersionPills', 'switchTimelinePreview');
+      renderVersionPills('overviewVersionPills', 'switchAppPreview');
+
+      const overviewFrame = document.getElementById('appPreviewFrame');
+      const overviewUrlBar = document.getElementById('previewUrlBar');
+      if (overviewFrame) {
+        if (versionId === 'live' || cycleId === 'null') {
+          overviewFrame.removeAttribute('srcdoc');
+          overviewFrame.src = '/app/';
+          if (overviewUrlBar) overviewUrlBar.textContent = '/app/ (live)';
+        } else {
+          overviewFrame.src = '/api/snapshots/' + cycleId + '/preview';
+          if (overviewUrlBar) overviewUrlBar.textContent = 'Version ' + (buildVersionList().find(v => v.id === versionId)?.label || versionId);
         }
-        return;
-      }
-
-      try {
-        activeVersionFiles = await fetchApi('/snapshots/' + cycleId);
-        // Update active card styling
-        document.querySelectorAll('.version-card').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.version-card').forEach(c => {
-          if (c.getAttribute('data-cycle') === cycleId) c.classList.add('active');
-        });
-        renderVersionViewer(version);
-      } catch (e) {
-        document.getElementById('version-content').innerHTML = '<div class="card"><p style="color:var(--rose)">No snapshot available for this version</p></div>';
       }
     }
 
-    function renderVersionViewer(version) {
+    async function loadVersionFiles(cycleId) {
+      try {
+        activeVersionFiles = await fetchApi('/snapshots/' + cycleId) || [];
+        activeFileIndex = 0;
+        versionViewMode = 'code';
+        if (activeVersionFiles.length) renderVersionViewer();
+        else document.getElementById('version-files-content').innerHTML = '';
+      } catch {
+        document.getElementById('version-files-content').innerHTML = '';
+      }
+    }
+
+    function renderVersionViewer() {
       if (!activeVersionFiles.length) {
-        document.getElementById('version-content').innerHTML = '<div class="card"><div class="empty"><p>No files in this snapshot.</p></div></div>';
+        document.getElementById('version-files-content').innerHTML = '';
         return;
       }
 
       const currentFile = activeVersionFiles[activeFileIndex];
-      const isHtml = (currentFile.file_path||currentFile.filePath||'').endsWith('.html') || (currentFile.file_path||currentFile.filePath||'').endsWith('.htm');
       const fp = currentFile.file_path || currentFile.filePath || '';
-      const ext = fp.split('.').pop() || '';
-      const langMap = { js: 'javascript', ts: 'typescript', json: 'json', css: 'css', html: 'html', md: 'markdown' };
 
       const lines = currentFile.content.split('\\n');
       const numberedLines = lines.map((line, i) =>
         '<span class="line-num">' + (i + 1) + '</span>' + escapeHtml(line)
       ).join('\\n');
 
-      document.getElementById('version-content').innerHTML = \`
-        <div class="version-tabs">
-          <button class="\${versionViewMode === 'code' ? 'active' : ''}" onclick="setViewMode('code')">Code</button>
-          \${isHtml ? '<button class="' + (versionViewMode === 'preview' ? 'active' : '') + '" onclick="setViewMode(\\'preview\\')">Preview</button>' : ''}
-        </div>
-        <div class="version-viewer">
-          <div class="version-sidebar">
-            \${activeVersionFiles.map((f, i) => \`
-              <div class="file-item \${i === activeFileIndex ? 'active' : ''}" onclick="selectFile(\${i})">
-                \${getFileIcon(f.file_path||f.filePath)} \${f.file_path||f.filePath}
-              </div>
-            \`).join('')}
-          </div>
-          <div class="version-code">
-            <div class="version-header">\${fp} · v\${version} · \${lines.length} lines</div>
-            \${versionViewMode === 'preview' && isHtml
-              ? '<div class="version-iframe-wrap"><iframe id="previewFrame" sandbox="allow-scripts"></iframe></div>'
-              : '<pre>' + numberedLines + '</pre>'
-            }
+      document.getElementById('version-files-content').innerHTML = \`
+        <div class="card">
+          <div class="card-header">SOURCE FILES</div>
+          <div class="version-viewer">
+            <div class="version-sidebar">
+              \${activeVersionFiles.map((f, i) => \`
+                <div class="file-item \${i === activeFileIndex ? 'active' : ''}" onclick="selectFile(\${i})">
+                  \${getFileIcon(f.file_path||f.filePath)} \${f.file_path||f.filePath}
+                </div>
+              \`).join('')}
+            </div>
+            <div class="version-code">
+              <div class="version-header">\${fp} · \${lines.length} lines</div>
+              <pre>\${numberedLines}</pre>
+            </div>
           </div>
         </div>
       \`;
-
-      if (versionViewMode === 'preview' && isHtml) {
-        const frame = document.getElementById('previewFrame');
-        if (frame) frame.srcdoc = currentFile.content;
-      }
     }
 
     function escapeHtml(str) {
@@ -771,7 +821,7 @@ function getDashboardHtml(): string {
           document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
         });
         currentTab = tab;
-        if (tab === 'timeline' && !activeVersionCycleId) renderTimeline();
+        if (tab === 'timeline') renderTimeline();
       });
     });
 
