@@ -150,5 +150,8 @@
     <p id="quote-author" style="color:#666;font-size:12px;margin-top:8px"></p>
   </div>
   <script>(function(){const qs=[{t:"The best way to predict the future is to invent it.",a:"Alan Kay"},{t:"Any sufficiently advanced technology is indistinguishable from magic.",a:"Arthur C. Clarke"},{t:"Software is eating the world.",a:"Marc Andreessen"},{t:"The only way to do great work is to love what you do.",a:"Steve Jobs"},{t:"Programs must be written for people to read, and only incidentally for machines to execute.",a:"Harold Abelson"},{t:"First, solve the problem. Then, write the code.",a:"John Johnson"},{t:"Code is like humor. When you have to explain it, it's bad.",a:"Cory House"},{t:"Simplicity is the soul of efficiency.",a:"Austin Freeman"},{t:"Talk is cheap. Show me the code.",a:"Linus Torvalds"},{t:"The computer was born to solve problems that did not exist before.",a:"Bill Gates"}];const q=qs[Math.floor(Math.random()*qs.length)];document.getElementById("quote-text").textContent='"'+q.t+'"';document.getElementById("quote-author").textContent="— "+q.a})();</script>
+
+  <div id="reading-progress" style="position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,#a78bfa,#f472b6);z-index:99998;width:0;transition:width 0.1s"></div>
+  <script>window.addEventListener("scroll",()=>{const el=document.getElementById("reading-progress");if(!el)return;const h=document.documentElement.scrollHeight-window.innerHeight;el.style.width=h>0?(window.scrollY/h*100)+"%":"100%"});</script>
 </body>
 </html>
