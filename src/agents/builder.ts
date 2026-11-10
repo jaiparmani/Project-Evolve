@@ -98,6 +98,7 @@ CRITICAL RULES:
 - Do NOT create test files unless the plan specifically asks for tests.`;
 
   let changes: FileChange[] = [];
+  let source = "llm";
   try {
     const result = await chatForTask("implement", [
       { role: "system", content: "You are an expert developer. Reply with ONLY valid JSON containing file changes." },
@@ -105,15 +106,24 @@ CRITICAL RULES:
     ], { jsonMode: true, maxTokens: 8192 });
 
     const data = (result as unknown as { data: { changes: FileChange[]; summary: string } }).data;
-    changes = data.changes || [];
+    changes = (data.changes || []).filter((c: FileChange) => c.path && (c.action === "delete" || c.content));
+    if (changes.length > 0) {
+      log.info({ changes: changes.length }, "LLM produced changes");
+    } else {
+      log.warn("LLM returned empty/invalid changes — trying deterministic fallback");
+      changes = getDeterministicChanges(workDir, implementationPlan.title);
+      source = "deterministic";
+    }
   } catch (err) {
     log.warn({ error: (err as Error).message }, "LLM build failed — trying deterministic fallback");
     changes = getDeterministicChanges(workDir, implementationPlan.title);
-    if (changes.length === 0) {
-      return { filesChanged: [], linesAdded: 0, linesRemoved: 0, log: `Build skipped: LLM unavailable and no deterministic fallback (${(err as Error).message})` };
-    }
-    log.info({ changes: changes.length }, "Using deterministic fallback changes");
+    source = "deterministic";
   }
+
+  if (changes.length === 0) {
+    return { filesChanged: [], linesAdded: 0, linesRemoved: 0, log: "Build produced no changes (LLM and deterministic fallback both empty)" };
+  }
+  log.info({ changes: changes.length, source }, "Applying changes");
   let linesAdded = 0;
   let linesRemoved = 0;
   const filesChanged: string[] = [];
