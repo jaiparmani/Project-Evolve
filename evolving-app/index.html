@@ -130,5 +130,8 @@
 
   <canvas id="particle-canvas" style="position:fixed;inset:0;z-index:-1;pointer-events:none"></canvas>
   <script>(function(){const c=document.getElementById("particle-canvas"),x=c.getContext("2d");let w,h,ps=[];function resize(){w=c.width=innerWidth;h=c.height=innerHeight}resize();addEventListener("resize",resize);for(let i=0;i<50;i++)ps.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+0.5,dx:(Math.random()-0.5)*0.3,dy:(Math.random()-0.5)*0.3,o:Math.random()*0.3+0.1});function draw(){x.clearRect(0,0,w,h);ps.forEach(p=>{p.x+=p.dx;p.y+=p.dy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle="rgba(96,165,250,"+p.o+")";x.fill()});requestAnimationFrame(draw)}draw()})();</script>
+
+  <div id="typing-effect" style="margin-top:24px;font-family:ui-monospace,monospace;font-size:14px;color:#5ee0c8;min-height:20px;text-align:center"></div>
+  <script>(function(){const msgs=["Evolving autonomously...","Building the future, one cycle at a time...","AI-powered self-improvement in action...","No human commits needed...","Watch me grow..."];let mi=0,ci=0,del=false;const el=document.getElementById("typing-effect");function type(){if(!el)return;if(!del){el.textContent=msgs[mi].slice(0,ci+1);ci++;if(ci>=msgs[mi].length){del=true;setTimeout(type,2000);return}}else{el.textContent=msgs[mi].slice(0,ci-1);ci--;if(ci<=0){del=false;mi=(mi+1)%msgs.length;setTimeout(type,500);return}}setTimeout(type,del?30:60)}type()})();</script>
 </body>
 </html>
