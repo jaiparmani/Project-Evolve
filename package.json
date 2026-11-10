@@ -1,44 +1,15 @@
 {
-  "name": "project-evolve",
-  "version": "0.1.0",
+  "name": "web-app-shell",
+  "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "description": "A modern, responsive web application shell built with semantic HTML and Tailwind CSS.",
+  "license": "MIT",
   "scripts": {
-    "dev": "tsx watch src/web/server.ts",
-    "build": "tsc && node dist/web/server.js",
-    "worker": "tsx src/worker/index.ts",
-    "worker:dev": "tsx watch src/worker/index.ts",
-    "evolve": "tsx src/worker/evolve-now.ts",
-    "migrate": "tsx src/db/migrate.ts",
-    "seed": "tsx src/db/seed.ts",
-    "start": "concurrently \"npm run dev\" \"npm run worker\"",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "build": "node -e \"const fs=require('fs');const p='index.html';if(!fs.existsSync(p)){console.error('Build failed: index.html missing');process.exit(1);}const h=fs.readFileSync(p,'utf8');if(!h.trim()){console.error('Build failed: index.html empty');process.exit(1);}console.log('Build succeeded: index.html verified');\"",
+    "test": "node -e \"const fs=require('fs');const p='index.html';if(!fs.existsSync(p)){console.error('Test failed: index.html missing');process.exit(1);}const h=fs.readFileSync(p,'utf8').toLowerCase();const req=['<!doctype html>','<html','<head>','<body','<title>','</html>','viewport','width=device-width'];const miss=req.filter(t=>!h.includes(t));if(miss.length){console.error('Test failed: missing '+miss.join(', '));process.exit(1);}console.log('Test passed: index.html structure valid');\"",
+    "start": "node -e \"console.log('Static site: open index.html in a browser or serve the directory.')\""
   },
-  "dependencies": {
-    "better-sqlite3": "^11.7.0",
-    "cors": "^2.8.5",
-    "cron": "^3.5.0",
-    "drizzle-orm": "^0.38.0",
-    "express": "^5.1.0",
-    "nanoid": "^5.1.5",
-    "pino": "^9.6.0",
-    "pino-pretty": "^13.0.0",
-    "simple-git": "^3.27.0",
-    "zod": "^3.24.0"
-  },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.10.0",
-    "concurrently": "^9.1.0",
-    "drizzle-kit": "^0.30.0",
-    "eslint": "^9.15.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+  "engines": {
+    "node": ">=18"
   }
 }
