@@ -15,6 +15,14 @@ app.get("/", (req, res) => {
   res.type("html").send(readFileSync(resolve(__dirname, "index.html"), "utf-8"));
 });
 
+let visitorCount = 0;
+app.get("/api/visitors", (req, res) => {
+  visitorCount++;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  res.json({ count: visitorCount, greeting });
+});
+
 app.use(express.static(__dirname));
 
 // Global error handlers
