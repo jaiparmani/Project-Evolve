@@ -147,7 +147,7 @@ export async function ensureProjectAndRunCycle() {
   } finally {
     setRunning(false);
     setCycleId(null);
-    try { backupDb(); } catch (e) { log.warn({ error: (e as Error).message }, "DB backup failed"); }
+    try { await backupDb(); } catch (e) { log.warn({ error: (e as Error).message }, "DB backup failed"); }
   }
 }
 

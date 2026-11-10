@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { childLogger } from "../core/logger.js";
 
@@ -9,41 +9,28 @@ const DB_PATH = "data/evolve.db";
 
 function git(cmd: string): string {
   try {
-    return execSync(`git ${cmd}`, { cwd: ROOT, timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    return execSync(`git ${cmd}`, { cwd: ROOT, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
   } catch (e: any) {
     const stderr = e.stderr?.toString?.()?.trim?.() || "";
-    const stdout = e.stdout?.toString?.()?.trim?.() || "";
-    // git push/fetch write progress to stderr even on success — check exit code
-    if (e.status === 0) return stdout || stderr;
-    log.warn({ cmd, error: (stderr || e.message)?.slice(0, 300) }, "git command failed");
+    if (e.status === 0) return stderr;
+    log.warn({ cmd, error: (stderr || e.message)?.slice(0, 200) }, "git command failed");
     return "";
   }
-}
-
-function configureAuth(): boolean {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    log.warn("GITHUB_TOKEN not set — DB backup to git disabled");
-    return false;
-  }
-
-  const remoteUrl = git("remote get-url origin");
-  if (!remoteUrl) return false;
-
-  if (remoteUrl.startsWith("https://") && !remoteUrl.includes("@")) {
-    const authedUrl = remoteUrl.replace("https://", `https://${token}@`);
-    git(`remote set-url origin ${authedUrl}`);
-    log.info("Configured git remote with token auth");
-  }
-
-  return true;
 }
 
 export function restoreDb(): void {
   log.info("Checking for persisted DB in git...");
   git("config user.email \"evolve-bot@project-evolve.app\"");
   git("config user.name \"Project Evolve Bot\"");
-  configureAuth();
+
+  const token = process.env.GITHUB_TOKEN;
+  if (token) {
+    const remoteUrl = git("remote get-url origin");
+    if (remoteUrl?.startsWith("https://") && !remoteUrl.includes("@")) {
+      git(`remote set-url origin ${remoteUrl.replace("https://", `https://${token}@`)}`);
+    }
+  }
+
   git("fetch origin main --depth=1");
 
   if (!existsSync(resolve(ROOT, DB_PATH))) {
@@ -58,8 +45,17 @@ export function restoreDb(): void {
   }
 }
 
-export function backupDb(): void {
-  if (!existsSync(resolve(ROOT, DB_PATH))) {
+function getRepoInfo(): { owner: string; repo: string } | null {
+  const url = git("remote get-url origin");
+  // Match https://github.com/owner/repo.git or https://token@github.com/owner/repo.git
+  const match = url.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
+}
+
+export async function backupDb(): Promise<void> {
+  const dbFile = resolve(ROOT, DB_PATH);
+  if (!existsSync(dbFile)) {
     log.warn("No DB file to back up");
     return;
   }
@@ -70,26 +66,65 @@ export function backupDb(): void {
     return;
   }
 
-  const status = git(`status --porcelain ${DB_PATH}`);
-  if (!status) {
-    log.debug("DB unchanged — skipping backup");
+  const repoInfo = getRepoInfo();
+  if (!repoInfo) {
+    log.warn("Could not parse GitHub repo from remote URL");
     return;
   }
 
-  // Render deploys in detached HEAD — create a temp branch for the commit
-  git("checkout -B __db-backup");
-  git(`add -f ${DB_PATH}`);
-  const commitResult = git(`commit -m "chore: persist DB after evolution cycle" --no-verify`);
-  if (!commitResult) {
-    log.warn("Commit failed or nothing to commit");
-    return;
-  }
+  const { owner, repo } = repoInfo;
+  const content = readFileSync(dbFile).toString("base64");
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${DB_PATH}`;
 
-  // Fetch enough history so push doesn't get rejected
-  git("fetch origin main --depth=10");
-  // Rebase our commit on top of remote main to avoid conflicts
-  git("rebase origin/main");
-  // Push our temp branch to remote main
-  const pushResult = git("push origin __db-backup:main");
-  log.info({ result: pushResult?.slice(0, 200) }, "DB backup push attempted");
+  try {
+    // Get current file SHA (needed for updates)
+    let sha: string | undefined;
+    try {
+      const getRes = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
+      if (getRes.ok) {
+        const data = await getRes.json() as { sha: string };
+        sha = data.sha;
+      }
+    } catch {
+      // File might not exist yet — that's fine
+    }
+
+    const body: Record<string, string> = {
+      message: "chore: persist DB after evolution cycle",
+      content,
+      branch: "main",
+      committer: JSON.stringify({ name: "Project Evolve Bot", email: "evolve-bot@project-evolve.app" }),
+    };
+    if (sha) body.sha = sha;
+
+    const putRes = await fetch(apiUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "chore: persist DB after evolution cycle",
+        content,
+        branch: "main",
+        ...(sha ? { sha } : {}),
+        committer: { name: "Project Evolve Bot", email: "evolve-bot@project-evolve.app" },
+      }),
+    });
+
+    if (putRes.ok) {
+      log.info("DB backed up to GitHub via API");
+    } else {
+      const errText = await putRes.text();
+      log.warn({ status: putRes.status, error: errText.slice(0, 300) }, "GitHub API push failed");
+    }
+  } catch (e) {
+    log.warn({ error: (e as Error).message }, "DB backup failed");
+  }
 }
