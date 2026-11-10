@@ -161,5 +161,8 @@
 
   <canvas id="confetti-canvas" style="position:fixed;inset:0;z-index:99997;pointer-events:none"></canvas>
   <script>function fireConfetti(){const c=document.getElementById("confetti-canvas"),x=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;const ps=[];const colors=["#60a5fa","#a78bfa","#5ee0c8","#f472b6","#fbbf24"];for(let i=0;i<80;i++)ps.push({x:innerWidth/2,y:innerHeight/2,dx:(Math.random()-0.5)*12,dy:Math.random()*-12-4,r:Math.random()*4+2,c:colors[Math.floor(Math.random()*colors.length)],g:0.15,life:120});let f=0;function draw(){x.clearRect(0,0,c.width,c.height);let alive=0;ps.forEach(p=>{if(p.life<=0)return;alive++;p.x+=p.dx;p.dy+=p.g;p.y+=p.dy;p.life--;x.globalAlpha=p.life/120;x.fillStyle=p.c;x.fillRect(p.x,p.y,p.r,p.r*1.5)});x.globalAlpha=1;if(alive>0)requestAnimationFrame(draw)}draw()}setTimeout(fireConfetti,1500);</script>
+
+  <style>.scroll-reveal{opacity:0;transform:translateY(20px);transition:opacity 0.6s,transform 0.6s}.scroll-reveal.visible{opacity:1;transform:translateY(0)}</style>
+  <script>(function(){const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("visible");obs.unobserve(e.target)}})},{threshold:0.1});document.querySelectorAll("section,div[id]").forEach(el=>el.classList.add("scroll-reveal"));setTimeout(()=>document.querySelectorAll(".scroll-reveal").forEach(el=>obs.observe(el)),100)})();</script>
 </body>
 </html>
