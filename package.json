@@ -12,7 +12,16 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.6",
+    "cron": "^3.5.0",
+    "drizzle-orm": "^0.38.4",
+    "express": "^4.18.2",
+    "nanoid": "^5.1.16",
+    "pino": "^9.14.0",
+    "simple-git": "^3.36.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "jest": "^29.7.0",
