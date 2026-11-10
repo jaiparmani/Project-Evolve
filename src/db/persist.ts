@@ -47,10 +47,12 @@ export function restoreDb(): void {
 
 function getRepoInfo(): { owner: string; repo: string } | null {
   const url = git("remote get-url origin");
-  // Match https://github.com/owner/repo.git or https://token@github.com/owner/repo.git
+  log.info({ remoteUrl: url.replace(/\/\/[^@]+@/, "//***@") }, "Parsed remote URL");
   const match = url.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
-  if (!match) return null;
-  return { owner: match[1], repo: match[2] };
+  if (match) return { owner: match[1], repo: match[2] };
+  // Fallback: hardcoded for Render where git remote may be unreliable
+  log.warn("Could not parse remote URL — using hardcoded repo info");
+  return { owner: "jaiparmani", repo: "Project-Evolve" };
 }
 
 export async function backupDb(): Promise<void> {
@@ -73,34 +75,27 @@ export async function backupDb(): Promise<void> {
   }
 
   const { owner, repo } = repoInfo;
+  log.info({ owner, repo }, "Backing up DB via GitHub API...");
+
   const content = readFileSync(dbFile).toString("base64");
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${DB_PATH}`;
 
   try {
-    // Get current file SHA (needed for updates)
+    // Get current file SHA (needed for updates, 422 without it)
     let sha: string | undefined;
-    try {
-      const getRes = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
-      if (getRes.ok) {
-        const data = await getRes.json() as { sha: string };
-        sha = data.sha;
-      }
-    } catch {
-      // File might not exist yet — that's fine
+    const getRes = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+    if (getRes.ok) {
+      const data = await getRes.json() as { sha: string };
+      sha = data.sha;
+      log.info({ sha: sha.slice(0, 8) }, "Found existing DB on GitHub");
+    } else {
+      log.info({ status: getRes.status }, "No existing DB on GitHub — will create");
     }
-
-    const body: Record<string, string> = {
-      message: "chore: persist DB after evolution cycle",
-      content,
-      branch: "main",
-      committer: JSON.stringify({ name: "Project Evolve Bot", email: "evolve-bot@project-evolve.app" }),
-    };
-    if (sha) body.sha = sha;
 
     const putRes = await fetch(apiUrl, {
       method: "PUT",
@@ -119,12 +114,12 @@ export async function backupDb(): Promise<void> {
     });
 
     if (putRes.ok) {
-      log.info("DB backed up to GitHub via API");
+      log.info("DB backed up to GitHub via API successfully");
     } else {
       const errText = await putRes.text();
-      log.warn({ status: putRes.status, error: errText.slice(0, 300) }, "GitHub API push failed");
+      log.error({ status: putRes.status, error: errText.slice(0, 500) }, "GitHub API push failed");
     }
   } catch (e) {
-    log.warn({ error: (e as Error).message }, "DB backup failed");
+    log.error({ error: (e as Error).message, stack: (e as Error).stack?.slice(0, 300) }, "DB backup failed");
   }
 }
