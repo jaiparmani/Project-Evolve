@@ -186,28 +186,30 @@ Return JSON:
     ], { jsonMode: true });
     raw = (result as { data: Record<string, unknown> }).data;
   } catch (llmErr) {
-    log.warn({ error: (llmErr as Error).message }, "LLM call failed — selecting highest-severity observation as default strategy");
-    const highObs = observations.observations.find((o) => o.severity === "high" || o.severity === "critical");
-    if (highObs) {
-      const fallbackIdea: Idea = {
-        title: `Fix: ${highObs.description.slice(0, 60)}`,
-        description: highObs.details || highObs.description,
-        category: highObs.category as Idea["category"],
-        impact: 8,
-        confidence: highObs.confidence ?? 7,
-        effort: 5,
-        strategicValue: 8,
-        reason: `Auto-selected: highest severity verified finding`,
-        addressesObservation: highObs.description,
-      };
-      raw = {
-        ideas: [fallbackIdea],
-        selectedIdea: fallbackIdea,
-        selectionReason: "LLM unavailable — auto-selected highest severity finding",
-        dismissedFindings: [],
-        flaggedForReview: false,
-      };
-    }
+    log.warn({ error: (llmErr as Error).message }, "LLM call failed — using mode-aware deterministic strategy");
+    const { getEvolutionMode } = await import("../worker/state.js");
+    const mode = getEvolutionMode();
+    const modeTitle = mode === "features" ? "Add new user-facing feature"
+      : mode === "quality" ? "Improve code quality and accessibility"
+      : mode === "polish" ? "Polish visual design and UX"
+      : "Improve application foundation";
+    const fallbackIdea: Idea = {
+      title: modeTitle,
+      description: modeTitle,
+      category: mode,
+      impact: 7,
+      confidence: 8,
+      effort: 3,
+      strategicValue: 7,
+      reason: `Deterministic fallback — LLM unavailable, mode: ${mode}`,
+    };
+    raw = {
+      ideas: [fallbackIdea],
+      selectedIdea: fallbackIdea,
+      selectionReason: `LLM unavailable — deterministic fallback for ${mode} mode`,
+      dismissedFindings: [],
+      flaggedForReview: false,
+    };
   }
 
   const data: StrategyResult = {

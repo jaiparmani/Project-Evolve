@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import { resolve } from "path";
 import { childLogger } from "../core/logger.js";
 
@@ -33,15 +33,20 @@ export function restoreDb(): void {
 
   git("fetch origin main --depth=1");
 
-  if (!existsSync(resolve(ROOT, DB_PATH))) {
-    git(`checkout origin/main -- ${DB_PATH}`);
-    if (existsSync(resolve(ROOT, DB_PATH))) {
-      log.info("Restored DB from git");
-    } else {
-      log.info("No persisted DB found — starting fresh");
-    }
+  // Always try to restore from git — the local DB is fresh/empty on Render redeploy
+  const fileSize = (p: string) => { try { return statSync(p).size; } catch { return 0; } };
+  const dbFullPath = resolve(ROOT, DB_PATH);
+  const localSize = fileSize(dbFullPath);
+
+  git(`checkout origin/main -- ${DB_PATH}`);
+  const restoredSize = fileSize(dbFullPath);
+
+  if (restoredSize > 100) {
+    log.info({ restoredSize, previousSize: localSize }, "Restored DB from git");
+  } else if (localSize > 0) {
+    log.info({ localSize }, "Git DB was empty/missing — keeping local DB");
   } else {
-    log.info("DB already exists locally");
+    log.info("No persisted DB found — starting fresh");
   }
 }
 

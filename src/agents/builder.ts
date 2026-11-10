@@ -200,8 +200,12 @@ function getDeterministicChanges(workDir: string, title: string): FileChange[] {
     }
   }
 
-  // Gate: test script
+  // Gate: test script (skip if test.js already exists — already addressed)
   if (titleLower.includes("test")) {
+    if (existsSync(resolve(workDir, "test.js"))) {
+      log.info("Test suite already exists — skipping, falling through to guaranteedChange");
+      return guaranteedChange(workDir);
+    }
     const pkgPath = resolve(workDir, "package.json");
     if (existsSync(pkgPath)) {
       try {
