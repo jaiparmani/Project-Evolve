@@ -10,6 +10,15 @@ let lastDayReset = new Date().toDateString();
 let loopActive = false;
 let loopTimer: ReturnType<typeof setTimeout> | null = null;
 
+export type EvolutionMode = "foundation" | "features" | "quality" | "polish";
+let evolutionMode: EvolutionMode = "foundation";
+
+export function getEvolutionMode(): EvolutionMode { return evolutionMode; }
+export function setEvolutionMode(mode: EvolutionMode) {
+  evolutionMode = mode;
+  log.info({ mode }, "Evolution mode changed");
+}
+
 export function getWorkerStatus() {
   return {
     isRunning,

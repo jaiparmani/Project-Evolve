@@ -345,6 +345,125 @@ app.listen($1)`);
             catch { }
         }
     }
+    // Feature: status dashboard with live clock
+    if (titleLower.includes("status dashboard") || titleLower.includes("live clock")) {
+        const htmlPath = resolve(workDir, "index.html");
+        if (existsSync(htmlPath)) {
+            const content = readFileSync(htmlPath, "utf-8");
+            if (!content.includes("getElementById(\"clock\")")) {
+                const newContent = content.replace("</body>", `
+  <div id="dashboard" style="margin-top:32px;padding:24px;background:rgba(255,255,255,0.05);border-radius:12px;max-width:400px;margin-left:auto;margin-right:auto">
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <span style="color:#888;font-size:14px">Local Time</span>
+      <span id="clock" style="font-family:ui-monospace,monospace;color:#5ee0c8;font-size:14px">--:--:--</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <span style="color:#888;font-size:14px">Server Status</span>
+      <span id="server-status" style="font-size:14px;color:#666">checking...</span>
+    </div>
+    <button onclick="checkHealth()" style="width:100%;padding:10px;background:rgba(94,224,200,0.15);color:#5ee0c8;border:1px solid rgba(94,224,200,0.3);border-radius:8px;cursor:pointer;font-size:14px;transition:all 0.2s" onmouseover="this.style.background='rgba(94,224,200,0.25)'" onmouseout="this.style.background='rgba(94,224,200,0.15)'">Check Server Health</button>
+  </div>
+  <script>
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("clock").textContent = now.toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    async function checkHealth() {
+      const el = document.getElementById("server-status");
+      el.textContent = "checking...";
+      el.style.color = "#888";
+      try {
+        const res = await fetch("/health");
+        const data = await res.json();
+        el.textContent = data.status === "ok" ? "Online ✓" : "Error";
+        el.style.color = data.status === "ok" ? "#5ee0c8" : "#ff6b6b";
+      } catch {
+        el.textContent = "Offline ✗";
+        el.style.color = "#ff6b6b";
+      }
+    }
+    checkHealth();
+  </script>
+</body>`);
+                return [{ action: "modify", path: "index.html", content: newContent }];
+            }
+        }
+    }
+    // Feature: visitor counter
+    if (titleLower.includes("visitor counter") || titleLower.includes("greeting")) {
+        const serverPath = resolve(workDir, "server.js");
+        if (existsSync(serverPath)) {
+            const serverContent = readFileSync(serverPath, "utf-8");
+            if (!serverContent.includes("/api/visitors")) {
+                const newServer = serverContent.replace("app.use(express.static(", `let visitorCount = 0;
+app.get("/api/visitors", (req, res) => {
+  visitorCount++;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  res.json({ count: visitorCount, greeting });
+});
+
+app.use(express.static(`);
+                const htmlPath = resolve(workDir, "index.html");
+                const changes = [{ action: "modify", path: "server.js", content: newServer }];
+                if (existsSync(htmlPath)) {
+                    let html = readFileSync(htmlPath, "utf-8");
+                    if (!html.includes("visitor-count")) {
+                        html = html.replace("</body>", `
+  <div id="visitor-info" style="margin-top:24px;text-align:center">
+    <p id="greeting-text" style="color:#5ee0c8;font-size:18px;margin-bottom:8px"></p>
+    <p id="visitor-count" style="color:#666;font-size:12px"></p>
+  </div>
+  <script>
+    fetch("/api/visitors").then(r=>r.json()).then(d => {
+      document.getElementById("greeting-text").textContent = d.greeting + "!";
+      document.getElementById("visitor-count").textContent = "Visitor #" + d.count;
+    }).catch(() => {});
+  </script>
+</body>`);
+                        changes.push({ action: "modify", path: "index.html", content: html });
+                    }
+                }
+                return changes;
+            }
+        }
+    }
+    // Feature: theme toggle
+    if (titleLower.includes("theme toggle") || titleLower.includes("dark/light") || titleLower.includes("dark mode")) {
+        const htmlPath = resolve(workDir, "index.html");
+        if (existsSync(htmlPath)) {
+            const content = readFileSync(htmlPath, "utf-8");
+            if (!content.includes("theme-toggle")) {
+                const newContent = content.replace("</body>", `
+  <button id="theme-toggle" onclick="toggleTheme()" style="position:fixed;top:16px;right:16px;padding:8px 12px;background:rgba(255,255,255,0.1);color:#888;border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;font-size:16px;transition:all 0.3s">🌙</button>
+  <script>
+    function toggleTheme() {
+      const body = document.body;
+      const btn = document.getElementById("theme-toggle");
+      if (body.style.background === "rgb(250, 250, 250)" || body.classList.contains("light")) {
+        body.style.background = "#0a0a0a";
+        body.style.color = "#e0e0e0";
+        body.classList.remove("light");
+        btn.textContent = "🌙";
+        localStorage.setItem("theme", "dark");
+      } else {
+        body.style.background = "#fafafa";
+        body.style.color = "#1a1a1a";
+        body.classList.add("light");
+        btn.textContent = "☀️";
+        localStorage.setItem("theme", "light");
+      }
+    }
+    if (localStorage.getItem("theme") === "light") toggleTheme();
+  </script>
+</body>`);
+                return [{ action: "modify", path: "index.html", content: newContent }];
+            }
+        }
+    }
     log.warn({ title }, "No deterministic fallback for this improvement");
     return [];
 }

@@ -7,6 +7,12 @@ let cyclesRanToday = 0;
 let lastDayReset = new Date().toDateString();
 let loopActive = false;
 let loopTimer = null;
+let evolutionMode = "foundation";
+export function getEvolutionMode() { return evolutionMode; }
+export function setEvolutionMode(mode) {
+    evolutionMode = mode;
+    log.info({ mode }, "Evolution mode changed");
+}
 export function getWorkerStatus() {
     return {
         isRunning,

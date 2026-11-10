@@ -195,6 +195,13 @@ function getDashboardHtml(): string {
     .version-pill.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
     .version-pill .pill-label { font-weight: 600; }
     .version-pill .pill-meta { font-size: 9px; color: var(--text-3); margin-left: 6px; }
+    .mode-btn {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-2);
+      background: var(--surface-2); color: var(--text-2); cursor: pointer;
+      font: 12px/1 var(--sans); transition: all 0.2s;
+    }
+    .mode-btn:hover { border-color: var(--accent); color: var(--text); }
+    .mode-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); font-weight: 600; }
 
     .version-viewer { display: grid; grid-template-columns: 240px 1fr; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; min-height: 500px; }
     .version-sidebar { background: var(--surface-2); border-right: 1px solid var(--border); overflow-y: auto; max-height: 70vh; }
@@ -269,6 +276,43 @@ function getDashboardHtml(): string {
 
   <script>
     let state = { status: null, cycles: [], ideas: [], usage: null, configs: [], roadmap: null, loop: null };
+    let currentMode = 'foundation';
+
+    const modeDescriptions = {
+      foundation: 'Pass roadmap gates: TypeScript, tests, error handling. Build a solid base before adding features.',
+      features: 'Add visible, user-facing features: interactivity, new pages, dynamic content, useful tools.',
+      quality: 'Harden the app: accessibility, security headers, input validation, test coverage.',
+      polish: 'Refine UX: visual design, animations, responsive layout, documentation.',
+    };
+
+    async function loadMode() {
+      try {
+        const res = await fetch('/api/evolution-mode');
+        const data = await res.json();
+        currentMode = data.mode;
+        updateModeUI();
+      } catch {}
+    }
+
+    async function setMode(mode) {
+      try {
+        await fetch('/api/evolution-mode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode }),
+        });
+        currentMode = mode;
+        updateModeUI();
+      } catch (e) { console.error('Failed to set mode:', e); }
+    }
+
+    function updateModeUI() {
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === currentMode);
+      });
+      const desc = document.getElementById('modeDescription');
+      if (desc) desc.textContent = modeDescriptions[currentMode] || '';
+    }
     let currentTab = 'overview';
     let refreshInterval;
 
@@ -403,6 +447,17 @@ function getDashboardHtml(): string {
             <div class="stat">\${p.total_cycles || 0}</div>
             <div class="stat-label">\${p.successful_cycles || 0} successful · \${p.failed_cycles || 0} failed</div>
           </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">⚡ EVOLUTION MODE</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px" id="modeSelector">
+            <button class="mode-btn" data-mode="foundation" onclick="setMode('foundation')">🏗️ Foundation</button>
+            <button class="mode-btn" data-mode="features" onclick="setMode('features')">✨ Features</button>
+            <button class="mode-btn" data-mode="quality" onclick="setMode('quality')">🛡️ Quality</button>
+            <button class="mode-btn" data-mode="polish" onclick="setMode('polish')">💎 Polish</button>
+          </div>
+          <div id="modeDescription" style="margin-top:8px;font:11px/1.4 var(--sans);color:var(--text-2)"></div>
         </div>
 
         <div class="card" style="margin-bottom:20px">
@@ -866,6 +921,7 @@ function getDashboardHtml(): string {
     }
 
     loadData();
+    loadMode();
     refreshInterval = setInterval(loadData, 10000);
   </script>
 </body>

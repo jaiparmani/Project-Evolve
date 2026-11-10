@@ -3,6 +3,7 @@ import { db, schema } from "../db/index.js";
 import { eq, desc } from "drizzle-orm";
 import { childLogger } from "../core/logger.js";
 import { nanoid } from "nanoid";
+import { getEvolutionMode } from "../worker/state.js";
 const log = childLogger("strategist");
 export async function strategize(projectId, cycleId, observations) {
     log.info({ projectId, cycleId }, "Starting strategy");
@@ -20,7 +21,38 @@ export async function strategize(projectId, cycleId, observations) {
     const verifiedHighCount = observations.observations.filter((o) => (o.severity === "high" || o.severity === "critical") && o.verified).length;
     const roadmap = observations.roadmap;
     const nextGate = roadmap?.failingGates?.[0] || null;
-    const roadmapSection = roadmap ? `
+    const mode = getEvolutionMode();
+    log.info({ mode }, "Evolution mode");
+    let roadmapSection = "";
+    if (mode === "features") {
+        roadmapSection = `
+EVOLUTION MODE: FEATURES
+You are in FEATURES mode. Ignore foundation gates and roadmap stages.
+Focus ONLY on adding visible, user-facing features to the application:
+- Add interactive UI elements (buttons, forms, dynamic content)
+- Add new pages or views
+- Add API endpoints that do something useful
+- Add animations, transitions, visual improvements
+- Add a useful feature (todo list, dashboard, calculator, weather, clock, etc.)
+
+The goal is to make the app MORE INTERESTING and FUNCTIONAL for users.
+Pick the most impactful, visible feature you can add in one cycle.
+`;
+    }
+    else if (mode === "quality") {
+        roadmapSection = `
+EVOLUTION MODE: QUALITY
+Focus on code quality, testing, security, and accessibility.
+`;
+    }
+    else if (mode === "polish") {
+        roadmapSection = `
+EVOLUTION MODE: POLISH
+Focus on visual design, UX, responsive layout, and documentation.
+`;
+    }
+    else if (roadmap) {
+        roadmapSection = `
 EVOLUTION ROADMAP:
 Current Stage: ${roadmap.currentStageName} (overall progress: ${roadmap.overallProgress}%)
 
@@ -32,7 +64,8 @@ Stage Goals:
 ${roadmap.currentStageGoals.map((g) => `  - ${g}`).join("\n")}
 
 CRITICAL RULE: Your selected idea MUST target the first failing gate listed above. Do NOT skip to later gates or other stages. One gate at a time.
-` : "";
+`;
+    }
     const prompt = `You are a product strategist for a self-improving application.
 
 APPLICATION SUMMARY: ${observations.appSummary}
@@ -131,6 +164,48 @@ Return JSON:
         data.selectedIdea = best;
         data.selectionReason = `Auto-selected highest-scored idea (LLM returned no selection)`;
         log.warn({ selected: best.title }, "LLM returned no selectedIdea — auto-selecting best idea");
+    }
+    // If no idea selected in features mode, pick a concrete feature
+    if (!data.selectedIdea && mode === "features") {
+        const featureIdeas = [
+            {
+                title: "Add interactive status dashboard with live clock",
+                description: "Add a live clock, server uptime display, and a button to check server health. Add JavaScript interactivity with fetch() calls to the /health endpoint.",
+                category: "feature",
+                impact: 9, confidence: 10, effort: 3, strategicValue: 9,
+                reason: "Adds visible interactivity — the app does something users can see",
+            },
+            {
+                title: "Add a visitor counter and greeting",
+                description: "Add a visitor counter that increments on each page load (using an in-memory counter on the server with a new GET /api/visitors endpoint). Show a greeting based on time of day.",
+                category: "feature",
+                impact: 8, confidence: 10, effort: 3, strategicValue: 8,
+                reason: "Adds a data layer and dynamic content",
+            },
+            {
+                title: "Add dark/light theme toggle with smooth transitions",
+                description: "Add a theme toggle button that switches between dark and light mode with CSS transitions. Save preference in localStorage.",
+                category: "ui",
+                impact: 7, confidence: 10, effort: 2, strategicValue: 7,
+                reason: "Adds interactivity and user preference persistence",
+            },
+            {
+                title: "Add navigation with multiple pages",
+                description: "Add a navigation bar with Home, About, and Status pages. Use client-side routing or separate HTML pages served by the Express server.",
+                category: "feature",
+                impact: 8, confidence: 9, effort: 4, strategicValue: 8,
+                reason: "Transforms from single-page to multi-page app",
+            },
+        ];
+        // Pick one that hasn't been attempted
+        const attempted = new Set((await db.select().from(schema.ideas).where(eq(schema.ideas.projectId, projectId)).orderBy(desc(schema.ideas.createdAt)).limit(20))
+            .filter(i => i.status === "implemented" || i.status === "rejected")
+            .map(i => i.title));
+        const fresh = featureIdeas.find(i => !attempted.has(i.title)) || featureIdeas[0];
+        data.ideas.push(fresh);
+        data.selectedIdea = fresh;
+        data.selectionReason = `Features mode: auto-selected "${fresh.title}"`;
+        log.info({ selected: fresh.title }, "Features mode — auto-selecting feature idea");
     }
     // If no idea selected, target the first failing gate directly
     if (!data.selectedIdea && nextGate) {

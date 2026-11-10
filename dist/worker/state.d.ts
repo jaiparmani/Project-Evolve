@@ -1,3 +1,6 @@
+export type EvolutionMode = "foundation" | "features" | "quality" | "polish";
+export declare function getEvolutionMode(): EvolutionMode;
+export declare function setEvolutionMode(mode: EvolutionMode): void;
 export declare function getWorkerStatus(): {
     isRunning: boolean;
     currentCycleId: string | null;

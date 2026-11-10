@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, schema } from "../db/index.js";
 import { eq, desc, sql, count } from "drizzle-orm";
-import { getWorkerStatus, getRunning, setRunning, setCycleId, incrementCycles, canRunCycle, startLoop, stopLoop, isLoopActive } from "../worker/state.js";
+import { getWorkerStatus, getRunning, setRunning, setCycleId, incrementCycles, canRunCycle, startLoop, stopLoop, isLoopActive, getEvolutionMode, setEvolutionMode, type EvolutionMode } from "../worker/state.js";
 import { getDeployStatus } from "../deploy/deployer.js";
 import { getClient } from "../llm/openrouter.js";
 import { runCycle } from "../worker/cycle.js";
@@ -178,6 +178,20 @@ apiRouter.post("/loop/stop", (_req, res) => {
 
 apiRouter.get("/loop/status", (_req, res) => {
   res.json({ active: isLoopActive(), ...getWorkerStatus() });
+});
+
+apiRouter.get("/evolution-mode", (_req, res) => {
+  res.json({ mode: getEvolutionMode() });
+});
+
+apiRouter.post("/evolution-mode", (req, res) => {
+  const { mode } = req.body;
+  const valid: EvolutionMode[] = ["foundation", "features", "quality", "polish"];
+  if (!valid.includes(mode)) {
+    return res.status(400).json({ error: `Invalid mode. Valid: ${valid.join(", ")}` });
+  }
+  setEvolutionMode(mode);
+  res.json({ ok: true, mode });
 });
 
 apiRouter.get("/commits", async (_req, res) => {
