@@ -158,5 +158,8 @@
   <script>async function copyURL(){try{await navigator.clipboard.writeText(location.href);const b=document.getElementById("copy-url-btn");b.textContent="✓ Copied!";setTimeout(()=>b.textContent="📋 Share This Page",2000);if(typeof showToast==="function")showToast("URL copied to clipboard!","success")}catch{if(typeof showToast==="function")showToast("Could not copy URL","error")}}</script>
 
   <script>document.addEventListener("visibilitychange",()=>{const orig=document.title;if(document.hidden){document.title="👀 Come back!"}else{document.title=orig}});</script>
+
+  <canvas id="confetti-canvas" style="position:fixed;inset:0;z-index:99997;pointer-events:none"></canvas>
+  <script>function fireConfetti(){const c=document.getElementById("confetti-canvas"),x=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;const ps=[];const colors=["#60a5fa","#a78bfa","#5ee0c8","#f472b6","#fbbf24"];for(let i=0;i<80;i++)ps.push({x:innerWidth/2,y:innerHeight/2,dx:(Math.random()-0.5)*12,dy:Math.random()*-12-4,r:Math.random()*4+2,c:colors[Math.floor(Math.random()*colors.length)],g:0.15,life:120});let f=0;function draw(){x.clearRect(0,0,c.width,c.height);let alive=0;ps.forEach(p=>{if(p.life<=0)return;alive++;p.x+=p.dx;p.dy+=p.g;p.y+=p.dy;p.life--;x.globalAlpha=p.life/120;x.fillStyle=p.c;x.fillRect(p.x,p.y,p.r,p.r*1.5)});x.globalAlpha=1;if(alive>0)requestAnimationFrame(draw)}draw()}setTimeout(fireConfetti,1500);</script>
 </body>
 </html>
