@@ -518,34 +518,134 @@ app.use(express.static(`
 
   // Catch-all: try adding any missing feature regardless of title
   log.info("Title didn't match specific fallbacks — trying generic feature additions");
-  const htmlPath2 = resolve(workDir, "index.html");
-  const serverPath2 = resolve(workDir, "server.js");
+  return guaranteedChange(workDir);
+}
 
-  if (existsSync(htmlPath2)) {
-    const html = readFileSync(htmlPath2, "utf-8");
+function guaranteedChange(workDir: string): FileChange[] {
+  const htmlPath = resolve(workDir, "index.html");
+  const serverPath = resolve(workDir, "server.js");
 
-    // Add live clock if missing
-    if (!html.includes('getElementById("clock")')) {
-      log.info("Catch-all: adding live clock dashboard");
-      return getDeterministicChanges(workDir, "status dashboard with live clock");
-    }
-    // Add visitor counter if missing
-    if (existsSync(serverPath2) && !readFileSync(serverPath2, "utf-8").includes("/api/visitors")) {
-      log.info("Catch-all: adding visitor counter");
-      return getDeterministicChanges(workDir, "visitor counter");
-    }
-    // Add theme toggle if missing
-    if (!html.includes("theme-toggle")) {
-      log.info("Catch-all: adding theme toggle");
-      return getDeterministicChanges(workDir, "theme toggle");
-    }
-    // Add interactivity if missing
-    if (!html.includes("<script")) {
-      log.info("Catch-all: adding interactivity");
-      return getDeterministicChanges(workDir, "interactivity");
-    }
+  if (!existsSync(htmlPath)) {
+    log.info("No index.html — creating minimal app");
+    return [{ action: "create", path: "index.html", content: `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Evolving App</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+h1{font-size:2rem;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+p{color:#888;max-width:480px;text-align:center;line-height:1.6}
+.badge{display:inline-block;padding:4px 10px;background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.3);border-radius:12px;font-size:0.75rem;color:#60a5fa}</style></head>
+<body><h1>Evolving App</h1><p>This app improves itself through autonomous evolution cycles.</p>
+<span class="badge" id="evolve-stamp">v1 &middot; ${new Date().toISOString().slice(0, 10)}</span></body></html>` }];
   }
 
-  log.warn({ title }, "No deterministic fallback available — all features already present");
-  return [];
+  const html = readFileSync(htmlPath, "utf-8");
+
+  // Feature: live clock
+  if (!html.includes('getElementById("clock")')) {
+    log.info("Catch-all: adding live clock");
+    return getDeterministicChanges(workDir, "status dashboard with live clock");
+  }
+  // Feature: visitor counter (needs server)
+  if (existsSync(serverPath) && !readFileSync(serverPath, "utf-8").includes("/api/visitors")) {
+    log.info("Catch-all: adding visitor counter");
+    return getDeterministicChanges(workDir, "visitor counter");
+  }
+  // Feature: theme toggle
+  if (!html.includes("theme-toggle")) {
+    log.info("Catch-all: adding theme toggle");
+    return getDeterministicChanges(workDir, "theme toggle");
+  }
+  // Feature: scroll-to-top button
+  if (!html.includes("scroll-top")) {
+    log.info("Catch-all: adding scroll-to-top button");
+    const newHtml = html.replace("</body>", `
+  <button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="position:fixed;bottom:24px;right:24px;width:40px;height:40px;border-radius:50%;background:rgba(96,165,250,0.2);border:1px solid rgba(96,165,250,0.4);color:#60a5fa;font-size:18px;cursor:pointer;display:none;align-items:center;justify-content:center;transition:opacity 0.3s">&uarr;</button>
+  <script>
+    window.addEventListener("scroll",()=>{const b=document.getElementById("scroll-top");if(b)b.style.display=window.scrollY>200?"flex":"none"});
+  </script>
+</body>`);
+    return [{ action: "modify", path: "index.html", content: newHtml }];
+  }
+  // Feature: keyboard shortcuts help
+  if (!html.includes("keyboard-help")) {
+    log.info("Catch-all: adding keyboard shortcuts overlay");
+    const newHtml = html.replace("</body>", `
+  <div id="keyboard-help" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center">
+    <div style="background:#1a1a2e;padding:24px 32px;border-radius:12px;max-width:360px;border:1px solid rgba(96,165,250,0.3)">
+      <h3 style="color:#60a5fa;margin-bottom:12px">Keyboard Shortcuts</h3>
+      <p style="color:#aaa;font-size:14px;line-height:2"><kbd style="padding:2px 6px;background:#2a2a3e;border-radius:4px">?</kbd> Show this help<br>
+      <kbd style="padding:2px 6px;background:#2a2a3e;border-radius:4px">Esc</kbd> Close overlay<br>
+      <kbd style="padding:2px 6px;background:#2a2a3e;border-radius:4px">T</kbd> Toggle theme</p>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("keydown",e=>{
+      if(e.key==="?"){const h=document.getElementById("keyboard-help");if(h)h.style.display="flex";}
+      if(e.key==="Escape"){const h=document.getElementById("keyboard-help");if(h)h.style.display="none";}
+    });
+  </script>
+</body>`);
+    return [{ action: "modify", path: "index.html", content: newHtml }];
+  }
+  // Feature: page load animation
+  if (!html.includes("fade-in") && !html.includes("@keyframes")) {
+    log.info("Catch-all: adding page load animation");
+    const newHtml = html.replace("</head>", `
+  <style>
+    @keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    body>*{animation:fadeSlideIn 0.5s ease-out both}
+    body>*:nth-child(2){animation-delay:0.1s}body>*:nth-child(3){animation-delay:0.2s}body>*:nth-child(4){animation-delay:0.3s}
+  </style>
+</head>`);
+    return [{ action: "modify", path: "index.html", content: newHtml }];
+  }
+  // Feature: footer with build info
+  if (!html.includes("app-footer")) {
+    log.info("Catch-all: adding footer");
+    const newHtml = html.replace("</body>", `
+  <footer id="app-footer" style="position:fixed;bottom:0;left:0;right:0;padding:8px 16px;background:rgba(10,10,10,0.9);border-top:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;font-size:12px;color:#555">
+    <span>Evolving App</span><span>Autonomously improved</span>
+  </footer>
+</body>`);
+    return [{ action: "modify", path: "index.html", content: newHtml }];
+  }
+  // Feature: notification toast system
+  if (!html.includes("toast-container")) {
+    log.info("Catch-all: adding toast notification system");
+    const newHtml = html.replace("</body>", `
+  <div id="toast-container" style="position:fixed;top:16px;right:16px;z-index:9998;display:flex;flex-direction:column;gap:8px"></div>
+  <script>
+    function showToast(msg,ms){ms=ms||3000;const c=document.getElementById("toast-container");if(!c)return;
+      const t=document.createElement("div");t.textContent=msg;
+      t.style.cssText="padding:10px 18px;background:#1e293b;color:#e2e8f0;border:1px solid rgba(96,165,250,0.3);border-radius:8px;font-size:14px;opacity:0;transition:opacity 0.3s";
+      c.appendChild(t);requestAnimationFrame(()=>t.style.opacity="1");
+      setTimeout(()=>{t.style.opacity="0";setTimeout(()=>t.remove(),300)},ms);}
+    showToast("Welcome to the evolving app!");
+  </script>
+</body>`);
+    return [{ action: "modify", path: "index.html", content: newHtml }];
+  }
+  // Feature: meta description + SEO
+  if (!html.includes('name="description"')) {
+    log.info("Catch-all: adding meta description");
+    const newHtml = html.replace("</head>", `  <meta name="description" content="An autonomously evolving web application that improves itself through AI-driven development cycles.">
+  <meta name="theme-color" content="#0a0a0a">
+</head>`);
+    return [{ action: "modify", path: "index.html", content: newHtml }];
+  }
+
+  // ULTIMATE FALLBACK: always works — bump evolve stamp
+  log.info("All known features present — bumping evolve stamp");
+  const stampMatch = html.match(/v(\d+)\s*&middot;/);
+  const currentVersion = stampMatch ? parseInt(stampMatch[1], 10) : 0;
+  const nextVersion = currentVersion + 1;
+  const today = new Date().toISOString().slice(0, 10);
+
+  let newHtml: string;
+  if (stampMatch) {
+    newHtml = html.replace(/v\d+\s*&middot;\s*[\d-]+/, `v${nextVersion} &middot; ${today}`);
+  } else {
+    newHtml = html.replace("</body>", `  <div id="evolve-stamp" style="position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:11px;color:#444">v${nextVersion} &middot; ${today}</div>\n</body>`);
+  }
+  return [{ action: "modify", path: "index.html", content: newHtml }];
 }
