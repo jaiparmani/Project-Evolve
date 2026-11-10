@@ -74,10 +74,25 @@ export async function backupDb(): Promise<void> {
     return;
   }
 
+  // Checkpoint WAL so the main .db file has all data
+  try {
+    const Database = (await import("better-sqlite3")).default;
+    const tmpDb = new Database(dbFile, { readonly: false });
+    tmpDb.pragma("wal_checkpoint(TRUNCATE)");
+    tmpDb.close();
+    log.info("WAL checkpointed before backup");
+  } catch (e) {
+    log.warn({ error: (e as Error).message }, "WAL checkpoint failed — backing up anyway");
+  }
+
   const { owner, repo } = repoInfo;
   log.info({ owner, repo }, "Backing up DB via GitHub API...");
 
   const content = readFileSync(dbFile).toString("base64");
+  if (!content || content.length < 100) {
+    log.warn({ size: content.length }, "DB file appears empty/tiny — skipping backup");
+    return;
+  }
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${DB_PATH}`;
 
   try {
