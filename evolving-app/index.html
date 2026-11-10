@@ -116,5 +116,8 @@
   <script>document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea"))return;if(e.key==="?"){const h=document.getElementById("keyboard-help");if(h)h.style.display="flex"}if(e.key==="Escape"){const h=document.getElementById("keyboard-help");if(h)h.style.display="none"}if(e.key==="t"||e.key==="T"){if(typeof toggleTheme==="function")toggleTheme()}});</script>
 
   <footer id="app-footer" style="position:fixed;bottom:0;left:0;right:0;padding:8px 16px;background:rgba(10,10,10,0.95);border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#555;z-index:900;backdrop-filter:blur(8px)"><span>🧬 Evolving App</span><span id="cycle-count">Autonomously improved</span></footer>
+
+  <div id="toast-container" style="position:fixed;top:16px;right:16px;z-index:9998;display:flex;flex-direction:column;gap:8px"></div>
+  <script>function showToast(msg,type,ms){ms=ms||3000;const c=document.getElementById("toast-container");if(!c)return;const colors={success:"#5ee0c8",info:"#60a5fa",warn:"#fbbf24",error:"#f87171"};const t=document.createElement("div");t.textContent=msg;t.style.cssText="padding:10px 18px;background:#1e293b;color:"+(colors[type]||"#e2e8f0")+";border:1px solid "+(colors[type]||"rgba(96,165,250,0.3)")+";border-radius:8px;font-size:14px;opacity:0;transition:opacity 0.3s;cursor:pointer";t.onclick=()=>t.remove();c.appendChild(t);requestAnimationFrame(()=>t.style.opacity="1");setTimeout(()=>{t.style.opacity="0";setTimeout(()=>t.remove(),300)},ms)}showToast("Welcome! This app evolves itself.","info");</script>
 </body>
 </html>
