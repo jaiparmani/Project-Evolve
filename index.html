@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A modern, responsive web application shell built with semantic HTML and Tailwind CSS." />
+    <meta
+      name="description"
+      content="A modern, responsive application shell with global error handling, safe network requests and a live diagnostics panel."
+    />
     <meta name="theme-color" content="#0f172a" />
     <meta name="color-scheme" content="light" />
     <title>Application</title>
@@ -27,9 +30,10 @@
     </script>
     <script>
       // Global client-side error handling.
-      // Mirrors server-side uncaughtException / unhandledRejection handling:
-      // captures fatal errors, logs them with useful diagnostics, and surfaces
-      // a graceful fallback UI instead of failing silently.
+      // Mirrors the server-side listeners for 'error', 'uncaughtException' and
+      // 'unhandledrejection': every failure is logged with diagnostics,
+      // broadcast as an application event, and surfaced through a graceful
+      // banner instead of failing silently or crashing the UI.
       (function () {
         'use strict';
 
@@ -40,242 +44,256 @@
             return {
               name: reason.name || 'Error',
               message: reason.message || 'Unknown error',
-              stack: reason.stack || '',
+              stack: reason.stack || ''
             };
           }
           if (typeof reason === 'string') {
             return { name: 'Error', message: reason, stack: '' };
           }
           try {
-            return {
-              name: 'Error',
-              message: JSON.stringify(reason),
-              stack: '',
-            };
-          } catch (_e) {
-            return { name: 'Error', message: String(reason), stack: '' };
+            return { name: 'Error', message: JSON.stringify(reason), stack: '' };
+          } catch (_error) {
+            return { name: 'Error', message: 'Unserializable error', stack: '' };
           }
         }
 
-        function reportError(source, reason) {
+        function logError(detail) {
+          try {
+            console.error(
+              '[' + detail.context + '] ' + detail.name + ': ' + detail.message,
+              detail.stack || ''
+            );
+          } catch (_error) {
+            // Logging must never throw.
+          }
+        }
+
+        function report(context, reason) {
           var detail = normalizeError(reason);
-          // eslint-disable-next-line no-console
-          console.error('[global-error][' + source + ']', detail.name + ': ' + detail.message, detail.stack);
+          detail.context = context;
+          detail.timestamp = new Date().toISOString();
+
+          logError(detail);
 
           try {
-            window.dispatchEvent(
-              new CustomEvent(ERROR_EVENT, {
-                detail: { source: source, error: detail, timestamp: Date.now() },
-              })
-            );
-          } catch (_e) {
-            /* no-op */
+            window.dispatchEvent(new CustomEvent(ERROR_EVENT, { detail: detail }));
+          } catch (_error) {
+            // CustomEvent unsupported: the diagnostics panel simply stays empty.
           }
+
+          return detail;
         }
 
-        window.addEventListener('error', function (event) {
-          // Ignore resource loading errors (no error object / target present).
-          if (event && event.target && event.target !== window && !event.error) {
+        function renderBanner(detail) {
+          if (typeof document === 'undefined' || !document.body) return;
+
+          var previous = document.getElementById('app-error-banner');
+          if (previous && previous.parentNode) {
+            previous.parentNode.removeChild(previous);
+          }
+
+          var banner = document.createElement('div');
+          banner.id = 'app-error-banner';
+          banner.setAttribute('role', 'alert');
+          banner.setAttribute('aria-live', 'assertive');
+          banner.className =
+            'fixed inset-x-0 top-0 z-50 flex items-start gap-3 border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 shadow-sm sm:px-6';
+
+          var text = document.createElement('p');
+          text.className = 'flex-1 leading-relaxed';
+          text.textContent =
+            'Something went wrong (' + detail.context + '). ' + detail.message;
+
+          var close = document.createElement('button');
+          close.type = 'button';
+          close.className =
+            'shrink-0 rounded-md border border-rose-300 bg-white/70 px-2 py-1 text-xs font-semibold text-rose-800 transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400';
+          close.textContent = 'Dismiss';
+          close.addEventListener('click', function () {
+            banner.remove();
+          });
+
+          banner.appendChild(text);
+          banner.appendChild(close);
+          document.body.appendChild(banner);
+        }
+
+        function handleGlobalError(event) {
+          // Resource failures (script, image, stylesheet) bubble here in the
+          // capture phase, so they are reported instead of silently ignored.
+          if (event.target && event.target !== window && event.target.tagName) {
+            report('resource', 'Failed to load ' + event.target.tagName.toLowerCase());
             return;
           }
-          reportError('uncaughtError', (event && event.error) || (event && event.message));
+          report('uncaughtException', (event && event.error) || (event && event.message));
+        }
+
+        function handleRejection(event) {
+          report('unhandledRejection', event ? event.reason : 'Unknown rejection');
+        }
+
+        async function safeRequest(url, options) {
+          try {
+            var response = await fetch(
+              url,
+              Object.assign({ headers: { Accept: 'application/json' } }, options || {})
+            );
+            if (!response.ok) {
+              throw new Error('Request failed with status ' + response.status);
+            }
+            return await response.json();
+          } catch (error) {
+            report('request', error);
+            return null;
+          }
+        }
+
+        window.addEventListener('error', handleGlobalError, true);
+        window.addEventListener('unhandledrejection', handleRejection);
+        window.addEventListener(ERROR_EVENT, function (event) {
+          renderBanner(event.detail);
         });
 
-        window.addEventListener('unhandledrejection', function (event) {
-          reportError('unhandledRejection', event && event.reason);
-        });
-
-        window.__APP_ERROR_EVENT__ = ERROR_EVENT;
+        window.AppRuntime = {
+          ERROR_EVENT: ERROR_EVENT,
+          report: report,
+          normalizeError: normalizeError,
+          safeRequest: safeRequest,
+          renderBanner: renderBanner
+        };
       })();
     </script>
-    <style>
-      html {
-        font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-      }
-      body {
-        -webkit-font-smoothing: antialiased;
-        text-rendering: optimizeLegibility;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-          scroll-behavior: auto !important;
-        }
-      }
-    </style>
   </head>
   <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
-    <a
-      href="#main-content"
-      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-slate-900 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-slate-300"
-    >
-      Skip to main content
-    </a>
-
-    <!-- Graceful fallback surfaced when a fatal client error occurs -->
-    <div
-      id="global-error-panel"
-      role="alert"
-      aria-live="assertive"
-      class="fixed inset-x-0 bottom-0 z-50 hidden border-t border-red-200 bg-red-50 p-4 shadow-lg"
-    >
-      <div class="mx-auto flex max-w-4xl flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div class="flex items-start gap-3">
-          <svg class="mt-0.5 h-5 w-5 flex-none text-red-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path
-              fill-rule="evenodd"
-              d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <div>
-            <p class="text-sm font-semibold text-red-900">Something went wrong</p>
-            <p id="global-error-message" class="mt-1 text-sm text-red-700">
-              An unexpected error occurred. Please try again.
-            </p>
-          </div>
+    <header class="border-b border-slate-200 bg-white">
+      <div
+        class="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+      >
+        <div>
+          <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Application</h1>
+          <p class="mt-1 text-sm text-slate-500">
+            Resilient shell with global error handling.
+          </p>
         </div>
-        <div class="flex flex-none items-center gap-2">
-          <button
-            type="button"
-            id="global-error-reload"
-            class="inline-flex items-center rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-red-50"
-          >
-            Reload
-          </button>
-          <button
-            type="button"
-            id="global-error-dismiss"
-            class="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-red-50"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
-      <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="#" class="flex items-center gap-2 font-semibold text-slate-900">
-          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">A</span>
-          <span>Application</span>
-        </a>
-        <nav aria-label="Primary" class="hidden items-center gap-6 text-sm font-medium text-slate-600 sm:flex">
-          <a href="#features" class="transition hover:text-slate-900">Features</a>
-          <a href="#about" class="transition hover:text-slate-900">About</a>
-          <a href="#contact" class="transition hover:text-slate-900">Contact</a>
-        </nav>
+        <button
+          id="self-check"
+          type="button"
+          class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+        >
+          Run network self-check
+        </button>
       </div>
     </header>
 
-    <main id="main-content" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-      <section class="mx-auto max-w-3xl text-center">
-        <p class="inline-flex items-center rounded-full bg-slate-900/5 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-600">
-          Production-ready shell
+    <main class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+      <section
+        aria-labelledby="status-heading"
+        class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+      >
+        <h2 id="status-heading" class="text-base font-semibold">Runtime status</h2>
+        <p id="status-message" class="mt-2 text-sm text-slate-600">
+          Global handlers are attached. Failures are logged, broadcast and rendered as a banner.
         </p>
-        <h1 class="mt-6 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          Build something great
-        </h1>
-        <p class="mx-auto mt-4 max-w-xl text-lg leading-7 text-slate-600">
-          A modern, responsive application shell built with semantic HTML and Tailwind CSS,
-          now with global error handling for graceful failure recovery.
-        </p>
-        <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a
-            href="#features"
-            class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 sm:w-auto"
+      </section>
+
+      <section
+        aria-labelledby="diagnostics-heading"
+        class="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+      >
+        <div class="flex items-center justify-between gap-3">
+          <h2 id="diagnostics-heading" class="text-base font-semibold">Recent errors</h2>
+          <button
+            id="clear-errors"
+            type="button"
+            class="rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
           >
-            Get started
-          </a>
-          <a
-            href="#about"
-            class="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 sm:w-auto"
-          >
-            Learn more
-          </a>
+            Clear
+          </button>
         </div>
-      </section>
-
-      <section id="features" class="mt-20 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 class="text-base font-semibold text-slate-900">Resilient</h2>
-          <p class="mt-2 text-sm leading-6 text-slate-600">
-            Uncaught errors and unhandled promise rejections are captured and surfaced
-            without a silent crash.
-          </p>
-        </article>
-        <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 class="text-base font-semibold text-slate-900">Accessible</h2>
-          <p class="mt-2 text-sm leading-6 text-slate-600">
-            Semantic landmarks, skip navigation, and reduced-motion support out of the box.
-          </p>
-        </article>
-        <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 class="text-base font-semibold text-slate-900">Responsive</h2>
-          <p class="mt-2 text-sm leading-6 text-slate-600">
-            Fluid layouts that adapt cleanly across mobile, tablet, and desktop breakpoints.
-          </p>
-        </article>
-      </section>
-
-      <section id="about" class="mx-auto mt-20 max-w-3xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h2 class="text-xl font-semibold text-slate-900">About</h2>
-        <p class="mt-3 text-sm leading-6 text-slate-600">
-          This page ships with a lightweight global error boundary. When a fatal error is
-          detected, diagnostics are logged to the console and a dismissible alert is shown,
-          keeping the experience recoverable instead of failing silently.
-        </p>
+        <p id="errors-empty" class="mt-2 text-sm text-slate-500">No errors captured.</p>
+        <ul id="errors-list" class="mt-3 space-y-2"></ul>
       </section>
     </main>
 
-    <footer id="contact" class="border-t border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-slate-600 sm:flex-row sm:px-6 lg:px-8">
-        <p>&copy; <span id="footer-year">2024</span> Application. All rights reserved.</p>
-        <nav aria-label="Footer" class="flex gap-4">
-          <a href="#" class="transition hover:text-slate-900">Privacy</a>
-          <a href="#" class="transition hover:text-slate-900">Terms</a>
-        </nav>
-      </div>
+    <footer class="mx-auto w-full max-w-5xl px-4 pb-10 text-xs text-slate-500 sm:px-6">
+      <p>Errors are contained so the interface stays usable.</p>
     </footer>
 
     <script>
       (function () {
         'use strict';
 
-        var panel = document.getElementById('global-error-panel');
-        var messageEl = document.getElementById('global-error-message');
-        var reloadBtn = document.getElementById('global-error-reload');
-        var dismissBtn = document.getElementById('global-error-dismiss');
-        var eventName = window.__APP_ERROR_EVENT__ || 'app:global-error';
+        var runtime = window.AppRuntime;
+        if (!runtime) return;
 
-        document.getElementById('footer-year').textContent = String(new Date().getFullYear());
+        var MAX_ENTRIES = 5;
+        var list = document.getElementById('errors-list');
+        var empty = document.getElementById('errors-empty');
+        var status = document.getElementById('status-message');
+        var entries = [];
 
-        function showPanel(error) {
-          if (!panel || !messageEl) return;
-          var msg = (error && error.message) || 'An unexpected error occurred.';
-          messageEl.textContent = msg + ' You can reload to recover.';
-          panel.classList.remove('hidden');
+        function render() {
+          if (!list || !empty) return;
+
+          list.textContent = '';
+          empty.classList.toggle('hidden', entries.length > 0);
+
+          entries.forEach(function (entry) {
+            var item = document.createElement('li');
+            item.className =
+              'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700';
+
+            var title = document.createElement('p');
+            title.className = 'font-semibold text-slate-900';
+            title.textContent = entry.context + ' - ' + entry.name;
+
+            var body = document.createElement('p');
+            body.className = 'mt-1 break-words';
+            body.textContent = entry.message;
+
+            var meta = document.createElement('p');
+            meta.className = 'mt-1 text-[11px] text-slate-500';
+            meta.textContent = entry.timestamp;
+
+            item.appendChild(title);
+            item.appendChild(body);
+            item.appendChild(meta);
+            list.appendChild(item);
+          });
         }
 
-        window.addEventListener(eventName, function (event) {
-          showPanel(event.detail && event.detail.error);
+        window.addEventListener(runtime.ERROR_EVENT, function (event) {
+          entries.unshift(event.detail);
+          entries = entries.slice(0, MAX_ENTRIES);
+          render();
         });
 
-        if (reloadBtn) {
-          reloadBtn.addEventListener('click', function () {
-            window.location.reload();
+        var clearButton = document.getElementById('clear-errors');
+        if (clearButton) {
+          clearButton.addEventListener('click', function () {
+            entries = [];
+            render();
           });
         }
 
-        if (dismissBtn) {
-          dismissBtn.addEventListener('click', function () {
-            if (panel) panel.classList.add('hidden');
+        var selfCheck = document.getElementById('self-check');
+        if (selfCheck) {
+          selfCheck.addEventListener('click', async function () {
+            if (status) {
+              status.textContent = 'Running network self-check...';
+            }
+
+            var result = await runtime.safeRequest('/__health');
+
+            if (status) {
+              status.textContent = result
+                ? 'Self-check completed successfully.'
+                : 'Self-check failed. The error was captured and the app is still running.';
+            }
           });
         }
+
+        render();
       })();
     </script>
   </body>
