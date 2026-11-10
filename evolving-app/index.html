@@ -156,5 +156,7 @@
 
   <button id="copy-url-btn" onclick="copyURL()" style="margin-top:16px;padding:8px 16px;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:8px;cursor:pointer;font-size:13px;transition:all 0.2s">📋 Share This Page</button>
   <script>async function copyURL(){try{await navigator.clipboard.writeText(location.href);const b=document.getElementById("copy-url-btn");b.textContent="✓ Copied!";setTimeout(()=>b.textContent="📋 Share This Page",2000);if(typeof showToast==="function")showToast("URL copied to clipboard!","success")}catch{if(typeof showToast==="function")showToast("Could not copy URL","error")}}</script>
+
+  <script>document.addEventListener("visibilitychange",()=>{const orig=document.title;if(document.hidden){document.title="👀 Come back!"}else{document.title=orig}});</script>
 </body>
 </html>
