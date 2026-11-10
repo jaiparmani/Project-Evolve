@@ -16,5 +16,6 @@ describe('Express server', () => {
   it('returns 404 for an unknown route', async () => {
     const response = await request(app).get('/does-not-exist');
     expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'Not Found' });
   });
 });
