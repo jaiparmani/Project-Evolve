@@ -49,186 +49,169 @@
           class="flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         >
           <span
-            class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
+            class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white"
             aria-hidden="true"
           >
             A
           </span>
           <span class="text-base font-semibold tracking-tight">Application</span>
         </a>
-
-        <nav aria-label="Primary" class="hidden items-center gap-1 md:flex">
-          <a
-            href="#features"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            Features
-          </a>
-          <a
-            href="#about"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            About
-          </a>
-          <a
-            href="#contact"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            Contact
-          </a>
+        <nav aria-label="Primary" class="hidden items-center gap-1 sm:flex">
+          <a href="#features" class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900">Features</a>
+          <a href="#about" class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900">About</a>
+          <a href="#contact" class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900">Contact</a>
         </nav>
-
-        <div class="flex items-center gap-2">
-          <a
-            href="#contact"
-            class="hidden rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 sm:inline-flex"
-          >
-            Sign in
-          </a>
-          <a
-            href="#contact"
-            class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-          >
-            Get started
-          </a>
-        </div>
+        <a
+          href="#get-started"
+          class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        >
+          Get started
+        </a>
       </div>
     </header>
 
-    <main id="main-content" class="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-      <section aria-labelledby="hero-heading" class="flex flex-col items-center text-center">
-        <span
-          class="mb-6 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm"
-        >
-          Now in preview
-        </span>
-        <h1
-          id="hero-heading"
-          class="max-w-3xl text-balance text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
-        >
-          Build something people love to use every day
-        </h1>
-        <p class="mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-slate-600">
-          A modern, responsive application shell built with semantic HTML and Tailwind CSS, designed to get
-          you from idea to production quickly and accessibly.
+    <main id="main-content" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <section class="mx-auto max-w-3xl text-center">
+        <p class="mb-4 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+          Now with a built-in test suite
         </p>
-        <div class="mt-10 flex flex-col items-center gap-3 sm:flex-row">
-          <a
-            href="#features"
-            class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:w-auto"
-          >
-            Explore features
+        <h1 class="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+          A modern application shell
+        </h1>
+        <p class="mt-6 text-lg leading-relaxed text-slate-600">
+          Built with semantic HTML, Tailwind CSS, and a lightweight in-browser test harness to keep the page healthy.
+        </p>
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <a href="#get-started" class="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2">
+            Get started
           </a>
-          <a
-            href="#about"
-            class="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:w-auto"
-          >
+          <a href="#features" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2">
             Learn more
           </a>
         </div>
       </section>
 
-      <section id="features" aria-labelledby="features-heading" class="mt-24 scroll-mt-24">
-        <div class="max-w-2xl">
-          <h2 id="features-heading" class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Everything you need
-          </h2>
-          <p class="mt-3 text-base leading-relaxed text-slate-600">
-            Thoughtful defaults and accessible components so you can focus on the product.
-          </p>
-        </div>
-
-        <ul role="list" class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white" aria-hidden="true">
-              ⚡
-            </div>
-            <h3 class="mt-4 text-base font-semibold text-slate-900">Fast by default</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              Minimal footprint with utility-first styling and no unnecessary dependencies.
-            </p>
-          </li>
-          <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white" aria-hidden="true">
-              ♿
-            </div>
-            <h3 class="mt-4 text-base font-semibold text-slate-900">Accessible</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              Semantic landmarks, focus styles, and skip links baked in from the start.
-            </p>
-          </li>
-          <li class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white" aria-hidden="true">
-              📱
-            </div>
-            <h3 class="mt-4 text-base font-semibold text-slate-900">Responsive</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              Fluid layouts that adapt gracefully from small phones to wide desktop displays.
-            </p>
-          </li>
-        </ul>
+      <section id="features" class="mt-20 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-base font-semibold text-slate-900">Semantic markup</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-600">Accessible landmarks and headings make the page easy to navigate.</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-base font-semibold text-slate-900">Responsive design</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-600">Layouts adapt gracefully from small phones to large desktops.</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-base font-semibold text-slate-900">Tested by default</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-600">A tiny in-browser test runner verifies the page structure on load.</p>
+        </article>
       </section>
 
-      <section id="about" aria-labelledby="about-heading" class="mt-24 scroll-mt-24">
-        <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm sm:p-12">
-          <h2 id="about-heading" class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            About this project
-          </h2>
-          <p class="mt-4 max-w-3xl text-base leading-relaxed text-slate-600">
-            This shell provides a clean starting point for building modern web applications. It emphasizes
-            semantic markup, accessible interactions, and a consistent visual language powered by Tailwind CSS.
-          </p>
-        </div>
+      <section id="about" class="mt-20 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900">About</h2>
+        <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">
+          This shell is intentionally minimal so it can be extended into any product. The embedded test suite runs a handful of smoke checks against the DOM and reports results in the console.
+        </p>
       </section>
 
-      <section id="contact" aria-labelledby="contact-heading" class="mt-24 scroll-mt-24">
-        <div class="rounded-2xl bg-slate-900 p-8 text-center shadow-sm sm:p-12">
-          <h2 id="contact-heading" class="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Ready to get started?
-          </h2>
-          <p class="mx-auto mt-3 max-w-xl text-base leading-relaxed text-slate-300">
-            Reach out to learn how this shell can fit into your next project.
-          </p>
-          <a
-            href="mailto:hello@example.com"
-            class="mt-8 inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-medium text-slate-900 shadow-sm transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-          >
-            Contact us
-          </a>
-        </div>
+      <section id="get-started" class="mt-20 rounded-2xl bg-slate-900 p-8 text-center shadow-sm">
+        <h2 class="text-2xl font-bold tracking-tight text-white">Ready to build?</h2>
+        <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-300">
+          Clone the project, run the tests, and start shipping.
+        </p>
+        <a href="#contact" class="mt-6 inline-flex items-center rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900">
+          Contact us
+        </a>
       </section>
     </main>
 
-    <footer class="mt-16 border-t border-slate-200 bg-white">
-      <div
-        class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6 lg:px-8"
-      >
-        <p class="text-sm text-slate-500">&copy; <span id="year">2024</span> Application. All rights reserved.</p>
+    <footer id="contact" class="border-t border-slate-200 bg-white">
+      <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
+        <p class="text-sm text-slate-500">&copy; <span id="year"></span> Application. All rights reserved.</p>
         <nav aria-label="Footer" class="flex items-center gap-4">
-          <a
-            href="#features"
-            class="rounded-md text-sm text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            Features
-          </a>
-          <a
-            href="#about"
-            class="rounded-md text-sm text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            About
-          </a>
-          <a
-            href="#contact"
-            class="rounded-md text-sm text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            Contact
-          </a>
+          <a href="#features" class="text-sm text-slate-600 hover:text-slate-900">Features</a>
+          <a href="#about" class="text-sm text-slate-600 hover:text-slate-900">About</a>
         </nav>
       </div>
     </footer>
 
     <script>
       document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+
+    <script>
+      // Lightweight in-browser test suite.
+      // Runs smoke checks against the rendered DOM and reports results.
+      (function () {
+        'use strict';
+
+        const tests = [];
+        const test = (name, fn) => tests.push({ name, fn });
+
+        const assert = (condition, message) => {
+          if (!condition) throw new Error(message || 'Assertion failed');
+        };
+
+        test('document has a title', () => {
+          assert(document.title && document.title.length > 0, 'Missing <title>');
+        });
+
+        test('main landmark exists', () => {
+          assert(document.querySelector('main#main-content'), 'Missing <main id="main-content">');
+        });
+
+        test('skip link targets main content', () => {
+          const skip = document.querySelector('a[href="#main-content"]');
+          assert(skip, 'Missing skip link');
+        });
+
+        test('header contains primary navigation', () => {
+          assert(document.querySelector('header nav[aria-label="Primary"]'), 'Missing primary nav');
+        });
+
+        test('all images have alt text', () => {
+          const imgs = Array.from(document.querySelectorAll('img'));
+          imgs.forEach(() => assert(true));
+          imgs.forEach((img) => assert(img.hasAttribute('alt'), 'Image missing alt attribute'));
+        });
+
+        test('footer year is populated', () => {
+          const year = document.getElementById('year');
+          assert(year && year.textContent.trim().length === 4, 'Footer year not set');
+        });
+
+        const run = () => {
+          const results = tests.map(({ name, fn }) => {
+            try {
+              fn();
+              return { name, ok: true };
+            } catch (err) {
+              return { name, ok: false, error: err.message };
+            }
+          });
+
+          const passed = results.filter((r) => r.ok).length;
+          const failed = results.length - passed;
+
+          console.groupCollapsed(
+            `%cTest suite: ${passed}/${results.length} passed${failed ? ` (${failed} failed)` : ''}`,
+            `color:${failed ? '#dc2626' : '#16a34a'};font-weight:600`
+          );
+          results.forEach((r) => {
+            if (r.ok) console.log(`%c\u2713 ${r.name}`, 'color:#16a34a');
+            else console.error(`\u2717 ${r.name} \u2014 ${r.error}`);
+          });
+          console.groupEnd();
+
+          window.__TEST_RESULTS__ = results;
+          return results;
+        };
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', run, { once: true });
+        } else {
+          run();
+        }
+      })();
     </script>
   </body>
 </html>
