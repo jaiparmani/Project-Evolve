@@ -123,3 +123,61 @@ export async function backupDb(): Promise<void> {
     log.error({ error: (e as Error).message, stack: (e as Error).stack?.slice(0, 300) }, "DB backup failed");
   }
 }
+
+export async function pushEvolvedFiles(appDir: string, filesChanged: string[]): Promise<{ success: boolean; error?: string }> {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return { success: false, error: "GITHUB_TOKEN not set" };
+
+  const repoInfo = getRepoInfo();
+  if (!repoInfo) return { success: false, error: "Could not determine repo" };
+
+  const { owner, repo } = repoInfo;
+  log.info({ owner, repo, files: filesChanged.length }, "Pushing evolved files via GitHub API");
+
+  let pushed = 0;
+  for (const file of filesChanged) {
+    const filePath = resolve(appDir, file);
+    if (!existsSync(filePath)) continue;
+
+    const repoPath = `evolving-app/${file}`;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${repoPath}`;
+    const content = readFileSync(filePath).toString("base64");
+
+    try {
+      let sha: string | undefined;
+      const getRes = await fetch(apiUrl, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (getRes.ok) {
+        sha = ((await getRes.json()) as { sha: string }).sha;
+      }
+
+      const putRes = await fetch(apiUrl, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `feat(evolve): update ${file} [auto-evolved]`,
+          content,
+          branch: "main",
+          ...(sha ? { sha } : {}),
+          committer: { name: "Project Evolve Bot", email: "evolve-bot@project-evolve.app" },
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (putRes.ok) {
+        pushed++;
+        log.info({ file: repoPath }, "Pushed evolved file");
+      } else {
+        const errText = await putRes.text();
+        log.warn({ file: repoPath, status: putRes.status, error: errText.slice(0, 200) }, "Failed to push file");
+      }
+    } catch (e) {
+      log.warn({ file: repoPath, error: (e as Error).message }, "Error pushing file");
+    }
+  }
+
+  log.info({ pushed, total: filesChanged.length }, "Evolved files push complete");
+  return { success: pushed > 0 };
+}

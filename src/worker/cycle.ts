@@ -387,14 +387,20 @@ async function runCycleInner(projectId: string): Promise<CycleResult> {
 
     await updatePhase(cycleId, "committing", { commitSha: commitResult.sha });
 
-    // Push to GitHub
-    const pushResult = await git.push();
+    // Push evolved files to GitHub via API (git push fails on Render — no remote in worktree)
+    let pushResult: { success: boolean; error?: string };
+    try {
+      const { pushEvolvedFiles } = await import("../db/persist.js");
+      pushResult = await pushEvolvedFiles(proj.appDir, buildResult.filesChanged);
+    } catch (e) {
+      pushResult = { success: false, error: (e as Error).message };
+    }
     await db
       .update(schema.commits)
       .set({ pushed: pushResult.success, pushError: pushResult.error || null })
       .where(eq(schema.commits.id, commitId));
     await updatePhase(cycleId, "committing", {
-      pushStatus: pushResult.success ? "pushed" : `failed: ${pushResult.error}`,
+      pushStatus: pushResult.success ? "pushed via API" : `failed: ${pushResult.error}`,
     });
 
     // Phase 7: Deploy
