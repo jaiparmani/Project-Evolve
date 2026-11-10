@@ -9,9 +9,13 @@ const DB_PATH = "data/evolve.db";
 
 function git(cmd: string): string {
   try {
-    return execSync(`git ${cmd}`, { cwd: ROOT, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-  } catch (e) {
-    log.warn({ cmd, error: (e as Error).message?.slice(0, 200) }, "git command failed");
+    return execSync(`git ${cmd}`, { cwd: ROOT, timeout: 60000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+  } catch (e: any) {
+    const stderr = e.stderr?.toString?.()?.trim?.() || "";
+    const stdout = e.stdout?.toString?.()?.trim?.() || "";
+    // git push/fetch write progress to stderr even on success — check exit code
+    if (e.status === 0) return stdout || stderr;
+    log.warn({ cmd, error: (stderr || e.message)?.slice(0, 300) }, "git command failed");
     return "";
   }
 }
@@ -26,7 +30,6 @@ function configureAuth(): boolean {
   const remoteUrl = git("remote get-url origin");
   if (!remoteUrl) return false;
 
-  // Convert https://github.com/user/repo.git → https://<token>@github.com/user/repo.git
   if (remoteUrl.startsWith("https://") && !remoteUrl.includes("@")) {
     const authedUrl = remoteUrl.replace("https://", `https://${token}@`);
     git(`remote set-url origin ${authedUrl}`);
@@ -73,6 +76,8 @@ export function backupDb(): void {
     return;
   }
 
+  // Render deploys in detached HEAD — create a temp branch for the commit
+  git("checkout -B __db-backup");
   git(`add -f ${DB_PATH}`);
   const commitResult = git(`commit -m "chore: persist DB after evolution cycle" --no-verify`);
   if (!commitResult) {
@@ -80,10 +85,11 @@ export function backupDb(): void {
     return;
   }
 
-  const pushResult = git("push origin main");
-  if (pushResult) {
-    log.info("DB backed up to git");
-  } else {
-    log.warn("Push failed — DB backup not persisted");
-  }
+  // Fetch enough history so push doesn't get rejected
+  git("fetch origin main --depth=10");
+  // Rebase our commit on top of remote main to avoid conflicts
+  git("rebase origin/main");
+  // Push our temp branch to remote main
+  const pushResult = git("push origin __db-backup:main");
+  log.info({ result: pushResult?.slice(0, 200) }, "DB backup push attempted");
 }
