@@ -127,5 +127,8 @@
 
   <div id="uptime-display" style="margin-top:16px;text-align:center;font-size:13px;color:#666"><span>Uptime: </span><span id="uptime-value">loading...</span></div>
   <script>async function fetchUptime(){try{const r=await fetch("/health");const d=await r.json();const el=document.getElementById("uptime-value");if(el&&d.uptime){const s=Math.floor(d.uptime);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);el.textContent=h>0?h+"h "+m+"m":m+"m "+s%60+"s"}}catch{const el=document.getElementById("uptime-value");if(el)el.textContent="offline"}}fetchUptime();setInterval(fetchUptime,60000);</script>
+
+  <canvas id="particle-canvas" style="position:fixed;inset:0;z-index:-1;pointer-events:none"></canvas>
+  <script>(function(){const c=document.getElementById("particle-canvas"),x=c.getContext("2d");let w,h,ps=[];function resize(){w=c.width=innerWidth;h=c.height=innerHeight}resize();addEventListener("resize",resize);for(let i=0;i<50;i++)ps.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+0.5,dx:(Math.random()-0.5)*0.3,dy:(Math.random()-0.5)*0.3,o:Math.random()*0.3+0.1});function draw(){x.clearRect(0,0,w,h);ps.forEach(p=>{p.x+=p.dx;p.y+=p.dy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle="rgba(96,165,250,"+p.o+")";x.fill()});requestAnimationFrame(draw)}draw()})();</script>
 </body>
 </html>
