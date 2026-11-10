@@ -144,5 +144,11 @@
 
   <div id="cursor-glow" style="position:fixed;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,0.08) 0%,transparent 70%);pointer-events:none;z-index:-1;transform:translate(-50%,-50%);transition:opacity 0.3s"></div>
   <script>document.addEventListener("mousemove",e=>{const g=document.getElementById("cursor-glow");if(g){g.style.left=e.clientX+"px";g.style.top=e.clientY+"px"}});</script>
+
+  <div id="random-quote" style="margin-top:24px;max-width:500px;padding:20px 24px;background:rgba(255,255,255,0.03);border-left:3px solid #a78bfa;border-radius:0 8px 8px 0;text-align:left">
+    <p id="quote-text" style="color:#bbb;font-size:14px;line-height:1.6;font-style:italic"></p>
+    <p id="quote-author" style="color:#666;font-size:12px;margin-top:8px"></p>
+  </div>
+  <script>(function(){const qs=[{t:"The best way to predict the future is to invent it.",a:"Alan Kay"},{t:"Any sufficiently advanced technology is indistinguishable from magic.",a:"Arthur C. Clarke"},{t:"Software is eating the world.",a:"Marc Andreessen"},{t:"The only way to do great work is to love what you do.",a:"Steve Jobs"},{t:"Programs must be written for people to read, and only incidentally for machines to execute.",a:"Harold Abelson"},{t:"First, solve the problem. Then, write the code.",a:"John Johnson"},{t:"Code is like humor. When you have to explain it, it's bad.",a:"Cory House"},{t:"Simplicity is the soul of efficiency.",a:"Austin Freeman"},{t:"Talk is cheap. Show me the code.",a:"Linus Torvalds"},{t:"The computer was born to solve problems that did not exist before.",a:"Bill Gates"}];const q=qs[Math.floor(Math.random()*qs.length)];document.getElementById("quote-text").textContent='"'+q.t+'"';document.getElementById("quote-author").textContent="— "+q.a})();</script>
 </body>
 </html>
