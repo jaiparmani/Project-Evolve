@@ -55,10 +55,14 @@ Generate the file changes. Return JSON:
   "summary": "What was done"
 }
 
-Write production-quality TypeScript/React/CSS. Use modern patterns.
-For HTML/React: use semantic elements, Tailwind CSS classes, responsive design.
-Do NOT create test-only files or mocks.
-Write complete file contents, not partial snippets.`;
+CRITICAL RULES:
+- Write COMPLETE file contents, not partial snippets or diffs.
+- Match the EXISTING tech stack. If the app uses plain JavaScript and HTML, write JavaScript and HTML — do NOT introduce TypeScript, React, or other frameworks unless the plan explicitly says to.
+- If creating a new file, include ALL necessary imports/requires.
+- If modifying an existing file, include the ENTIRE updated file content, not just the changed parts.
+- Keep changes minimal and focused. Do ONE thing well.
+- Make sure the server can still start after your changes.
+- Do NOT create test files unless the plan specifically asks for tests.`;
     let changes = [];
     try {
         const result = await chatForTask("implement", [

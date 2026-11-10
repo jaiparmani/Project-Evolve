@@ -82,19 +82,19 @@ export async function strategize(
   ).length;
 
   const roadmap = observations.roadmap;
+  const nextGate = roadmap?.failingGates?.[0] || null;
   const roadmapSection = roadmap ? `
 EVOLUTION ROADMAP:
 Current Stage: ${roadmap.currentStageName} (overall progress: ${roadmap.overallProgress}%)
-Stage Goals (what the app needs to achieve NOW):
+
+THE MOST IMPORTANT THING RIGHT NOW:
+Your #1 priority is to pass the NEXT failing gate. Pick the FIRST one and make it pass:
+${roadmap.failingGates.length > 0 ? roadmap.failingGates.map((g, i) => `  ${i === 0 ? ">>> " : "    "}${i + 1}. ${g}`).join("\n") : "  All gates pass!"}
+
+Stage Goals:
 ${roadmap.currentStageGoals.map((g) => `  - ${g}`).join("\n")}
 
-Failing Gates (blocking advancement to next stage):
-${roadmap.failingGates.length > 0 ? roadmap.failingGates.map((g) => `  - ${g}`).join("\n") : "  None"}
-
-All Stages:
-${roadmap.stageProgress.map((s) => `  ${s.name}: ${s.percentComplete}%${s.isComplete ? " COMPLETE" : ""}`).join("\n")}
-
-CRITICAL RULE: Improvements MUST advance the current stage ("${roadmap.currentStageName}"). Do NOT propose features or polish when foundation work is incomplete. Each idea must specify which stage goal it advances.
+CRITICAL RULE: Your selected idea MUST target the first failing gate listed above. Do NOT skip to later gates or other stages. One gate at a time.
 ` : "";
 
   const prompt = `You are a product strategist for a self-improving application.
@@ -197,6 +197,50 @@ Return JSON:
     data.selectedIdea = best;
     data.selectionReason = `Auto-selected highest-scored idea (LLM returned no selection)`;
     log.warn({ selected: best.title }, "LLM returned no selectedIdea — auto-selecting best idea");
+  }
+
+  // If no idea selected, target the first failing gate directly
+  if (!data.selectedIdea && nextGate) {
+    const gateIdeas: Record<string, Idea> = {
+      "tsconfig.json exists": {
+        title: "Add tsconfig.json for TypeScript support",
+        description: "Create a tsconfig.json file in the app directory with a basic configuration for a Node.js web app. This is the first step toward type safety.",
+        category: "architecture",
+        impact: 8, confidence: 10, effort: 2, strategicValue: 9,
+        reason: "Required to pass the Foundation stage tsconfig gate",
+      },
+      "Test script exists": {
+        title: "Add a test script to package.json",
+        description: "Add a simple test framework (vitest or jest) and create at least one basic test that verifies the server responds to requests. Update package.json scripts.test.",
+        category: "testing",
+        impact: 8, confidence: 9, effort: 3, strategicValue: 9,
+        reason: "Required to pass the Foundation stage test gate",
+      },
+      "Server has error handling": {
+        title: "Add error handling to the server",
+        description: "Add try/catch blocks around route handlers in server.js and add process.on('uncaughtException') and process.on('unhandledRejection') handlers.",
+        category: "architecture",
+        impact: 8, confidence: 10, effort: 2, strategicValue: 9,
+        reason: "Required to pass the Foundation stage error handling gate",
+      },
+      "TypeScript compiles without errors": {
+        title: "Fix TypeScript compilation errors",
+        description: "Fix all TypeScript errors reported by tsc --noEmit so the project compiles cleanly.",
+        category: "architecture",
+        impact: 8, confidence: 9, effort: 4, strategicValue: 9,
+        reason: "Required to pass the Foundation stage TypeScript compilation gate",
+      },
+    };
+
+    // Match the gate description to a predefined idea
+    const matchedKey = Object.keys(gateIdeas).find(k => nextGate.includes(k));
+    if (matchedKey) {
+      const fallbackIdea = gateIdeas[matchedKey];
+      data.ideas.push(fallbackIdea);
+      data.selectedIdea = fallbackIdea;
+      data.selectionReason = `Auto-targeting first failing gate: ${nextGate}`;
+      log.info({ selected: fallbackIdea.title, gate: nextGate }, "Auto-targeting failing gate");
+    }
   }
 
   if (!data.selectedIdea && highSeverityCount > 0) {
