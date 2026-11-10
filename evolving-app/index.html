@@ -87,5 +87,16 @@
     }
     checkHealth();
   </script>
+
+  <div id="visitor-info" style="margin-top:24px;text-align:center">
+    <p id="greeting-text" style="color:#5ee0c8;font-size:18px;margin-bottom:8px"></p>
+    <p id="visitor-count" style="color:#666;font-size:12px"></p>
+  </div>
+  <script>
+    fetch("/api/visitors").then(r=>r.json()).then(d => {
+      document.getElementById("greeting-text").textContent = d.greeting + "!";
+      document.getElementById("visitor-count").textContent = "Visitor #" + d.count;
+    }).catch(() => {});
+  </script>
 </body>
 </html>
