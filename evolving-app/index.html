@@ -166,5 +166,8 @@
 
   <style>.scroll-reveal{opacity:0;transform:translateY(20px);transition:opacity 0.6s,transform 0.6s}.scroll-reveal.visible{opacity:1;transform:translateY(0)}</style>
   <script>(function(){const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("visible");obs.unobserve(e.target)}})},{threshold:0.1});document.querySelectorAll("section,div[id]").forEach(el=>el.classList.add("scroll-reveal"));setTimeout(()=>document.querySelectorAll(".scroll-reveal").forEach(el=>obs.observe(el)),100)})();</script>
+
+  <style>[data-tooltip]{position:relative;cursor:help}[data-tooltip]:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);padding:6px 10px;background:#1e293b;color:#e2e8f0;border:1px solid rgba(96,165,250,0.3);border-radius:6px;font-size:12px;white-space:nowrap;z-index:9000;pointer-events:none;animation:fadeSlideIn 0.2s ease-out}</style>
+  <script>document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll("button,kbd,.badge").forEach(el=>{if(!el.dataset.tooltip)el.dataset.tooltip=el.textContent.trim().slice(0,30)})});</script>
 </body>
 </html>
