@@ -39,24 +39,20 @@ apiRouter.get("/cycles", async (req, res) => {
   const offset = parseInt(req.query.offset as string) || 0;
   const status = req.query.status as string;
 
-  let query = db
-    .select()
-    .from(schema.evolutionCycles)
-    .orderBy(desc(schema.evolutionCycles.createdAt))
-    .limit(limit)
-    .offset(offset);
-
-  if (status) {
-    query = db
-      .select()
-      .from(schema.evolutionCycles)
-      .where(eq(schema.evolutionCycles.status, status))
-      .orderBy(desc(schema.evolutionCycles.createdAt))
-      .limit(limit)
-      .offset(offset);
-  }
-
-  const cycles = await query;
+  const cycles = status
+    ? await db
+        .select()
+        .from(schema.evolutionCycles)
+        .where(eq(schema.evolutionCycles.status, status))
+        .orderBy(desc(schema.evolutionCycles.createdAt))
+        .limit(limit)
+        .offset(offset)
+    : await db
+        .select()
+        .from(schema.evolutionCycles)
+        .orderBy(desc(schema.evolutionCycles.createdAt))
+        .limit(limit)
+        .offset(offset);
   const total = await db.select({ count: count() }).from(schema.evolutionCycles);
   res.json({ cycles, total: total[0]?.count || 0 });
 });

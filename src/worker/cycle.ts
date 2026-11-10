@@ -92,7 +92,19 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     await updatePhase(cycleId, "observing");
     log.info({ cycleId, cycleNumber }, "Phase 1: Observing");
 
-    const observations = await observe(projectId, cycleId, proj.appDir);
+    let observations: Awaited<ReturnType<typeof observe>>;
+    try {
+      observations = await observe(projectId, cycleId, proj.appDir);
+    } catch (obsErr) {
+      log.warn({ error: (obsErr as Error).message }, "Observation phase failed — completing cycle with no improvement");
+      await updatePhase(cycleId, "completed", {
+        completedAt: new Date().toISOString(),
+        lessonsLearned: `Observation failed: ${(obsErr as Error).message}. Cycle completed gracefully.`,
+        selectedImprovement: "No improvement — observation phase failed",
+      });
+      return { cycleId, status: "completed" as const, improvement: "No improvement — observation failed", tokensUsed };
+    }
+
     await updatePhase(cycleId, "observing", {
       observation: JSON.stringify(observations.observations),
       qualityBefore: observations.qualityScore,
@@ -102,7 +114,20 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     await updatePhase(cycleId, "strategizing");
     log.info({ cycleId }, "Phase 2: Strategizing");
 
-    const strategy = await strategize(projectId, cycleId, observations);
+    let strategy: Awaited<ReturnType<typeof strategize>>;
+    try {
+      strategy = await strategize(projectId, cycleId, observations);
+    } catch (stratErr) {
+      log.warn({ error: (stratErr as Error).message }, "Strategy phase failed — completing cycle with no improvement");
+      await updatePhase(cycleId, "completed", {
+        completedAt: new Date().toISOString(),
+        qualityBefore: observations.qualityScore,
+        lessonsLearned: `Strategy failed: ${(stratErr as Error).message}. Cycle completed gracefully.`,
+        selectedImprovement: "No improvement — strategy phase failed",
+      });
+      return { cycleId, status: "completed" as const, improvement: "No improvement — strategy failed", qualityBefore: observations.qualityScore, tokensUsed };
+    }
+
     if (!strategy.selectedIdea) {
       const flagNote = strategy.flaggedForReview
         ? " [FLAGGED: high-severity issues were found but not addressed]"
@@ -141,7 +166,20 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     await updatePhase(cycleId, "planning");
     log.info({ cycleId, idea: strategy.selectedIdea.title }, "Phase 3: Planning");
 
-    const implPlan = await plan(proj.appDir, strategy.selectedIdea, observations);
+    let implPlan: Awaited<ReturnType<typeof plan>>;
+    try {
+      implPlan = await plan(proj.appDir, strategy.selectedIdea, observations);
+    } catch (planErr) {
+      log.warn({ error: (planErr as Error).message }, "Planning phase failed — completing cycle with no improvement");
+      await updatePhase(cycleId, "completed", {
+        completedAt: new Date().toISOString(),
+        qualityBefore: observations.qualityScore,
+        selectedImprovement: strategy.selectedIdea.title,
+        lessonsLearned: `Planning failed: ${(planErr as Error).message}. Cycle completed gracefully.`,
+      });
+      return { cycleId, status: "completed" as const, improvement: "No improvement — planning failed", qualityBefore: observations.qualityScore, tokensUsed };
+    }
+
     await updatePhase(cycleId, "planning", {
       implementationPlan: JSON.stringify(implPlan),
     });
@@ -189,6 +227,19 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
         filesToDelete: Array.isArray(implPlan.filesToDelete) ? implPlan.filesToDelete : [],
       };
       buildResult = await build(buildDir, safePlan, previousAttempt);
+
+      if (buildResult.filesChanged.length === 0) {
+        log.warn({ cycleId, attempt }, "Build produced no file changes — skipping evaluation");
+        await db.update(schema.experiments).set({ status: "completed", completedAt: new Date().toISOString() }).where(eq(schema.experiments.id, experimentId));
+        if (worktree) await git.removeWorktree(worktree.path).catch(() => {});
+        await updatePhase(cycleId, "completed", {
+          completedAt: new Date().toISOString(),
+          qualityBefore: observations.qualityScore,
+          selectedImprovement: strategy.selectedIdea.title,
+          lessonsLearned: "Build produced no changes (LLM may have been unavailable). Cycle completed gracefully.",
+        });
+        return { cycleId, status: "completed" as const, improvement: "No improvement — build produced no changes", qualityBefore: observations.qualityScore, tokensUsed };
+      }
 
       await db
         .update(schema.experiments)

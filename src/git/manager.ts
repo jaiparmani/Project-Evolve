@@ -90,10 +90,10 @@ export class GitManager {
 
     const diffStat = await git.diffSummary(["HEAD~1", "HEAD"]);
 
-    log.info({ sha, files: diffStat.files_changed }, "Committed");
+    log.info({ sha, files: (diffStat as any).files_changed ?? diffStat.changed }, "Committed");
     return {
       sha,
-      filesChanged: diffStat.files_changed || 0,
+      filesChanged: (diffStat as any).files_changed ?? diffStat.changed ?? 0,
       insertions: diffStat.insertions || 0,
       deletions: diffStat.deletions || 0,
     };

@@ -93,13 +93,19 @@ For HTML/React: use semantic elements, Tailwind CSS classes, responsive design.
 Do NOT create test-only files or mocks.
 Write complete file contents, not partial snippets.`;
 
-  const result = await chatForTask("implement", [
-    { role: "system", content: "You are an expert developer. Reply with ONLY valid JSON containing file changes." },
-    { role: "user", content: prompt },
-  ], { jsonMode: true, maxTokens: 8192 });
+  let changes: FileChange[] = [];
+  try {
+    const result = await chatForTask("implement", [
+      { role: "system", content: "You are an expert developer. Reply with ONLY valid JSON containing file changes." },
+      { role: "user", content: prompt },
+    ], { jsonMode: true, maxTokens: 8192 });
 
-  const data = (result as { data: { changes: FileChange[]; summary: string } }).data;
-  const changes = data.changes || [];
+    const data = (result as unknown as { data: { changes: FileChange[]; summary: string } }).data;
+    changes = data.changes || [];
+  } catch (err) {
+    log.warn({ error: (err as Error).message }, "LLM build failed — returning empty changeset");
+    return { filesChanged: [], linesAdded: 0, linesRemoved: 0, log: `Build skipped: LLM unavailable (${(err as Error).message})` };
+  }
   let linesAdded = 0;
   let linesRemoved = 0;
   const filesChanged: string[] = [];

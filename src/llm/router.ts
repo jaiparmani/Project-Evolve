@@ -1,4 +1,4 @@
-import { getClient, type LLMMessage, type ModelInfo } from "./openrouter.js";
+import { getClient, type LLMMessage, type ModelInfo, RateLimitError } from "./openrouter.js";
 import { childLogger } from "../core/logger.js";
 
 const log = childLogger("model-router");
@@ -88,10 +88,30 @@ export async function chatForTask(
   messages: LLMMessage[],
   opts: { maxTokens?: number; jsonMode?: boolean } = {}
 ) {
-  const model = await selectModel(task);
+  const prefs = MODEL_PREFERENCES[task] || MODEL_PREFERENCES.classify;
+  const available = await getAvailableModels();
+  const models = prefs.filter(m => available.has(m));
+  if (!models.length) models.push("openrouter/auto");
+
   const client = getClient();
-  if (opts.jsonMode) {
-    return client.chatJson(messages, { model, maxTokens: opts.maxTokens });
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    try {
+      log.debug({ task, model }, "Trying model");
+      if (opts.jsonMode) {
+        return await client.chatJson(messages, { model, maxTokens: opts.maxTokens });
+      }
+      return await client.chat(messages, { model, maxTokens: opts.maxTokens });
+    } catch (err) {
+      lastError = err as Error;
+      if (err instanceof RateLimitError) {
+        log.warn({ task, model }, "Rate limited — trying next model");
+        continue;
+      }
+      throw err;
+    }
   }
-  return client.chat(messages, { model, maxTokens: opts.maxTokens });
+
+  throw lastError || new Error(`All models failed for task ${task}`);
 }

@@ -64,9 +64,19 @@ function getEndpoint(): { url: string; headers: Record<string, string> } {
 export class LLMClient {
   private requestCount = 0;
   private totalTokens = 0;
+  private lastCallTime = 0;
+  private static readonly MIN_CALL_INTERVAL_MS = 2000;
 
   get stats() {
     return { requests: this.requestCount, tokens: this.totalTokens };
+  }
+
+  private async throttle() {
+    const elapsed = Date.now() - this.lastCallTime;
+    if (elapsed < LLMClient.MIN_CALL_INTERVAL_MS) {
+      await new Promise(r => setTimeout(r, LLMClient.MIN_CALL_INTERVAL_MS - elapsed));
+    }
+    this.lastCallTime = Date.now();
   }
 
   async listFreeModels(): Promise<ModelInfo[]> {
@@ -112,6 +122,7 @@ export class LLMClient {
     const timeout = setTimeout(() => controller.abort(), opts.timeout || 60000);
 
     try {
+      await this.throttle();
       log.debug({ url, model }, "LLM request");
       const res = await fetch(url, {
         method: "POST",
@@ -120,20 +131,17 @@ export class LLMClient {
         signal: controller.signal,
       });
 
-      if (res.status === 429) {
-        throw new RateLimitError("Rate limited by provider");
-      }
-
-      if (res.status >= 500 || res.status === 429) {
+      if (res.status === 429 || res.status >= 500) {
         const text = await res.text();
         for (let retry = 0; retry < 3; retry++) {
-          const delay = (retry + 1) * 5000;
-          log.warn({ status: res.status, retry: retry + 1 }, "Error, retrying in %dms", delay);
+          const baseDelay = res.status === 429 ? 10000 : 5000;
+          const delay = baseDelay * Math.pow(2, retry);
+          log.warn({ status: res.status, retry: retry + 1, delayMs: delay }, "Error, retrying");
           await new Promise(r => setTimeout(r, delay));
           try {
             const retryRes = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
             if (retryRes.ok) {
-              const retryData = await retryRes.json();
+              const retryData = (await retryRes.json()) as Record<string, any>;
               const retryChoices = retryData.choices || [];
               if (retryChoices.length) {
                 const retryContent = retryChoices[0]?.message?.content || "";
@@ -149,7 +157,13 @@ export class LLMClient {
                 };
               }
             }
+            if (retryRes.status === 429) {
+              log.warn({ retry: retry + 1 }, "Still rate limited, backing off more");
+            }
           } catch {}
+        }
+        if (res.status === 429) {
+          throw new RateLimitError(`Rate limited after 3 retries: ${text.slice(0, 300)}`);
         }
         throw new LLMError(`LLM ${res.status} after 3 retries: ${text.slice(0, 300)}`);
       }
@@ -159,7 +173,7 @@ export class LLMClient {
         throw new LLMError(`LLM ${res.status}: ${text.slice(0, 300)}`);
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as Record<string, any>;
       const choices = data.choices || [];
       if (!choices.length) throw new LLMError("No choices returned");
 

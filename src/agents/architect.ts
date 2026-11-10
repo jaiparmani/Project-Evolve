@@ -97,12 +97,28 @@ Create a precise implementation plan. Return JSON:
 
 Be specific about file paths and changes. Keep it minimal and focused.`;
 
-  const result = await chatForTask("plan", [
-    { role: "system", content: "You are a senior software architect. Reply with ONLY valid JSON." },
-    { role: "user", content: prompt },
-  ], { jsonMode: true });
+  try {
+    const result = await chatForTask("plan", [
+      { role: "system", content: "You are a senior software architect. Reply with ONLY valid JSON." },
+      { role: "user", content: prompt },
+    ], { jsonMode: true });
 
-  const data = (result as { data: ImplementationPlan }).data;
-  log.info({ steps: data.steps?.length, complexity: data.estimatedComplexity }, "Plan complete");
-  return data;
+    const data = (result as unknown as { data: ImplementationPlan }).data;
+    log.info({ steps: data.steps?.length, complexity: data.estimatedComplexity }, "Plan complete");
+    return data;
+  } catch (err) {
+    log.warn({ error: (err as Error).message }, "LLM planning failed — generating minimal plan from idea");
+    const relevantFiles = keyFiles.filter(f => f.endsWith("index.html") || f.endsWith(".tsx") || f.endsWith(".css"));
+    return {
+      title: selectedIdea.title,
+      approach: selectedIdea.description,
+      steps: [{ step: 1, description: selectedIdea.description, files: relevantFiles.slice(0, 3) }],
+      filesToCreate: [],
+      filesToModify: relevantFiles.slice(0, 3),
+      filesToDelete: [],
+      acceptanceCriteria: ["Changes compile without errors"],
+      regressionRisks: ["May affect existing functionality"],
+      estimatedComplexity: "low" as const,
+    };
+  }
 }
