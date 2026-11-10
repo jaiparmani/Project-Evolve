@@ -6,8 +6,15 @@
   "license": "MIT",
   "scripts": {
     "build": "node -e \"const fs=require('fs');const p='index.html';if(!fs.existsSync(p)){console.error('Build failed: index.html missing');process.exit(1);}const h=fs.readFileSync(p,'utf8');if(!h.trim()){console.error('Build failed: index.html empty');process.exit(1);}console.log('Build succeeded: index.html verified');\"",
-    "test": "node -e \"const fs=require('fs');const p='index.html';if(!fs.existsSync(p)){console.error('Test failed: index.html missing');process.exit(1);}const h=fs.readFileSync(p,'utf8').toLowerCase();const req=['<!doctype html>','<html','<head>','<body','<title>','</html>','viewport','width=device-width'];const miss=req.filter(t=>!h.includes(t));if(miss.length){console.error('Test failed: missing '+miss.join(', '));process.exit(1);}console.log('Test passed: index.html structure valid');\"",
-    "start": "node -e \"console.log('Static site: open index.html in a browser or serve the directory.')\""
+    "test": "jest --runInBand",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
   },
   "engines": {
     "node": ">=18"
