@@ -17,6 +17,20 @@ app.get("/", (req, res) => {
 
 app.use(express.static(__dirname));
 
+// Global error handlers
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("Request error:", err);
+  res.status(500).json({ error: "Internal server error" });
+});
+
 app.listen(PORT, () => {
   console.log(`Evolving App running at http://localhost:${PORT}`);
 });
