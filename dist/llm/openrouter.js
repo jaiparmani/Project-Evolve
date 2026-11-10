@@ -88,10 +88,14 @@ export class LLMClient {
             });
             if (res.status === 429 || res.status >= 500) {
                 const text = await res.text();
-                for (let retry = 0; retry < 3; retry++) {
-                    const baseDelay = res.status === 429 ? 10000 : 5000;
-                    const delay = baseDelay * Math.pow(2, retry);
-                    log.warn({ status: res.status, retry: retry + 1, delayMs: delay }, "Error, retrying");
+                const maxRetries = res.status === 429 ? 5 : 3;
+                for (let retry = 0; retry < maxRetries; retry++) {
+                    // Aggressive exponential backoff: 429 starts at 15s, 500+ at 5s
+                    // With jitter to avoid thundering herd
+                    const baseDelay = res.status === 429 ? 15000 : 5000;
+                    const jitter = Math.random() * 2000;
+                    const delay = Math.min(baseDelay * Math.pow(2, retry) + jitter, 120000);
+                    log.warn({ status: res.status, retry: retry + 1, maxRetries, delayMs: Math.round(delay) }, "Error, retrying with backoff");
                     await new Promise(r => setTimeout(r, delay));
                     try {
                         const retryRes = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
@@ -103,6 +107,7 @@ export class LLMClient {
                                 const retryUsage = retryData.usage || {};
                                 this.requestCount++;
                                 this.totalTokens += (retryUsage.prompt_tokens || 0) + (retryUsage.completion_tokens || 0);
+                                log.info({ retry: retry + 1 }, "Retry succeeded");
                                 return {
                                     content: retryContent,
                                     model: retryData.model || model || "unknown",
@@ -116,12 +121,14 @@ export class LLMClient {
                             log.warn({ retry: retry + 1 }, "Still rate limited, backing off more");
                         }
                     }
-                    catch { }
+                    catch (retryErr) {
+                        log.warn({ retry: retry + 1, error: retryErr.message }, "Retry failed");
+                    }
                 }
                 if (res.status === 429) {
-                    throw new RateLimitError(`Rate limited after 3 retries: ${text.slice(0, 300)}`);
+                    throw new RateLimitError(`Rate limited after ${maxRetries} retries: ${text.slice(0, 300)}`);
                 }
-                throw new LLMError(`LLM ${res.status} after 3 retries: ${text.slice(0, 300)}`);
+                throw new LLMError(`LLM ${res.status} after ${maxRetries} retries: ${text.slice(0, 300)}`);
             }
             if (!res.ok) {
                 const text = await res.text();

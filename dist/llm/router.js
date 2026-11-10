@@ -73,9 +73,10 @@ export async function chatForTask(task, messages, opts = {}) {
         models.push("openrouter/auto");
     const client = getClient();
     let lastError = null;
-    for (const model of models) {
+    for (let i = 0; i < models.length; i++) {
+        const model = models[i];
         try {
-            log.debug({ task, model }, "Trying model");
+            log.info({ task, model, attempt: i + 1, total: models.length }, "Trying model");
             if (opts.jsonMode) {
                 return await client.chatJson(messages, { model, maxTokens: opts.maxTokens });
             }
@@ -84,7 +85,11 @@ export async function chatForTask(task, messages, opts = {}) {
         catch (err) {
             lastError = err;
             if (err instanceof RateLimitError) {
-                log.warn({ task, model }, "Rate limited — trying next model");
+                log.warn({ task, model, remaining: models.length - i - 1 }, "Rate limited — trying next model");
+                // Wait 5s before trying next model to avoid burst
+                if (i < models.length - 1) {
+                    await new Promise(r => setTimeout(r, 5000));
+                }
                 continue;
             }
             throw err;
