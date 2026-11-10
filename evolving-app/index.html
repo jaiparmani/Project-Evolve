@@ -153,5 +153,8 @@
 
   <div id="reading-progress" style="position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,#a78bfa,#f472b6);z-index:99998;width:0;transition:width 0.1s"></div>
   <script>window.addEventListener("scroll",()=>{const el=document.getElementById("reading-progress");if(!el)return;const h=document.documentElement.scrollHeight-window.innerHeight;el.style.width=h>0?(window.scrollY/h*100)+"%":"100%"});</script>
+
+  <button id="copy-url-btn" onclick="copyURL()" style="margin-top:16px;padding:8px 16px;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:8px;cursor:pointer;font-size:13px;transition:all 0.2s">📋 Share This Page</button>
+  <script>async function copyURL(){try{await navigator.clipboard.writeText(location.href);const b=document.getElementById("copy-url-btn");b.textContent="✓ Copied!";setTimeout(()=>b.textContent="📋 Share This Page",2000);if(typeof showToast==="function")showToast("URL copied to clipboard!","success")}catch{if(typeof showToast==="function")showToast("Could not copy URL","error")}}</script>
 </body>
 </html>
