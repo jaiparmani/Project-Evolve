@@ -96,13 +96,14 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     try {
       observations = await observe(projectId, cycleId, proj.appDir);
     } catch (obsErr) {
-      log.warn({ error: (obsErr as Error).message }, "Observation phase failed — completing cycle with no improvement");
-      await updatePhase(cycleId, "completed", {
-        completedAt: new Date().toISOString(),
-        lessonsLearned: `Observation failed: ${(obsErr as Error).message}. Cycle completed gracefully.`,
-        selectedImprovement: "No improvement — observation phase failed",
-      });
-      return { cycleId, status: "completed" as const, improvement: "No improvement — observation failed", tokensUsed };
+      log.warn({ error: (obsErr as Error).message }, "Observation failed — using minimal baseline, cycle continues");
+      observations = {
+        observations: [{ category: "feature", description: "App needs more features", severity: "medium" as const, details: "Deterministic fallback — LLM unavailable", confidence: 0.5, verified: false }],
+        appSummary: "Application under autonomous evolution",
+        qualityScore: 30,
+        qualityDimensions: { functionality: null, correctness: null, accessibility: null, performance: null, security: null, testCoverage: null, reliability: null },
+        roadmap: { currentStageId: "foundation", currentStageName: "Foundation", currentStageGoals: [], stageProgress: [], overallProgress: 0, failingGates: [] },
+      };
     }
 
     await updatePhase(cycleId, "observing", {
@@ -118,66 +119,67 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     try {
       strategy = await strategize(projectId, cycleId, observations);
     } catch (stratErr) {
-      log.warn({ error: (stratErr as Error).message }, "Strategy phase failed — completing cycle with no improvement");
-      await updatePhase(cycleId, "completed", {
-        completedAt: new Date().toISOString(),
-        qualityBefore: observations.qualityScore,
-        lessonsLearned: `Strategy failed: ${(stratErr as Error).message}. Cycle completed gracefully.`,
-        selectedImprovement: "No improvement — strategy phase failed",
-      });
-      return { cycleId, status: "completed" as const, improvement: "No improvement — strategy failed", qualityBefore: observations.qualityScore, tokensUsed };
-    }
-
-    if (!strategy.selectedIdea) {
-      const flagNote = strategy.flaggedForReview
-        ? " [FLAGGED: high-severity issues were found but not addressed]"
-        : "";
-      const dismissedNote = strategy.dismissedFindings.length > 0
-        ? `\nDismissed findings: ${strategy.dismissedFindings.map((d) => `${d.observation}: ${d.reason}`).join("; ")}`
-        : "";
-
-      await updatePhase(cycleId, "completed", {
-        selectedImprovement: `No improvement selected${flagNote}`,
-        selectionReason: strategy.noActionJustification || strategy.selectionReason || "System decided no change adds value",
-        completedAt: new Date().toISOString(),
-        lessonsLearned: `No action taken. ${strategy.noActionJustification || "No justified reason."}${dismissedNote}`,
-      });
-
-      if (strategy.flaggedForReview) {
-        await addMemory(projectId, "review_flag", `Cycle ${cycleNumber} flagged: high-severity issues found but no action taken. Dismissed: ${JSON.stringify(strategy.dismissedFindings)}`);
-      }
-
-      return {
-        cycleId,
-        status: "completed",
-        improvement: `No change needed${flagNote}`,
-        qualityBefore: observations.qualityScore,
-        tokensUsed,
+      log.warn({ error: (stratErr as Error).message }, "Strategy failed — using deterministic idea, cycle continues");
+      const { getEvolutionMode } = await import("./state.js");
+      const mode = getEvolutionMode();
+      const fallbackTitle = mode === "features" ? "Add new user-facing feature"
+        : mode === "quality" ? "Improve code quality and accessibility"
+        : mode === "polish" ? "Polish visual design and UX"
+        : "Improve application foundation";
+      const fallbackIdea = { title: fallbackTitle, description: fallbackTitle, category: mode, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Deterministic fallback" };
+      strategy = {
+        ideas: [fallbackIdea],
+        selectedIdea: fallbackIdea,
+        selectionReason: "Deterministic fallback — LLM unavailable",
+        noActionJustification: undefined,
+        flaggedForReview: false,
+        dismissedFindings: [],
       };
     }
 
+    // If strategist returned no idea, force one based on evolution mode
+    if (!strategy.selectedIdea) {
+      log.warn("Strategist selected no idea — forcing deterministic idea based on evolution mode");
+      const { getEvolutionMode: getMode2 } = await import("./state.js");
+      const mode2 = getMode2();
+      const fallbackTitle2 = mode2 === "features" ? "Add new user-facing feature"
+        : mode2 === "quality" ? "Improve code quality and accessibility"
+        : mode2 === "polish" ? "Polish visual design and UX"
+        : "Improve application foundation";
+      strategy.selectedIdea = { title: fallbackTitle2, description: fallbackTitle2, category: mode2, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Forced fallback" };
+      strategy.ideas = [strategy.selectedIdea];
+      strategy.selectionReason = "Forced fallback — strategist found no actionable idea";
+    }
+
+    // selectedIdea is guaranteed non-null from here
+    const selectedIdea = strategy.selectedIdea;
+
     await updatePhase(cycleId, "strategizing", {
       ideasConsidered: JSON.stringify(strategy.ideas),
-      selectedImprovement: strategy.selectedIdea.title,
+      selectedImprovement: selectedIdea.title,
       selectionReason: strategy.selectionReason,
     });
 
     // Phase 3: Plan
     await updatePhase(cycleId, "planning");
-    log.info({ cycleId, idea: strategy.selectedIdea.title }, "Phase 3: Planning");
+    log.info({ cycleId, idea: selectedIdea.title }, "Phase 3: Planning");
 
     let implPlan: Awaited<ReturnType<typeof plan>>;
     try {
-      implPlan = await plan(proj.appDir, strategy.selectedIdea, observations);
+      implPlan = await plan(proj.appDir, selectedIdea, observations);
     } catch (planErr) {
-      log.warn({ error: (planErr as Error).message }, "Planning phase failed — completing cycle with no improvement");
-      await updatePhase(cycleId, "completed", {
-        completedAt: new Date().toISOString(),
-        qualityBefore: observations.qualityScore,
-        selectedImprovement: strategy.selectedIdea.title,
-        lessonsLearned: `Planning failed: ${(planErr as Error).message}. Cycle completed gracefully.`,
-      });
-      return { cycleId, status: "completed" as const, improvement: "No improvement — planning failed", qualityBefore: observations.qualityScore, tokensUsed };
+      log.warn({ error: (planErr as Error).message }, "Planning failed — using minimal plan, cycle continues");
+      implPlan = {
+        title: selectedIdea.title,
+        approach: selectedIdea.description,
+        steps: [{ step: 1, description: selectedIdea.description, files: ["index.html"] }],
+        filesToCreate: [],
+        filesToModify: ["index.html"],
+        filesToDelete: [],
+        acceptanceCriteria: ["Changes applied successfully"],
+        regressionRisks: [],
+        estimatedComplexity: "low" as const,
+      };
     }
 
     await updatePhase(cycleId, "planning", {
@@ -255,7 +257,7 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
           await updatePhase(cycleId, "completed", {
             completedAt: new Date().toISOString(),
             qualityBefore: observations.qualityScore,
-            selectedImprovement: strategy.selectedIdea.title,
+            selectedImprovement: selectedIdea.title,
             lessonsLearned: "Build produced no changes and no index.html exists. Cycle completed gracefully.",
           });
           return { cycleId, status: "completed" as const, improvement: "No improvement — no files to modify", qualityBefore: observations.qualityScore, tokensUsed };
@@ -282,7 +284,7 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
       await updatePhase(cycleId, "evaluating");
       log.info({ cycleId, attempt }, `Phase 5: Evaluating (attempt ${attempt}/${maxRetries})`);
 
-      evalResult = await evaluate(buildDir, buildResult, strategy.selectedIdea);
+      evalResult = await evaluate(buildDir, buildResult, selectedIdea);
 
       const evaluationId = nanoid();
       await db.insert(schema.evaluations).values({
@@ -315,7 +317,7 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
           feedback: evalResult.codeReview.feedback,
           attempt,
         };
-        await addMemory(projectId, "retry", `Attempt ${attempt} for "${strategy.selectedIdea.title}" rejected: ${evalResult.rejectionReason}. Retrying.`);
+        await addMemory(projectId, "retry", `Attempt ${attempt} for "${selectedIdea.title}" rejected: ${evalResult.rejectionReason}. Retrying.`);
       }
     }
 
@@ -330,12 +332,12 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
         lessonsLearned: `Rejected after ${maxRetries} attempts: ${evalResult.rejectionReason}`,
       });
 
-      await addMemory(projectId, "failure", `Failed after ${maxRetries} attempts: ${strategy.selectedIdea.title} - ${evalResult.rejectionReason}`);
+      await addMemory(projectId, "failure", `Failed after ${maxRetries} attempts: ${selectedIdea.title} - ${evalResult.rejectionReason}`);
 
       return {
         cycleId,
         status: "rejected",
-        improvement: strategy.selectedIdea.title,
+        improvement: selectedIdea.title,
         qualityBefore: observations.qualityScore,
         qualityAfter: evalResult.codeReview.qualityScore,
         tokensUsed,
@@ -347,7 +349,7 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     await updatePhase(cycleId, "committing");
     log.info({ cycleId }, "Phase 6: Committing");
 
-    const commitMessage = generateCommitMessage(strategy.selectedIdea);
+    const commitMessage = generateCommitMessage(selectedIdea);
     const commitResult = await git.commitChanges(commitMessage, worktree?.path);
 
     if (worktree) {
@@ -408,9 +410,9 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     // Phase 8: Learn
     await updatePhase(cycleId, "learning");
     log.info({ cycleId }, "Phase 8: Learning");
-    const lessons = `Successfully implemented: ${strategy.selectedIdea.title}. Quality: ${evalResult.codeReview.qualityScore}/100.`;
+    const lessons = `Successfully implemented: ${selectedIdea.title}. Quality: ${evalResult.codeReview.qualityScore}/100.`;
 
-    await addMemory(projectId, "success", `Improvement: ${strategy.selectedIdea.title} - ${strategy.selectedIdea.description}`);
+    await addMemory(projectId, "success", `Improvement: ${selectedIdea.title} - ${selectedIdea.description}`);
 
     // Complete
     await updatePhase(cycleId, "completed", {
@@ -437,7 +439,7 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
     return {
       cycleId,
       status: "completed",
-      improvement: strategy.selectedIdea.title,
+      improvement: selectedIdea.title,
       commitSha: commitResult.sha,
       pushStatus: pushResult.success ? "pushed" : "failed",
       deployStatus: deployResult.status,

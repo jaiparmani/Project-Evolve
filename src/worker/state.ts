@@ -27,6 +27,9 @@ async function persistMode(mode: EvolutionMode) {
     await db.insert(schema.systemConfig)
       .values({ key: "evolution_mode", value: mode, updatedAt: new Date().toISOString() })
       .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value: mode, updatedAt: new Date().toISOString() } });
+    const { backupDb } = await import("../db/persist.js");
+    await backupDb();
+    log.info({ mode }, "Evolution mode persisted and backed up");
   } catch (e) { log.warn({ error: (e as Error).message }, "Failed to persist evolution mode"); }
 }
 
