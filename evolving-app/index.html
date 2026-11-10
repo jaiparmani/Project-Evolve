@@ -98,5 +98,8 @@
       document.getElementById("visitor-count").textContent = "Visitor #" + d.count;
     }).catch(() => {});
   </script>
+
+  <button id="theme-toggle" onclick="toggleTheme()" style="position:fixed;top:16px;right:16px;padding:8px 12px;background:rgba(255,255,255,0.1);color:#888;border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;font-size:16px;transition:all 0.3s;z-index:999">🌙</button>
+  <script>function toggleTheme(){const b=document.body,t=document.getElementById("theme-toggle");if(b.classList.contains("light")){b.style.background="#0a0a0a";b.style.color="#e0e0e0";b.classList.remove("light");t.textContent="🌙";localStorage.setItem("theme","dark")}else{b.style.background="#fafafa";b.style.color="#1a1a1a";b.classList.add("light");t.textContent="☀️";localStorage.setItem("theme","light")}}if(localStorage.getItem("theme")==="light")toggleTheme();</script>
 </body>
 </html>
