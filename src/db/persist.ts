@@ -16,14 +16,35 @@ function git(cmd: string): string {
   }
 }
 
+function configureAuth(): boolean {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    log.warn("GITHUB_TOKEN not set — DB backup to git disabled");
+    return false;
+  }
+
+  const remoteUrl = git("remote get-url origin");
+  if (!remoteUrl) return false;
+
+  // Convert https://github.com/user/repo.git → https://<token>@github.com/user/repo.git
+  if (remoteUrl.startsWith("https://") && !remoteUrl.includes("@")) {
+    const authedUrl = remoteUrl.replace("https://", `https://${token}@`);
+    git(`remote set-url origin ${authedUrl}`);
+    log.info("Configured git remote with token auth");
+  }
+
+  return true;
+}
+
 export function restoreDb(): void {
   log.info("Checking for persisted DB in git...");
   git("config user.email \"evolve-bot@project-evolve.app\"");
   git("config user.name \"Project Evolve Bot\"");
+  configureAuth();
   git("fetch origin main --depth=1");
 
   if (!existsSync(resolve(ROOT, DB_PATH))) {
-    const result = git(`checkout origin/main -- ${DB_PATH}`);
+    git(`checkout origin/main -- ${DB_PATH}`);
     if (existsSync(resolve(ROOT, DB_PATH))) {
       log.info("Restored DB from git");
     } else {
@@ -37,6 +58,12 @@ export function restoreDb(): void {
 export function backupDb(): void {
   if (!existsSync(resolve(ROOT, DB_PATH))) {
     log.warn("No DB file to back up");
+    return;
+  }
+
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    log.warn("GITHUB_TOKEN not set — skipping DB backup");
     return;
   }
 
@@ -54,7 +81,9 @@ export function backupDb(): void {
   }
 
   const pushResult = git("push origin main");
-  if (pushResult !== undefined) {
+  if (pushResult) {
     log.info("DB backed up to git");
+  } else {
+    log.warn("Push failed — DB backup not persisted");
   }
 }
