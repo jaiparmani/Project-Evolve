@@ -81,7 +81,9 @@ export class LLMClient {
 
   async listFreeModels(): Promise<ModelInfo[]> {
     try {
-      const res = await fetch("https://openrouter.ai/api/v1/models");
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      const res = await fetch("https://openrouter.ai/api/v1/models", { signal: ctrl.signal }).finally(() => clearTimeout(t));
       if (!res.ok) return [];
       const data = (await res.json()) as { data: ModelInfo[] };
       return data.data.filter(
@@ -119,7 +121,7 @@ export class LLMClient {
     // JSON extraction from plain text is handled by extractJson()
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), opts.timeout || 60000);
+    const timeout = setTimeout(() => controller.abort(), opts.timeout || 30000);
 
     try {
       await this.throttle();
@@ -133,17 +135,19 @@ export class LLMClient {
 
       if (res.status === 429 || res.status >= 500) {
         const text = await res.text();
-        const maxRetries = res.status === 429 ? 5 : 3;
+        const maxRetries = res.status === 429 ? 3 : 2;
         for (let retry = 0; retry < maxRetries; retry++) {
           // Aggressive exponential backoff: 429 starts at 15s, 500+ at 5s
           // With jitter to avoid thundering herd
           const baseDelay = res.status === 429 ? 15000 : 5000;
           const jitter = Math.random() * 2000;
-          const delay = Math.min(baseDelay * Math.pow(2, retry) + jitter, 120000);
+          const delay = Math.min(baseDelay * Math.pow(2, retry) + jitter, 30000);
           log.warn({ status: res.status, retry: retry + 1, maxRetries, delayMs: Math.round(delay) }, "Error, retrying with backoff");
           await new Promise(r => setTimeout(r, delay));
           try {
-            const retryRes = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+            const retryCtrl = new AbortController();
+            const retryTimeout = setTimeout(() => retryCtrl.abort(), 30000);
+            const retryRes = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: retryCtrl.signal }).finally(() => clearTimeout(retryTimeout));
             if (retryRes.ok) {
               const retryData = (await retryRes.json()) as Record<string, any>;
               const retryChoices = retryData.choices || [];
