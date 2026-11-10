@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="A modern, responsive web application shell built with semantic HTML and Tailwind CSS." />
     <meta name="theme-color" content="#0f172a" />
+    <meta name="color-scheme" content="light" />
     <title>Application</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -32,6 +33,16 @@
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
       }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
     </style>
   </head>
   <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
@@ -49,7 +60,7 @@
           class="flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         >
           <span
-            class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
+            class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white"
             aria-hidden="true"
           >
             A
@@ -59,190 +70,165 @@
 
         <nav aria-label="Primary" class="hidden items-center gap-1 md:flex">
           <a
-            href="#overview"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            Overview
-          </a>
-          <a
             href="#features"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
           >
             Features
           </a>
           <a
-            href="#docs"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            href="#get-started"
+            class="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
           >
-            Documentation
+            Get started
           </a>
         </nav>
 
         <div class="flex items-center gap-2">
+          <a
+            href="#get-started"
+            class="hidden rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:inline-flex"
+          >
+            Sign in
+          </a>
           <button
             type="button"
             id="menu-toggle"
             aria-expanded="false"
             aria-controls="mobile-menu"
-            class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:hidden"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:hidden"
           >
-            <span class="sr-only">Toggle navigation menu</span>
+            <span class="sr-only">Toggle navigation</span>
             <svg
               class="h-5 w-5"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
               viewBox="0 0 24 24"
-              stroke-width="1.5"
+              fill="none"
               stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
               aria-hidden="true"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <a
-            href="#sign-in"
-            class="hidden rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:inline-flex"
-          >
-            Sign in
-          </a>
         </div>
       </div>
 
       <div id="mobile-menu" class="hidden border-t border-slate-200 bg-white md:hidden">
         <nav aria-label="Mobile" class="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-3 sm:px-6">
           <a
-            href="#overview"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-          >
-            Overview
-          </a>
-          <a
             href="#features"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
           >
             Features
           </a>
           <a
-            href="#docs"
-            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+            href="#get-started"
+            class="rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
           >
-            Documentation
-          </a>
-          <a
-            href="#sign-in"
-            class="mt-2 inline-flex justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Sign in
+            Get started
           </a>
         </nav>
       </div>
     </header>
 
-    <main id="main-content" class="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-      <section id="overview" aria-labelledby="overview-heading" class="text-center">
-        <span
-          class="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600"
-        >
-          Now in preview
-        </span>
-        <h1
-          id="overview-heading"
-          class="mx-auto mt-6 max-w-3xl text-balance text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl"
-        >
-          Build faster with a clean, accessible starting point
-        </h1>
-        <p class="mx-auto mt-4 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-          A semantic, responsive application shell powered by Tailwind CSS. Ship your next
-          product on a foundation that is fast by default and pleasant to maintain.
-        </p>
-        <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a
-            href="#features"
-            class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:w-auto"
-          >
-            Get started
-          </a>
-          <a
-            href="#docs"
-            class="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:w-auto"
-          >
-            Read the docs
-          </a>
+    <main id="main-content">
+      <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+        <div class="mx-auto max-w-2xl text-center">
+          <p class="text-sm font-semibold uppercase tracking-widest text-slate-500">Production ready</p>
+          <h1 class="mt-4 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+            A clean, accessible shell for your next product
+          </h1>
+          <p class="mt-6 text-base leading-7 text-slate-600 sm:text-lg">
+            Semantic markup, responsive Tailwind layouts, and a focus-visible design system — so you
+            can spend your time on features, not boilerplate.
+          </p>
+          <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <a
+              href="#get-started"
+              class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:w-auto"
+            >
+              Get started
+            </a>
+            <a
+              href="#features"
+              class="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:w-auto"
+            >
+              Explore features
+            </a>
+          </div>
         </div>
       </section>
 
-      <section id="features" aria-labelledby="features-heading" class="mt-16 lg:mt-24">
-        <h2 id="features-heading" class="text-2xl font-semibold tracking-tight text-slate-900">
-          Features
-        </h2>
-        <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-          Everything included is intentional, minimal, and ready to be extended.
-        </p>
-
-        <ul role="list" class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <li
-            class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <h3 class="text-base font-semibold text-slate-900">Semantic markup</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              Landmarks, headings, and labels are structured for screen readers and search engines.
-            </p>
-          </li>
-          <li
-            class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <h3 class="text-base font-semibold text-slate-900">Responsive by default</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              Fluid layouts adapt gracefully from small phones to wide desktop displays.
-            </p>
-          </li>
-          <li
-            class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <h3 class="text-base font-semibold text-slate-900">Accessible interactions</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-600">
-              Visible focus states, skip links, and keyboard-friendly controls come standard.
-            </p>
-          </li>
-        </ul>
-      </section>
-
-      <section id="docs" aria-labelledby="docs-heading" class="mt-16 lg:mt-24">
-        <div
-          class="flex flex-col items-start justify-between gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:p-8"
-        >
-          <div>
-            <h2 id="docs-heading" class="text-xl font-semibold tracking-tight text-slate-900">
-              Documentation
+      <section id="features" aria-labelledby="features-heading" class="border-t border-slate-200 bg-white">
+        <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div class="max-w-2xl">
+            <h2 id="features-heading" class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Built on solid foundations
             </h2>
-            <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
-              Learn how the shell is structured and how to extend it with your own components.
+            <p class="mt-3 text-base text-slate-600">
+              Every layer is intentional, from typography to keyboard navigation.
             </p>
           </div>
+
+          <ul role="list" class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <li class="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:border-slate-300 hover:bg-white">
+              <h3 class="text-base font-semibold text-slate-900">Accessible by default</h3>
+              <p class="mt-2 text-sm leading-6 text-slate-600">
+                Skip links, landmark regions, and visible focus states across every interactive element.
+              </p>
+            </li>
+            <li class="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:border-slate-300 hover:bg-white">
+              <h3 class="text-base font-semibold text-slate-900">Responsive layout</h3>
+              <p class="mt-2 text-sm leading-6 text-slate-600">
+                Fluid grids and sensible breakpoints that hold up from small phones to wide desktops.
+              </p>
+            </li>
+            <li class="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:border-slate-300 hover:bg-white">
+              <h3 class="text-base font-semibold text-slate-900">Zero build step</h3>
+              <p class="mt-2 text-sm leading-6 text-slate-600">
+                Tailwind via CDN and no bundler required — open the file and start shipping.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="get-started" aria-labelledby="get-started-heading" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div class="rounded-3xl bg-slate-900 px-6 py-12 text-center sm:px-12 sm:py-16">
+          <h2 id="get-started-heading" class="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            Start building today
+          </h2>
+          <p class="mx-auto mt-3 max-w-xl text-base text-slate-300">
+            Drop in your components, wire up your data, and keep the accessibility guarantees that ship with this shell.
+          </p>
           <a
-            href="#docs"
-            class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            href="/"
+            class="mt-8 inline-flex items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
           >
-            Browse guides
+            Go to dashboard
           </a>
         </div>
       </section>
     </main>
 
     <footer class="border-t border-slate-200 bg-white">
-      <div
-        class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 text-sm text-slate-600 sm:flex-row sm:px-6 lg:px-8"
-      >
-        <p>&copy; <span id="year">2024</span> Application. All rights reserved.</p>
+      <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
+        <p class="text-sm text-slate-500">
+          &copy; <span id="current-year">2024</span> Application. All rights reserved.
+        </p>
         <nav aria-label="Footer" class="flex items-center gap-4">
-          <a href="#" class="rounded-md hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900">
+          <a
+            href="#"
+            class="rounded-md text-sm text-slate-500 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          >
             Privacy
           </a>
-          <a href="#" class="rounded-md hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900">
+          <a
+            href="#"
+            class="rounded-md text-sm text-slate-500 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          >
             Terms
-          </a>
-          <a href="#" class="rounded-md hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900">
-            Contact
           </a>
         </nav>
       </div>
@@ -250,36 +236,28 @@
 
     <script>
       (function () {
-        var yearEl = document.getElementById('year');
-        if (yearEl) {
-          yearEl.textContent = String(new Date().getFullYear());
-        }
-
         var toggle = document.getElementById('menu-toggle');
         var menu = document.getElementById('mobile-menu');
-        if (!toggle || !menu) return;
+        var year = document.getElementById('current-year');
 
-        var setExpanded = function (expanded) {
-          toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-          menu.classList.toggle('hidden', !expanded);
-        };
+        if (year) {
+          year.textContent = String(new Date().getFullYear());
+        }
 
-        toggle.addEventListener('click', function () {
-          setExpanded(toggle.getAttribute('aria-expanded') !== 'true');
-        });
+        if (toggle && menu) {
+          toggle.addEventListener('click', function () {
+            var isOpen = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', String(!isOpen));
+            menu.classList.toggle('hidden');
+          });
 
-        menu.addEventListener('click', function (event) {
-          if (event.target instanceof HTMLAnchorElement) {
-            setExpanded(false);
-          }
-        });
-
-        document.addEventListener('keydown', function (event) {
-          if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
-            setExpanded(false);
-            toggle.focus();
-          }
-        });
+          menu.addEventListener('click', function (event) {
+            if (event.target instanceof HTMLAnchorElement) {
+              toggle.setAttribute('aria-expanded', 'false');
+              menu.classList.add('hidden');
+            }
+          });
+        }
       })();
     </script>
   </body>
