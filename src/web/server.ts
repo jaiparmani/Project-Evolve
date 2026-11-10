@@ -29,7 +29,7 @@ app.get("/app", (_req, res) => {
   }
 });
 
-app.get("/{*path}", (_req, res) => {
+app.get("*", (_req, res) => {
   res.type("html").send(getDashboardHtml());
 });
 
