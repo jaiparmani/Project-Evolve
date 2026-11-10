@@ -11,12 +11,35 @@ let loopActive = false;
 let loopTimer: ReturnType<typeof setTimeout> | null = null;
 
 export type EvolutionMode = "foundation" | "features" | "quality" | "polish";
+const VALID_MODES: EvolutionMode[] = ["foundation", "features", "quality", "polish"];
 let evolutionMode: EvolutionMode = "foundation";
 
 export function getEvolutionMode(): EvolutionMode { return evolutionMode; }
 export function setEvolutionMode(mode: EvolutionMode) {
   evolutionMode = mode;
   log.info({ mode }, "Evolution mode changed");
+  persistMode(mode);
+}
+
+async function persistMode(mode: EvolutionMode) {
+  try {
+    const { db, schema } = await import("../db/index.js");
+    await db.insert(schema.systemConfig)
+      .values({ key: "evolution_mode", value: mode, updatedAt: new Date().toISOString() })
+      .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value: mode, updatedAt: new Date().toISOString() } });
+  } catch (e) { log.warn({ error: (e as Error).message }, "Failed to persist evolution mode"); }
+}
+
+export async function loadEvolutionModeFromDb() {
+  try {
+    const { db, schema } = await import("../db/index.js");
+    const { eq } = await import("drizzle-orm");
+    const rows = await db.select().from(schema.systemConfig).where(eq(schema.systemConfig.key, "evolution_mode")).limit(1);
+    if (rows.length && VALID_MODES.includes(rows[0].value as EvolutionMode)) {
+      evolutionMode = rows[0].value as EvolutionMode;
+      log.info({ mode: evolutionMode }, "Loaded evolution mode from DB");
+    }
+  } catch (e) { log.warn({ error: (e as Error).message }, "Failed to load evolution mode from DB"); }
 }
 
 export function getWorkerStatus() {
