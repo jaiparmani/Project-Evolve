@@ -516,6 +516,36 @@ app.use(express.static(`
     }
   }
 
-  log.warn({ title }, "No deterministic fallback for this improvement");
+  // Catch-all: try adding any missing feature regardless of title
+  log.info("Title didn't match specific fallbacks — trying generic feature additions");
+  const htmlPath2 = resolve(workDir, "index.html");
+  const serverPath2 = resolve(workDir, "server.js");
+
+  if (existsSync(htmlPath2)) {
+    const html = readFileSync(htmlPath2, "utf-8");
+
+    // Add live clock if missing
+    if (!html.includes('getElementById("clock")')) {
+      log.info("Catch-all: adding live clock dashboard");
+      return getDeterministicChanges(workDir, "status dashboard with live clock");
+    }
+    // Add visitor counter if missing
+    if (existsSync(serverPath2) && !readFileSync(serverPath2, "utf-8").includes("/api/visitors")) {
+      log.info("Catch-all: adding visitor counter");
+      return getDeterministicChanges(workDir, "visitor counter");
+    }
+    // Add theme toggle if missing
+    if (!html.includes("theme-toggle")) {
+      log.info("Catch-all: adding theme toggle");
+      return getDeterministicChanges(workDir, "theme toggle");
+    }
+    // Add interactivity if missing
+    if (!html.includes("<script")) {
+      log.info("Catch-all: adding interactivity");
+      return getDeterministicChanges(workDir, "interactivity");
+    }
+  }
+
+  log.warn({ title }, "No deterministic fallback available — all features already present");
   return [];
 }

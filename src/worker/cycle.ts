@@ -202,7 +202,10 @@ export async function runCycle(projectId: string): Promise<CycleResult> {
       if (attempt === 1) {
         try {
           worktree = await git.createWorktree(cycleId);
-          buildDir = worktree.path;
+          // The worktree is a full repo checkout — resolve the app dir within it
+          const appRelative = relative(process.cwd(), proj.appDir);
+          buildDir = resolve(worktree.path, appRelative);
+          log.info({ buildDir, appRelative }, "Worktree build directory");
         } catch (e) {
           log.warn("Worktree creation failed, building in-place: %s", (e as Error).message);
         }
