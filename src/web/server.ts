@@ -12,14 +12,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Compress responses for faster loading
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  next();
+});
+
 app.use("/api", apiRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Serve the evolving child app under /app
-app.use("/app", express.static(config.app.dir));
+// Serve the evolving child app under /app with cache headers
+app.use("/app", express.static(config.app.dir, { maxAge: "5m", etag: true }));
 app.get("/app", (_req, res) => {
   const indexPath = resolve(config.app.dir, "index.html");
   if (existsSync(indexPath)) {
@@ -232,6 +238,25 @@ function getDashboardHtml(): string {
     #loading .spinner { width: 24px; height: 24px; border: 2px solid var(--border-2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    .skeleton { background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-card { height: 80px; margin-bottom: 12px; }
+    .skeleton-line { height: 14px; margin-bottom: 8px; width: 60%; }
+
+    .chart-container { position: relative; width: 100%; overflow-x: auto; }
+    .chart-container svg { display: block; }
+    .chart-tooltip { position: absolute; background: var(--surface); border: 1px solid var(--border-2); border-radius: 8px; padding: 10px 14px; font: 11px/1.4 var(--sans); color: var(--text); pointer-events: none; z-index: 50; opacity: 0; transition: opacity 0.15s; box-shadow: 0 4px 12px rgba(0,0,0,0.4); max-width: 280px; }
+    .chart-tooltip.visible { opacity: 1; }
+    .chart-dot { cursor: pointer; transition: r 0.15s; }
+    .chart-dot:hover { r: 6; }
+
+    .changelog-entry { padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .changelog-entry:last-child { border-bottom: none; }
+    .changelog-version { font: 600 14px/1.4 var(--sans); color: var(--accent); }
+    .changelog-date { font: 11px/1 var(--sans); color: var(--text-3); margin-left: 8px; }
+    .changelog-desc { font: 13px/1.6 var(--sans); color: var(--text); margin-top: 6px; }
+    .changelog-meta { font: 11px/1.4 var(--sans); color: var(--text-2); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+
     .detail-modal {
       position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100;
       display: none; align-items: center; justify-content: center;
@@ -256,6 +281,7 @@ function getDashboardHtml(): string {
     <nav>
       <button class="active" data-tab="overview">Overview</button>
       <button data-tab="timeline">Timeline</button>
+      <button data-tab="changelog">Changelog</button>
       <button data-tab="history">History</button>
       <button data-tab="ideas">Ideas</button>
       <button data-tab="usage">Usage</button>
@@ -272,6 +298,7 @@ function getDashboardHtml(): string {
     <div id="content" style="display:none">
       <div id="tab-overview"></div>
       <div id="tab-timeline" style="display:none"></div>
+      <div id="tab-changelog" style="display:none"></div>
       <div id="tab-history" style="display:none"></div>
       <div id="tab-ideas" style="display:none"></div>
       <div id="tab-usage" style="display:none"></div>
@@ -426,6 +453,8 @@ function getDashboardHtml(): string {
       updateModeUI();
       renderVersionPills('overviewVersionPills', 'switchAppPreview');
       if (currentTab === 'timeline') renderTimeline();
+      if (currentTab === 'changelog') renderChangelog();
+      renderChangelog();
       renderHistory();
       renderIdeas();
       renderUsage();
@@ -544,6 +573,11 @@ function getDashboardHtml(): string {
             </div>
           \`).join('')}
         </div>\` : ''}
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><span class="dot blue"></span> EVOLUTION QUALITY GRAPH <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:var(--text-3);margin-left:4px">hover for details · click to inspect</span></div>
+          <div id="cycleChart">\${renderCycleChart()}</div>
+        </div>
 
         <div class="card">
           <div class="card-header">RECENT EVOLUTION</div>
@@ -732,9 +766,9 @@ function getDashboardHtml(): string {
       const container = document.getElementById(containerId);
       if (!container) return;
       container.innerHTML = versions.map(v => \`
-        <button class="version-pill \${currentPreviewVersion === v.id ? 'active' : ''}" onclick="\${onSelect}('\${v.id}', '\${v.cycleId}')">
+        <button class="version-pill \${currentPreviewVersion === v.id ? 'active' : ''}" onclick="\${onSelect}('\${v.id}', '\${v.cycleId}')" title="\${v.cycle?.selected_improvement ? escapeHtml(v.cycle.selected_improvement) : 'Latest version'}">
           <span class="pill-label">\${v.label}</span>
-          \${v.cycle ? '<span class="pill-meta">#' + v.cycle.cycle_number + '</span>' : ''}
+          \${v.cycle ? '<span class="pill-meta">#' + v.cycle.cycle_number + (v.cycle.selected_improvement ? ' · ' + escapeHtml(v.cycle.selected_improvement).slice(0,30) : '') + '</span>' : ''}
         </button>
       \`).join('');
     }
@@ -929,11 +963,12 @@ function getDashboardHtml(): string {
         document.querySelectorAll('.topbar nav button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const tab = btn.dataset.tab;
-        ['overview','timeline','history','ideas','usage','config'].forEach(t => {
+        ['overview','timeline','changelog','history','ideas','usage','config'].forEach(t => {
           document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
         });
         currentTab = tab;
         if (tab === 'timeline') renderTimeline();
+        if (tab === 'changelog') renderChangelog();
       });
     });
 
@@ -1046,10 +1081,110 @@ function getDashboardHtml(): string {
       } catch (e) { console.error(e); }
     }
 
+    function renderChangelog() {
+      const completed = state.cycles.filter(c => c.status === 'completed').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      document.getElementById('tab-changelog').innerHTML = \`
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">📋 VERSION CHANGELOG</div>
+          <p style="font-size:11px;color:var(--text-2);margin-bottom:16px">Every successful evolution cycle and what it changed.</p>
+          \${completed.length ? completed.map(c => {
+            const files = c.files_modified ? c.files_modified.split(',').map(f => f.trim()).filter(Boolean) : [];
+            return \`
+              <div class="changelog-entry" onclick="showCycleDetail('\${c.id}')" style="cursor:pointer">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span class="changelog-version">v\${c.cycle_number}</span>
+                  <span class="changelog-date">\${new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  \${c.quality_after != null ? '<span class="badge green">Q: ' + c.quality_after + '</span>' : ''}
+                  \${c.commit_sha ? '<span style="font:10px var(--mono);color:var(--text-3)">' + c.commit_sha.slice(0,7) + '</span>' : ''}
+                </div>
+                <div class="changelog-desc">\${escapeHtml(c.selected_improvement || 'Improvement cycle')}</div>
+                \${c.lessons_learned ? '<div class="changelog-meta" style="margin-top:6px;font-style:italic;color:var(--text-3)">"' + escapeHtml(c.lessons_learned.slice(0, 150)) + (c.lessons_learned.length > 150 ? '...' : '') + '"</div>' : ''}
+                <div class="changelog-meta">
+                  \${files.length ? '<span>📄 ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' changed</span>' : ''}
+                  \${c.push_status === 'pushed' ? '<span style="color:var(--good)">✓ pushed</span>' : ''}
+                  \${c.deploy_status === 'deployed' ? '<span style="color:var(--good)">✓ deployed</span>' : ''}
+                </div>
+              </div>
+            \`;
+          }).join('') : '<div class="empty"><p>No completed cycles yet.</p></div>'}
+        </div>
+      \`;
+    }
+
+    function renderCycleChart() {
+      const cycles = state.cycles.slice().reverse();
+      if (cycles.length < 2) return '';
+
+      const W = Math.max(600, cycles.length * 50);
+      const H = 200;
+      const pad = { t: 20, r: 20, b: 30, l: 40 };
+      const plotW = W - pad.l - pad.r;
+      const plotH = H - pad.t - pad.b;
+
+      const qualities = cycles.map(c => c.quality_after ?? c.quality_before ?? 0);
+      const maxQ = Math.max(...qualities, 10);
+
+      const points = cycles.map((c, i) => ({
+        x: pad.l + (i / (cycles.length - 1)) * plotW,
+        y: pad.t + plotH - ((qualities[i] / maxQ) * plotH),
+        c: c,
+        q: qualities[i],
+      }));
+
+      const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+      const areaPath = linePath + ' L' + points[points.length-1].x.toFixed(1) + ',' + (pad.t + plotH) + ' L' + points[0].x.toFixed(1) + ',' + (pad.t + plotH) + ' Z';
+
+      const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+        const y = pad.t + plotH - (f * plotH);
+        const val = Math.round(f * maxQ);
+        return '<line x1="' + pad.l + '" y1="' + y + '" x2="' + (W - pad.r) + '" y2="' + y + '" stroke="rgba(255,255,255,0.04)" />' +
+               '<text x="' + (pad.l - 6) + '" y="' + (y + 3) + '" text-anchor="end" fill="var(--text-3)" font-size="9">' + val + '</text>';
+      }).join('');
+
+      const dots = points.map((p, i) => {
+        const color = p.c.status === 'completed' ? 'var(--good)' : p.c.status === 'failed' ? 'var(--rose)' : 'var(--amber)';
+        return '<circle class="chart-dot" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface)" stroke-width="2" data-idx="' + i + '" onclick="showCycleDetail(\\'' + p.c.id + '\\')" />';
+      }).join('');
+
+      return \`
+        <div class="chart-container" style="position:relative">
+          <svg width="\${W}" height="\${H}" viewBox="0 0 \${W} \${H}">
+            \${gridLines}
+            <defs><linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.15"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+            <path d="\${areaPath}" fill="url(#chartGrad)" />
+            <path d="\${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            \${dots}
+            <text x="\${W / 2}" y="\${H - 4}" text-anchor="middle" fill="var(--text-3)" font-size="9">Evolution Cycles →</text>
+          </svg>
+          <div class="chart-tooltip" id="chartTooltip"></div>
+        </div>
+        <script>
+          (function(){
+            const tooltip = document.getElementById('chartTooltip');
+            const chartData = \${JSON.stringify(cycles.map((c,i) => ({id:c.id,num:c.cycle_number,title:c.selected_improvement||c.status,q:qualities[i],status:c.status,date:c.created_at})))};
+            document.querySelectorAll('.chart-dot').forEach(dot => {
+              dot.addEventListener('mouseenter', e => {
+                const d = chartData[+e.target.dataset.idx];
+                tooltip.innerHTML = '<div style="font:600 12px/1.4 var(--sans);margin-bottom:4px">#' + d.num + ' ' + d.title.slice(0,60) + '</div>' +
+                  '<div style="font-size:10px;color:var(--text-2)">Quality: ' + d.q + ' · ' + d.status + '</div>' +
+                  '<div style="font-size:10px;color:var(--text-3)">' + new Date(d.date).toLocaleString() + '</div>';
+                tooltip.classList.add('visible');
+                const rect = e.target.getBoundingClientRect();
+                const container = e.target.closest('.chart-container').getBoundingClientRect();
+                tooltip.style.left = (rect.left - container.left - 60) + 'px';
+                tooltip.style.top = (rect.top - container.top - tooltip.offsetHeight - 10) + 'px';
+              });
+              dot.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+            });
+          })();
+        </script>
+      \`;
+    }
+
     loadData();
     loadMode();
     loadIdeaBank();
-    refreshInterval = setInterval(() => { loadData(); loadIdeaBank(); }, 10000);
+    refreshInterval = setInterval(() => { loadData(); loadIdeaBank(); }, 15000);
   </script>
 </body>
 </html>`;
