@@ -488,6 +488,7 @@ function getDashboardHtml(): string {
       renderUsage();
       renderConfig();
       updateLoopButton();
+      setTimeout(initChartTooltips, 50);
     }
 
     function renderOverview() {
@@ -1186,27 +1187,34 @@ function getDashboardHtml(): string {
           </svg>
           <div class="chart-tooltip" id="chartTooltip"></div>
         </div>
-        <script>
-          (function(){
-            const tooltip = document.getElementById('chartTooltip');
-            const chartData = \${JSON.stringify(cycles.map((c,i) => ({id:c.id,num:c.cycle_number,title:c.selected_improvement||c.status,q:qualities[i],status:c.status,date:c.created_at})))};
-            document.querySelectorAll('.chart-dot').forEach(dot => {
-              dot.addEventListener('mouseenter', e => {
-                const d = chartData[+e.target.dataset.idx];
-                tooltip.innerHTML = '<div style="font:600 12px/1.4 var(--sans);margin-bottom:4px">#' + d.num + ' ' + d.title.slice(0,60) + '</div>' +
-                  '<div style="font-size:10px;color:var(--text-2)">Quality: ' + d.q + ' · ' + d.status + '</div>' +
-                  '<div style="font-size:10px;color:var(--text-3)">' + new Date(d.date).toLocaleString() + '</div>';
-                tooltip.classList.add('visible');
-                const rect = e.target.getBoundingClientRect();
-                const container = e.target.closest('.chart-container').getBoundingClientRect();
-                tooltip.style.left = (rect.left - container.left - 60) + 'px';
-                tooltip.style.top = (rect.top - container.top - tooltip.offsetHeight - 10) + 'px';
-              });
-              dot.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
-            });
-          })();
-        </script>
       \`;
+    }
+
+    // Chart tooltip setup — uses cycles data already loaded
+    function initChartTooltips() {
+      const container = document.querySelector('.chart-container');
+      if (!container) return;
+      const tooltip = document.getElementById('chartTooltip');
+      if (!tooltip) return;
+      const chartData = (state.cycles || []).slice().reverse().map((c, i) => ({
+        num: c.cycle_number, title: c.selected_improvement || c.status || '',
+        q: c.quality_after || c.quality_before || 0, status: c.status, date: c.created_at
+      }));
+      document.querySelectorAll('.chart-dot').forEach(dot => {
+        dot.addEventListener('mouseenter', e => {
+          const d = chartData[+e.target.dataset.idx];
+          if (!d) return;
+          tooltip.innerHTML = '<div style="font:600 12px/1.4 var(--sans);margin-bottom:4px">#' + d.num + ' ' + (d.title||'').slice(0,60) + '</div>' +
+            '<div style="font-size:10px;color:var(--text-2)">Quality: ' + d.q + ' \\u00b7 ' + d.status + '</div>' +
+            '<div style="font-size:10px;color:var(--text-3)">' + new Date(d.date).toLocaleString() + '</div>';
+          tooltip.classList.add('visible');
+          const rect = e.target.getBoundingClientRect();
+          const cRect = container.getBoundingClientRect();
+          tooltip.style.left = (rect.left - cRect.left - 60) + 'px';
+          tooltip.style.top = (rect.top - cRect.top - tooltip.offsetHeight - 10) + 'px';
+        });
+        dot.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+      });
     }
 
     // Lazy-load iframe when it scrolls into view
