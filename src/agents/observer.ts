@@ -7,8 +7,9 @@ import { readdirSync, readFileSync, statSync, existsSync } from "fs";
 import { resolve, extname } from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
-const execAsync = promisify(exec);
 import { evaluateRoadmap } from "../core/roadmap.js";
+
+const execAsync = promisify(exec);
 
 const log = childLogger("observer");
 

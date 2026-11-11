@@ -4,10 +4,11 @@ import { childLogger } from "../core/logger.js";
 import { nanoid } from "nanoid";
 import { exec, execSync, spawn, type ChildProcess } from "child_process";
 import { promisify } from "util";
-const execAsync = promisify(exec);
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { eq } from "drizzle-orm";
+
+const execAsync = promisify(exec);
 
 const log = childLogger("deploy");
 
