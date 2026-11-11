@@ -561,53 +561,201 @@ p{color:#888;max-width:480px;text-align:center;line-height:1.6}
 function addNewFeature(workDir: string, html: string, serverExists: boolean, serverCode: string): FileChange[] | null {
   // Each entry: [check: string to look for in html, label, html snippet to inject]
   // Features are injected before </body> unless noted
+  const S = (s: string) => `<style>${s}</style>`;
+  const cardStyle = "margin-top:24px;max-width:520px;width:100%;padding:20px 24px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px";
+  const btnStyle = "padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s";
+  const inputStyle = "width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e0e0e0;font:13px/1.4 ui-monospace,monospace;outline:none";
+
   const features: Array<{ id: string; check: string; label: string; inject: string; target?: "head" | "body-start" }> = [
-    { id: "clock", check: 'getElementById("clock")', label: "live clock dashboard", inject: `
-  <div id="dashboard" style="margin-top:32px;padding:24px;background:rgba(255,255,255,0.05);border-radius:12px;max-width:400px;margin-left:auto;margin-right:auto">
-    <div style="display:flex;justify-content:space-between;margin-bottom:16px"><span style="color:#888;font-size:14px">Local Time</span><span id="clock" style="font-family:ui-monospace,monospace;color:#5ee0c8;font-size:14px">--:--:--</span></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:16px"><span style="color:#888;font-size:14px">Server Status</span><span id="server-status" style="font-size:14px;color:#666">checking...</span></div>
-    <button onclick="checkHealth()" style="width:100%;padding:10px;background:rgba(94,224,200,0.15);color:#5ee0c8;border:1px solid rgba(94,224,200,0.3);border-radius:8px;cursor:pointer;font-size:14px;transition:all 0.2s" onmouseover="this.style.background='rgba(94,224,200,0.25)'" onmouseout="this.style.background='rgba(94,224,200,0.15)'">Check Server Health</button>
-  </div>
-  <script>function updateClock(){document.getElementById("clock").textContent=new Date().toLocaleTimeString()}setInterval(updateClock,1000);updateClock();async function checkHealth(){const el=document.getElementById("server-status");el.textContent="checking...";try{const r=await fetch("/health");const d=await r.json();el.textContent=d.status==="ok"?"Online ✓":"Error";el.style.color=d.status==="ok"?"#5ee0c8":"#ff6b6b"}catch{el.textContent="Offline ✗";el.style.color="#ff6b6b"}}checkHealth();</script>` },
+    // ── Core infrastructure ──
     { id: "theme-toggle", check: "theme-toggle", label: "dark/light theme toggle", inject: `
   <button id="theme-toggle" onclick="toggleTheme()" style="position:fixed;top:16px;right:16px;padding:8px 12px;background:rgba(255,255,255,0.1);color:#888;border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;font-size:16px;transition:all 0.3s;z-index:999">🌙</button>
   <script>function toggleTheme(){const b=document.body,t=document.getElementById("theme-toggle");if(b.classList.contains("light")){b.style.background="#0a0a0a";b.style.color="#e0e0e0";b.classList.remove("light");t.textContent="🌙";localStorage.setItem("theme","dark")}else{b.style.background="#fafafa";b.style.color="#1a1a1a";b.classList.add("light");t.textContent="☀️";localStorage.setItem("theme","light")}}if(localStorage.getItem("theme")==="light")toggleTheme();</script>` },
-    { id: "scroll-top", check: "scroll-top", label: "scroll-to-top button", inject: `
-  <button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="position:fixed;bottom:24px;right:24px;width:40px;height:40px;border-radius:50%;background:rgba(96,165,250,0.2);border:1px solid rgba(96,165,250,0.4);color:#60a5fa;font-size:18px;cursor:pointer;display:none;align-items:center;justify-content:center;transition:opacity 0.3s;z-index:998">&uarr;</button>
-  <script>window.addEventListener("scroll",()=>{const b=document.getElementById("scroll-top");if(b)b.style.display=window.scrollY>200?"flex":"none"});</script>` },
-    { id: "keyboard-help", check: "keyboard-help", label: "keyboard shortcuts overlay", inject: `
-  <div id="keyboard-help" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1a1a2e;padding:24px 32px;border-radius:12px;max-width:360px;border:1px solid rgba(96,165,250,0.3)">
-      <h3 style="color:#60a5fa;margin-bottom:12px">Keyboard Shortcuts</h3>
-      <p style="color:#aaa;font-size:14px;line-height:2"><kbd style="padding:2px 6px;background:#2a2a3e;border-radius:4px">?</kbd> Show help<br><kbd style="padding:2px 6px;background:#2a2a3e;border-radius:4px">Esc</kbd> Close<br><kbd style="padding:2px 6px;background:#2a2a3e;border-radius:4px">T</kbd> Toggle theme<br><kbd style="padding:2px 6px;background:#2a2a3e;border-radius:4px">↑</kbd> Scroll to top</p>
-    </div>
-  </div>
-  <script>document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea"))return;if(e.key==="?"){const h=document.getElementById("keyboard-help");if(h)h.style.display="flex"}if(e.key==="Escape"){const h=document.getElementById("keyboard-help");if(h)h.style.display="none"}if(e.key==="t"||e.key==="T"){if(typeof toggleTheme==="function")toggleTheme()}});</script>` },
-    { id: "animations", check: "@keyframes fadeSlideIn", label: "page load animations", inject: `
-  <style>@keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}body>*{animation:fadeSlideIn 0.5s ease-out both}body>*:nth-child(2){animation-delay:0.1s}body>*:nth-child(3){animation-delay:0.2s}body>*:nth-child(4){animation-delay:0.3s}body>*:nth-child(5){animation-delay:0.4s}</style>`, target: "head" },
-    { id: "footer", check: "app-footer", label: "sticky footer", inject: `
-  <footer id="app-footer" style="position:fixed;bottom:0;left:0;right:0;padding:8px 16px;background:rgba(10,10,10,0.95);border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#555;z-index:900;backdrop-filter:blur(8px)"><span>🧬 Evolving App</span><span id="cycle-count">Autonomously improved</span></footer>` },
     { id: "toast", check: "toast-container", label: "toast notification system", inject: `
   <div id="toast-container" style="position:fixed;top:16px;right:16px;z-index:9998;display:flex;flex-direction:column;gap:8px"></div>
   <script>function showToast(msg,type,ms){ms=ms||3000;const c=document.getElementById("toast-container");if(!c)return;const colors={success:"#5ee0c8",info:"#60a5fa",warn:"#fbbf24",error:"#f87171"};const t=document.createElement("div");t.textContent=msg;t.style.cssText="padding:10px 18px;background:#1e293b;color:"+(colors[type]||"#e2e8f0")+";border:1px solid "+(colors[type]||"rgba(96,165,250,0.3)")+";border-radius:8px;font-size:14px;opacity:0;transition:opacity 0.3s;cursor:pointer";t.onclick=()=>t.remove();c.appendChild(t);requestAnimationFrame(()=>t.style.opacity="1");setTimeout(()=>{t.style.opacity="0";setTimeout(()=>t.remove(),300)},ms)}showToast("Welcome! This app evolves itself.","info");</script>` },
-    { id: "progress-bar", check: "progress-bar", label: "page load progress bar", inject: `
-  <style>#progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#60a5fa,#a78bfa);z-index:99999;transition:width 0.3s}</style>`, target: "head" },
-    { id: "progress-bar-body", check: "progress-bar", label: "progress bar script", inject: `
-  <div id="progress-bar" style="width:0%"></div>
-  <script>(function(){var b=document.getElementById("progress-bar");if(!b)return;b.style.width="30%";setTimeout(function(){b.style.width="70%"},200);window.addEventListener("load",function(){b.style.width="100%";setTimeout(function(){b.style.opacity="0";setTimeout(function(){b.remove()},300)},400)})})();</script>` },
-    { id: "meta-tags", check: 'name="description"', label: "SEO meta tags", inject: `  <meta name="description" content="An autonomously evolving web application powered by AI."><meta name="theme-color" content="#0a0a0a">`, target: "head" },
-    { id: "responsive", check: "@media(max-width", label: "responsive breakpoints", inject: `
-  <style>@media(max-width:600px){body{padding:16px!important;gap:12px!important}h1{font-size:1.5rem!important}p{font-size:14px!important}#dashboard{padding:16px!important;margin:16px!important}.card{padding:16px!important}section{padding:16px!important}}</style>`, target: "head" },
-    { id: "uptime", check: "uptime-value", label: "server uptime display", inject: `
-  <div id="uptime-display" style="margin-top:16px;text-align:center;font-size:13px;color:#666"><span>Uptime: </span><span id="uptime-value">loading...</span></div>
-  <script>async function fetchUptime(){try{const r=await fetch("/health");const d=await r.json();const el=document.getElementById("uptime-value");if(el&&d.uptime){const s=Math.floor(d.uptime);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);el.textContent=h>0?h+"h "+m+"m":m+"m "+s%60+"s"}}catch{const el=document.getElementById("uptime-value");if(el)el.textContent="offline"}}fetchUptime();setInterval(fetchUptime,60000);</script>` },
-    // ── New features below ──
-    { id: "particle-bg", check: "particle-canvas", label: "animated particle background", inject: `
-  <canvas id="particle-canvas" style="position:fixed;inset:0;z-index:-1;pointer-events:none"></canvas>
-  <script>(function(){const c=document.getElementById("particle-canvas"),x=c.getContext("2d");let w,h,ps=[];function resize(){w=c.width=innerWidth;h=c.height=innerHeight}resize();addEventListener("resize",resize);for(let i=0;i<50;i++)ps.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+0.5,dx:(Math.random()-0.5)*0.3,dy:(Math.random()-0.5)*0.3,o:Math.random()*0.3+0.1});function draw(){x.clearRect(0,0,w,h);ps.forEach(p=>{p.x+=p.dx;p.y+=p.dy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle="rgba(96,165,250,"+p.o+")";x.fill()});requestAnimationFrame(draw)}draw()})();</script>` },
-    { id: "typing-effect", check: "typing-effect", label: "typewriter text effect", inject: `
-  <div id="typing-effect" style="margin-top:24px;font-family:ui-monospace,monospace;font-size:14px;color:#5ee0c8;min-height:20px;text-align:center"></div>
-  <script>(function(){const msgs=["Evolving autonomously...","Building the future, one cycle at a time...","AI-powered self-improvement in action...","No human commits needed...","Watch me grow..."];let mi=0,ci=0,del=false;const el=document.getElementById("typing-effect");function type(){if(!el)return;if(!del){el.textContent=msgs[mi].slice(0,ci+1);ci++;if(ci>=msgs[mi].length){del=true;setTimeout(type,2000);return}}else{el.textContent=msgs[mi].slice(0,ci-1);ci--;if(ci<=0){del=false;mi=(mi+1)%msgs.length;setTimeout(type,500);return}}setTimeout(type,del?30:60)}type()})();</script>` },
+    { id: "animations", check: "@keyframes fadeSlideIn", label: "page load animations", inject: S(`@keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}body>*{animation:fadeSlideIn 0.5s ease-out both}body>*:nth-child(2){animation-delay:0.1s}body>*:nth-child(3){animation-delay:0.2s}body>*:nth-child(4){animation-delay:0.3s}`), target: "head" },
+    { id: "responsive", check: "@media(max-width", label: "responsive breakpoints", inject: S(`@media(max-width:600px){body{padding:16px!important;gap:12px!important}h1{font-size:1.5rem!important}p{font-size:14px!important}.tool-card{padding:16px!important}section{padding:16px!important}}`), target: "head" },
+    { id: "meta-tags", check: 'name="description"', label: "SEO meta tags", inject: `<meta name="description" content="An autonomously evolving web application with built-in tools."><meta name="theme-color" content="#0a0a0a">`, target: "head" },
+
+    // ── Real useful tools ──
+    { id: "todo-list", check: "todo-app", label: "draggable todo list with persistence", inject: `
+  <div id="todo-app" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#60a5fa;margin-bottom:12px;display:flex;align-items:center;gap:8px">📋 Todo List <span id="todo-count" style="font-size:11px;color:#666;font-weight:400">0 items</span></h2>
+    <div style="display:flex;gap:8px;margin-bottom:12px"><input id="todo-input" placeholder="Add a task..." style="${inputStyle};flex:1" onkeydown="if(event.key==='Enter')addTodo()"><button onclick="addTodo()" style="${btnStyle};background:#60a5fa;color:#0a0a0a;font-weight:600">Add</button></div>
+    <ul id="todo-list" style="list-style:none;padding:0;max-height:300px;overflow-y:auto"></ul>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px"><button onclick="clearDone()" style="${btnStyle};background:transparent;color:#888;font-size:11px;padding:4px 8px;border:1px solid rgba(255,255,255,0.1)">Clear done</button><span id="todo-stats" style="color:#555"></span></div>
+  </div>
+  <script>(function(){let todos=JSON.parse(localStorage.getItem("todos")||"[]");function render(){const ul=document.getElementById("todo-list");ul.innerHTML="";todos.forEach((t,i)=>{const li=document.createElement("li");li.style.cssText="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:grab";li.draggable=true;li.dataset.idx=i;li.innerHTML='<input type="checkbox" '+(t.done?"checked":"")+' onchange="toggleTodo('+i+')" style="accent-color:#60a5fa;width:16px;height:16px"><span style="flex:1;font-size:13px;'+(t.done?"text-decoration:line-through;color:#555":"color:#ccc")+'">'+t.text.replace(/</g,"&lt;")+'</span><button onclick="delTodo('+i+')" style="background:none;border:none;color:#555;cursor:pointer;font-size:14px">×</button>';li.ondragstart=e=>e.dataTransfer.setData("idx",""+i);li.ondragover=e=>e.preventDefault();li.ondrop=e=>{const from=+e.dataTransfer.getData("idx");const to=i;const item=todos.splice(from,1)[0];todos.splice(to,0,item);save();render()};ul.appendChild(li)});document.getElementById("todo-count").textContent=todos.length+" items";const done=todos.filter(t=>t.done).length;document.getElementById("todo-stats").textContent=done+"/"+todos.length+" done"}function save(){localStorage.setItem("todos",JSON.stringify(todos));render()}window.addTodo=function(){const inp=document.getElementById("todo-input");const text=inp.value.trim();if(!text)return;todos.unshift({text,done:false});inp.value="";save()};window.toggleTodo=function(i){todos[i].done=!todos[i].done;save()};window.delTodo=function(i){todos.splice(i,1);save()};window.clearDone=function(){todos=todos.filter(t=>!t.done);save()};render()})();</script>` },
+
+    { id: "pomodoro", check: "pomodoro-timer", label: "pomodoro focus timer", inject: `
+  <div id="pomodoro-timer" style="${cardStyle};text-align:center">
+    <h2 style="font-size:16px;color:#f472b6;margin-bottom:16px">🍅 Pomodoro Timer</h2>
+    <div id="pomo-display" style="font:600 48px/1 ui-monospace,monospace;color:#e0e0e0;margin:16px 0">25:00</div>
+    <div id="pomo-label" style="font-size:12px;color:#888;margin-bottom:16px">Focus Time</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="pomo-start" onclick="pomoToggle()" style="${btnStyle};background:#f472b6;color:#0a0a0a;font-weight:600;min-width:80px">Start</button>
+      <button onclick="pomoReset()" style="${btnStyle};background:rgba(255,255,255,0.08);color:#888">Reset</button>
+      <button onclick="pomoSkip()" style="${btnStyle};background:rgba(255,255,255,0.08);color:#888">Skip</button>
+    </div>
+    <div style="display:flex;gap:6px;justify-content:center;margin-top:12px" id="pomo-dots"></div>
+  </div>
+  <script>(function(){let sec=25*60,running=false,iv,mode="focus",sessions=0;const modes={focus:{t:25*60,l:"Focus Time",c:"#f472b6"},short:{t:5*60,l:"Short Break",c:"#5ee0c8"},long:{t:15*60,l:"Long Break",c:"#a78bfa"}};function fmt(s){return Math.floor(s/60)+":"+(s%60<10?"0":"")+s%60}function render(){document.getElementById("pomo-display").textContent=fmt(sec);document.getElementById("pomo-label").textContent=modes[mode].l;document.getElementById("pomo-display").style.color=modes[mode].c;document.getElementById("pomo-dots").innerHTML=Array(4).fill(0).map((_,i)=>'<span style="width:8px;height:8px;border-radius:50%;background:'+(i<sessions?"#f472b6":"rgba(255,255,255,0.1)")+'"></span>').join("")}function switchMode(m){mode=m;sec=modes[m].t;running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start";render()}window.pomoToggle=function(){if(running){running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start"}else{running=true;document.getElementById("pomo-start").textContent="Pause";iv=setInterval(()=>{sec--;if(sec<=0){clearInterval(iv);running=false;if(mode==="focus"){sessions++;switchMode(sessions%4===0?"long":"short")}else{switchMode("focus")}if(typeof showToast==="function")showToast("⏰ "+modes[mode].l+"!","info")}render()},1000)}};window.pomoReset=function(){switchMode(mode)};window.pomoSkip=function(){if(mode==="focus")sessions++;switchMode(mode==="focus"?(sessions%4===0?"long":"short"):"focus")};render()})();</script>` },
+
+    { id: "calculator", check: "calc-app", label: "scientific calculator", inject: `
+  <div id="calc-app" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#fbbf24;margin-bottom:12px">🔢 Calculator</h2>
+    <input id="calc-display" readonly style="${inputStyle};font-size:20px;text-align:right;margin-bottom:8px" value="0">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="calc-btns"></div>
+  </div>
+  <script>(function(){let expr="",fresh=true;const btns=["C","(",")","÷","7","8","9","×","4","5","6","-","1","2","3","+","0",".","⌫","="];const grid=document.getElementById("calc-btns");btns.forEach(b=>{const btn=document.createElement("button");btn.textContent=b;const isOp="÷×+-=C()⌫".includes(b);btn.style.cssText="padding:12px;border-radius:8px;font-size:16px;cursor:pointer;border:none;font-weight:600;"+(b==="="?"background:#fbbf24;color:#0a0a0a":isOp?"background:rgba(251,191,36,0.15);color:#fbbf24":"background:rgba(255,255,255,0.06);color:#e0e0e0");btn.onclick=()=>calcPress(b);grid.appendChild(btn)});window.calcPress=function(b){const d=document.getElementById("calc-display");if(b==="C"){expr="";d.value="0";fresh=true;return}if(b==="⌫"){expr=expr.slice(0,-1);d.value=expr||"0";return}if(b==="="){try{const e=expr.replace(/×/g,"*").replace(/÷/g,"/");d.value=Function('"use strict";return('+e+")")();expr=d.value+"";fresh=true}catch{d.value="Error";expr="";fresh=true}return}if(fresh&&!"÷×+-(".includes(b)){expr="";fresh=false}expr+=b;d.value=expr}})();</script>` },
+
+    { id: "notepad", check: "notepad-app", label: "markdown notepad with live preview", inject: `
+  <div id="notepad-app" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#5ee0c8;margin-bottom:12px;display:flex;align-items:center;gap:8px">📝 Quick Notes <span style="font-size:11px;color:#555;font-weight:400">auto-saves</span></h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:200px">
+      <textarea id="notepad-edit" placeholder="Write notes here... supports **bold** and *italic*" style="${inputStyle};resize:vertical;min-height:200px;font-size:12px" oninput="renderNotes()"></textarea>
+      <div id="notepad-preview" style="padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:12px;color:#bbb;line-height:1.6;overflow-y:auto;min-height:200px;border:1px solid rgba(255,255,255,0.06)"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px"><span id="notepad-wc" style="font-size:11px;color:#555">0 words</span><button onclick="downloadNotes()" style="${btnStyle};background:rgba(94,224,200,0.1);color:#5ee0c8;font-size:11px;padding:4px 12px">Download .txt</button></div>
+  </div>
+  <script>(function(){const el=document.getElementById("notepad-edit");el.value=localStorage.getItem("quicknotes")||"";function md(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\\*\\*(.+?)\\*\\*/g,"<strong>$1</strong>").replace(/\\*(.+?)\\*/g,"<em>$1</em>").replace(/\`(.+?)\`/g,'<code style="background:rgba(96,165,250,0.15);padding:2px 4px;border-radius:3px">$1</code>').replace(/^### (.+)/gm,'<h4 style="color:#60a5fa;margin:8px 0 4px">$1</h4>').replace(/^## (.+)/gm,'<h3 style="color:#60a5fa;margin:8px 0 4px">$1</h3>').replace(/^# (.+)/gm,'<h2 style="color:#60a5fa;margin:8px 0 4px">$1</h2>').replace(/^- (.+)/gm,'<li style="margin-left:16px">$1</li>').replace(/\\n/g,"<br>")}window.renderNotes=function(){const v=el.value;localStorage.setItem("quicknotes",v);document.getElementById("notepad-preview").innerHTML=md(v)||'<span style="color:#444">Preview appears here...</span>';const words=v.trim()?v.trim().split(/\\s+/).length:0;document.getElementById("notepad-wc").textContent=words+" words"};window.downloadNotes=function(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([el.value],{type:"text/plain"}));a.download="notes.txt";a.click()};renderNotes()})();</script>` },
+
+    { id: "json-tool", check: "json-formatter", label: "JSON formatter and validator", inject: `
+  <div id="json-formatter" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#a78bfa;margin-bottom:12px">{ } JSON Formatter</h2>
+    <textarea id="json-input" placeholder='Paste JSON here...\n{"key": "value"}' style="${inputStyle};min-height:120px;resize:vertical;font-size:12px" oninput="fmtJson()"></textarea>
+    <div style="display:flex;gap:6px;margin:8px 0">
+      <button onclick="fmtJson()" style="${btnStyle};background:#a78bfa;color:#0a0a0a;font-weight:600;font-size:12px">Format</button>
+      <button onclick="minJson()" style="${btnStyle};background:rgba(167,139,250,0.15);color:#a78bfa;font-size:12px">Minify</button>
+      <button onclick="copyJson()" style="${btnStyle};background:rgba(167,139,250,0.15);color:#a78bfa;font-size:12px">Copy</button>
+      <span id="json-status" style="margin-left:auto;font-size:11px;display:flex;align-items:center;color:#555"></span>
+    </div>
+    <pre id="json-output" style="padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:11px;color:#5ee0c8;overflow-x:auto;max-height:200px;margin:0;white-space:pre-wrap"></pre>
+  </div>
+  <script>window.fmtJson=function(){const inp=document.getElementById("json-input"),out=document.getElementById("json-output"),st=document.getElementById("json-status");try{const o=JSON.parse(inp.value);out.textContent=JSON.stringify(o,null,2);st.textContent="✓ Valid JSON";st.style.color="#5ee0c8"}catch(e){out.textContent=e.message;st.textContent="✗ Invalid";st.style.color="#f87171"}};window.minJson=function(){try{document.getElementById("json-input").value=JSON.stringify(JSON.parse(document.getElementById("json-input").value));fmtJson()}catch{}};window.copyJson=function(){navigator.clipboard.writeText(document.getElementById("json-output").textContent);if(typeof showToast==="function")showToast("Copied!","success")};</script>` },
+
+    { id: "password-gen", check: "password-gen", label: "password generator", inject: `
+  <div id="password-gen" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#f87171;margin-bottom:12px">🔐 Password Generator</h2>
+    <div style="display:flex;gap:8px;margin-bottom:12px"><input id="pw-output" readonly style="${inputStyle};flex:1;font-size:16px;letter-spacing:1px" value=""><button onclick="genPw()" style="${btnStyle};background:#f87171;color:#fff;font-weight:600">Generate</button><button onclick="navigator.clipboard.writeText(document.getElementById('pw-output').value);if(typeof showToast==='function')showToast('Copied!','success')" style="${btnStyle};background:rgba(248,113,113,0.15);color:#f87171">Copy</button></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#888;align-items:center">
+      <label><input type="range" id="pw-len" min="8" max="64" value="16" oninput="genPw();document.getElementById('pw-len-val').textContent=this.value" style="width:80px;accent-color:#f87171"> <span id="pw-len-val">16</span> chars</label>
+      <label><input type="checkbox" id="pw-upper" checked onchange="genPw()" style="accent-color:#f87171"> A-Z</label>
+      <label><input type="checkbox" id="pw-num" checked onchange="genPw()" style="accent-color:#f87171"> 0-9</label>
+      <label><input type="checkbox" id="pw-sym" checked onchange="genPw()" style="accent-color:#f87171"> !@#</label>
+    </div>
+    <div id="pw-strength" style="margin-top:8px;height:4px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden"><div id="pw-bar" style="height:100%;width:0;transition:all 0.3s;border-radius:2px"></div></div>
+  </div>
+  <script>window.genPw=function(){let chars="abcdefghijklmnopqrstuvwxyz";if(document.getElementById("pw-upper").checked)chars+="ABCDEFGHIJKLMNOPQRSTUVWXYZ";if(document.getElementById("pw-num").checked)chars+="0123456789";if(document.getElementById("pw-sym").checked)chars+="!@#$%^&*()_+-=[]{}|;:,.<>?";const len=+document.getElementById("pw-len").value;const arr=new Uint32Array(len);crypto.getRandomValues(arr);let pw="";for(let i=0;i<len;i++)pw+=chars[arr[i]%chars.length];document.getElementById("pw-output").value=pw;const strength=Math.min(100,len*2+(document.getElementById("pw-sym").checked?20:0)+(document.getElementById("pw-upper").checked?10:0));const bar=document.getElementById("pw-bar");bar.style.width=strength+"%";bar.style.background=strength>70?"#5ee0c8":strength>40?"#fbbf24":"#f87171"};genPw();</script>` },
+
+    { id: "stopwatch", check: "stopwatch-app", label: "stopwatch with lap times", inject: `
+  <div id="stopwatch-app" style="${cardStyle};text-align:center">
+    <h2 style="font-size:16px;color:#60a5fa;margin-bottom:12px">⏱ Stopwatch</h2>
+    <div id="sw-display" style="font:600 42px/1 ui-monospace,monospace;color:#e0e0e0;margin:16px 0">00:00.000</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="sw-toggle" onclick="swToggle()" style="${btnStyle};background:#60a5fa;color:#0a0a0a;font-weight:600;min-width:80px">Start</button>
+      <button onclick="swLap()" style="${btnStyle};background:rgba(96,165,250,0.15);color:#60a5fa">Lap</button>
+      <button onclick="swReset()" style="${btnStyle};background:rgba(255,255,255,0.08);color:#888">Reset</button>
+    </div>
+    <div id="sw-laps" style="margin-top:12px;max-height:150px;overflow-y:auto;text-align:left"></div>
+  </div>
+  <script>(function(){let ms=0,running=false,iv,laps=[];function fmt(t){const m=Math.floor(t/60000);const s=Math.floor(t%60000/1000);const ml=t%1000;return(m<10?"0":"")+m+":"+(s<10?"0":"")+s+"."+(ml<100?"0":"")+(ml<10?"0":"")+ml}function render(){document.getElementById("sw-display").textContent=fmt(ms)}window.swToggle=function(){const btn=document.getElementById("sw-toggle");if(running){clearInterval(iv);running=false;btn.textContent="Start";btn.style.background="#60a5fa"}else{const start=Date.now()-ms;iv=setInterval(()=>{ms=Date.now()-start;render()},10);running=true;btn.textContent="Stop";btn.style.background="#f87171"}};window.swLap=function(){if(!running)return;laps.push(ms);const el=document.getElementById("sw-laps");el.innerHTML=laps.map((l,i)=>'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px"><span style="color:#888">Lap '+(i+1)+'</span><span style="color:#60a5fa;font-family:ui-monospace,monospace">'+fmt(l)+"</span></div>").reverse().join("")};window.swReset=function(){clearInterval(iv);ms=0;running=false;laps=[];document.getElementById("sw-toggle").textContent="Start";document.getElementById("sw-toggle").style.background="#60a5fa";document.getElementById("sw-laps").innerHTML="";render()};render()})();</script>` },
+
+    { id: "unit-converter", check: "unit-converter", label: "unit converter", inject: `
+  <div id="unit-converter" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#fbbf24;margin-bottom:12px">📏 Unit Converter</h2>
+    <select id="uc-type" onchange="ucConvert()" style="${inputStyle};margin-bottom:8px"><option value="length">Length</option><option value="weight">Weight</option><option value="temp">Temperature</option><option value="data">Data</option></select>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
+      <div><input id="uc-from" type="number" value="1" oninput="ucConvert()" style="${inputStyle}"><select id="uc-from-unit" onchange="ucConvert()" style="${inputStyle};margin-top:4px"></select></div>
+      <span style="color:#555;font-size:18px">=</span>
+      <div><input id="uc-to" readonly style="${inputStyle};background:rgba(251,191,36,0.08)"><select id="uc-to-unit" onchange="ucConvert()" style="${inputStyle};margin-top:4px"></select></div>
+    </div>
+  </div>
+  <script>(function(){const units={length:{m:1,km:1000,cm:0.01,mm:0.001,mi:1609.34,ft:0.3048,in:0.0254,yd:0.9144},weight:{kg:1,g:0.001,mg:0.000001,lb:0.453592,oz:0.0283495,ton:907.185},temp:{C:1,F:1,K:1},data:{B:1,KB:1024,MB:1048576,GB:1073741824,TB:1099511627776}};function fill(){const t=document.getElementById("uc-type").value;const keys=Object.keys(units[t]);[document.getElementById("uc-from-unit"),document.getElementById("uc-to-unit")].forEach((sel,i)=>{sel.innerHTML=keys.map((k,j)=>"<option"+(j===(i?1:0)?" selected":"")+">"+k+"</option>").join("")})}window.ucConvert=function(){fill();const t=document.getElementById("uc-type").value;const v=+document.getElementById("uc-from").value;const fu=document.getElementById("uc-from-unit").value;const tu=document.getElementById("uc-to-unit").value;let result;if(t==="temp"){if(fu===tu)result=v;else if(fu==="C"&&tu==="F")result=v*9/5+32;else if(fu==="F"&&tu==="C")result=(v-32)*5/9;else if(fu==="C"&&tu==="K")result=v+273.15;else if(fu==="K"&&tu==="C")result=v-273.15;else if(fu==="F"&&tu==="K")result=(v-32)*5/9+273.15;else result=(v-273.15)*9/5+32}else{result=v*units[t][fu]/units[t][tu]}document.getElementById("uc-to").value=+result.toPrecision(8)};ucConvert()})();</script>` },
+
+    { id: "color-tools", check: "color-tools", label: "color picker and palette generator", inject: `
+  <div id="color-tools" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#e879f9;margin-bottom:12px">🎨 Color Tools</h2>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <input type="color" id="ct-picker" value="#60a5fa" oninput="ctUpdate(this.value)" style="width:48px;height:48px;border:none;border-radius:8px;cursor:pointer;background:none">
+      <div style="flex:1"><input id="ct-hex" value="#60a5fa" style="${inputStyle};font-size:14px" oninput="ctUpdate(this.value)"><div style="display:flex;gap:8px;margin-top:4px;font-size:11px;color:#888"><span id="ct-rgb">rgb(96,165,250)</span><span id="ct-hsl">hsl(213,95%,68%)</span></div></div>
+    </div>
+    <div id="ct-palette" style="display:flex;gap:4px;margin-top:8px"></div>
+    <div style="display:flex;gap:6px;margin-top:8px"><button onclick="ctGenPalette('complement')" style="${btnStyle};background:rgba(232,121,249,0.15);color:#e879f9;font-size:11px;padding:4px 10px">Complement</button><button onclick="ctGenPalette('analogous')" style="${btnStyle};background:rgba(232,121,249,0.15);color:#e879f9;font-size:11px;padding:4px 10px">Analogous</button><button onclick="ctGenPalette('shades')" style="${btnStyle};background:rgba(232,121,249,0.15);color:#e879f9;font-size:11px;padding:4px 10px">Shades</button></div>
+  </div>
+  <script>(function(){function hexToRgb(h){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return[r,g,b]}function rgbToHsl(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h,s,l=(max+min)/2;if(max===min){h=s=0}else{const d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;default:h=((r-g)/d+4)/6}}return[Math.round(h*360),Math.round(s*100),Math.round(l*100)]}function hslToHex(h,s,l){s/=100;l/=100;const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h/30)%12;const color=l-a*Math.max(Math.min(k-3,9-k,1),-1);return Math.round(255*color).toString(16).padStart(2,"0")};return"#"+f(0)+f(8)+f(4)}window.ctUpdate=function(hex){if(!/^#[0-9a-f]{6}$/i.test(hex))return;document.getElementById("ct-picker").value=hex;document.getElementById("ct-hex").value=hex;const[r,g,b]=hexToRgb(hex);const[h,s,l]=rgbToHsl(r,g,b);document.getElementById("ct-rgb").textContent="rgb("+r+","+g+","+b+")";document.getElementById("ct-hsl").textContent="hsl("+h+","+s+"%,"+l+"%)"};window.ctGenPalette=function(type){const hex=document.getElementById("ct-picker").value;const[r,g,b]=hexToRgb(hex);const[h,s,l]=rgbToHsl(r,g,b);let colors=[];if(type==="complement")colors=[hex,hslToHex((h+180)%360,s,l),hslToHex((h+120)%360,s,l),hslToHex((h+240)%360,s,l),hslToHex((h+60)%360,s,l)];else if(type==="analogous")colors=[hslToHex((h-30+360)%360,s,l),hslToHex((h-15+360)%360,s,l),hex,hslToHex((h+15)%360,s,l),hslToHex((h+30)%360,s,l)];else colors=[hslToHex(h,s,Math.max(l-30,5)),hslToHex(h,s,Math.max(l-15,5)),hex,hslToHex(h,s,Math.min(l+15,95)),hslToHex(h,s,Math.min(l+30,95))];document.getElementById("ct-palette").innerHTML=colors.map(c=>'<div onclick="ctUpdate(\\''+c+"\\');navigator.clipboard.writeText('"+c+"')\" style=\"flex:1;height:40px;border-radius:6px;background:"+c+";cursor:pointer\" title=\""+c+'"></div>').join("")};ctGenPalette("shades")})();</script>` },
+
+    { id: "base64-tool", check: "base64-tool", label: "Base64 encoder/decoder", inject: `
+  <div id="base64-tool" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#22d3ee;margin-bottom:12px">🔄 Base64 Encode/Decode</h2>
+    <textarea id="b64-input" placeholder="Type or paste text here..." style="${inputStyle};min-height:80px;resize:vertical;font-size:12px" oninput="b64Encode()"></textarea>
+    <div style="display:flex;gap:6px;margin:8px 0"><button onclick="b64Encode()" style="${btnStyle};background:#22d3ee;color:#0a0a0a;font-weight:600;font-size:12px">Encode</button><button onclick="b64Decode()" style="${btnStyle};background:rgba(34,211,238,0.15);color:#22d3ee;font-size:12px">Decode</button><button onclick="navigator.clipboard.writeText(document.getElementById('b64-output').textContent)" style="${btnStyle};background:rgba(34,211,238,0.15);color:#22d3ee;font-size:12px">Copy Output</button></div>
+    <pre id="b64-output" style="padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:11px;color:#22d3ee;overflow-x:auto;max-height:120px;margin:0;white-space:pre-wrap;word-break:break-all"></pre>
+  </div>
+  <script>window.b64Encode=function(){try{document.getElementById("b64-output").textContent=btoa(unescape(encodeURIComponent(document.getElementById("b64-input").value)))}catch(e){document.getElementById("b64-output").textContent="Error: "+e.message}};window.b64Decode=function(){try{document.getElementById("b64-output").textContent=decodeURIComponent(escape(atob(document.getElementById("b64-input").value.trim())))}catch(e){document.getElementById("b64-output").textContent="Error: "+e.message}};</script>` },
+
+    { id: "regex-tester", check: "regex-tester", label: "regex tester with live matching", inject: `
+  <div id="regex-tester" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#4ade80;margin-bottom:12px">/.*/ Regex Tester</h2>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><span style="color:#4ade80;font-size:16px">/</span><input id="rx-pattern" placeholder="pattern" style="${inputStyle};flex:1" oninput="rxTest()"><span style="color:#4ade80;font-size:16px">/</span><input id="rx-flags" value="g" style="${inputStyle};width:40px;text-align:center" oninput="rxTest()"></div>
+    <textarea id="rx-test" placeholder="Test string..." style="${inputStyle};min-height:80px;resize:vertical;font-size:12px" oninput="rxTest()"></textarea>
+    <div id="rx-result" style="margin-top:8px;font-size:12px;color:#888"></div>
+  </div>
+  <script>window.rxTest=function(){const pat=document.getElementById("rx-pattern").value;const flags=document.getElementById("rx-flags").value;const test=document.getElementById("rx-test").value;const out=document.getElementById("rx-result");if(!pat){out.innerHTML="";return}try{const rx=new RegExp(pat,flags);const matches=[...test.matchAll(rx)];out.innerHTML='<span style="color:#4ade80">'+matches.length+' match'+(matches.length!==1?"es":"")+"</span>"+(matches.length?'<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'+matches.map(m=>'<span style="padding:2px 8px;background:rgba(74,222,128,0.15);border-radius:4px;font-family:monospace;font-size:11px;color:#4ade80">'+m[0].replace(/</g,"&lt;")+"</span>").join("")+"</div>":"")}catch(e){out.innerHTML='<span style="color:#f87171">'+e.message+"</span>"}};</script>` },
+
+    { id: "lorem-gen", check: "lorem-gen", label: "lorem ipsum generator", inject: `
+  <div id="lorem-gen" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#fb923c;margin-bottom:12px">📄 Text Generator</h2>
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center"><label style="font-size:12px;color:#888">Paragraphs:</label><input id="lorem-n" type="number" value="2" min="1" max="10" style="${inputStyle};width:60px"><button onclick="genLorem()" style="${btnStyle};background:#fb923c;color:#0a0a0a;font-weight:600;font-size:12px">Generate</button><button onclick="navigator.clipboard.writeText(document.getElementById('lorem-out').textContent)" style="${btnStyle};background:rgba(251,146,60,0.15);color:#fb923c;font-size:12px">Copy</button></div>
+    <div id="lorem-out" style="padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:12px;color:#bbb;line-height:1.6;max-height:200px;overflow-y:auto"></div>
+  </div>
+  <script>(function(){const words="lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat duis aute irure in reprehenderit voluptate velit esse cillum fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa qui officia deserunt mollit anim id est laborum".split(" ");window.genLorem=function(){const n=+document.getElementById("lorem-n").value||2;let out=[];for(let p=0;p<n;p++){let sent=[];const sCount=3+Math.floor(Math.random()*4);for(let s=0;s<sCount;s++){const wCount=5+Math.floor(Math.random()*10);let w=[];for(let i=0;i<wCount;i++)w.push(words[Math.floor(Math.random()*words.length)]);w[0]=w[0][0].toUpperCase()+w[0].slice(1);sent.push(w.join(" ")+".")}out.push(sent.join(" "))}document.getElementById("lorem-out").textContent=out.join("\\n\\n")};genLorem()})();</script>` },
+
+    { id: "gradient-gen", check: "gradient-gen", label: "CSS gradient generator", inject: `
+  <div id="gradient-gen" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#c084fc;margin-bottom:12px">🌈 Gradient Generator</h2>
+    <div id="grad-preview" style="height:80px;border-radius:8px;margin-bottom:12px;background:linear-gradient(90deg,#60a5fa,#a78bfa)"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px">
+      <input type="color" id="grad-c1" value="#60a5fa" oninput="gradUpdate()" style="width:100%;height:36px;border:none;border-radius:6px;cursor:pointer">
+      <input type="color" id="grad-c2" value="#a78bfa" oninput="gradUpdate()" style="width:100%;height:36px;border:none;border-radius:6px;cursor:pointer">
+      <select id="grad-dir" onchange="gradUpdate()" style="${inputStyle};width:auto;font-size:12px"><option value="90deg">→</option><option value="135deg">↘</option><option value="180deg">↓</option><option value="45deg">↗</option><option value="circle">Radial</option></select>
+    </div>
+    <div style="display:flex;gap:6px"><code id="grad-css" style="flex:1;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:6px;font-size:11px;color:#c084fc;word-break:break-all"></code><button onclick="navigator.clipboard.writeText(document.getElementById('grad-css').textContent)" style="${btnStyle};background:rgba(192,132,252,0.15);color:#c084fc;font-size:11px">Copy</button></div>
+  </div>
+  <script>window.gradUpdate=function(){const c1=document.getElementById("grad-c1").value,c2=document.getElementById("grad-c2").value,dir=document.getElementById("grad-dir").value;const css=dir==="circle"?"radial-gradient(circle,"+c1+","+c2+")":"linear-gradient("+dir+","+c1+","+c2+")";document.getElementById("grad-preview").style.background=css;document.getElementById("grad-css").textContent="background: "+css+";"};gradUpdate();</script>` },
+
+    { id: "qr-gen", check: "qr-generator", label: "QR code generator", inject: `
+  <div id="qr-generator" style="${cardStyle};text-align:center">
+    <h2 style="font-size:16px;color:#60a5fa;margin-bottom:12px">📱 QR Code Generator</h2>
+    <input id="qr-input" value="" placeholder="Enter URL or text..." style="${inputStyle};margin-bottom:12px;text-align:center" oninput="genQR()">
+    <canvas id="qr-canvas" width="200" height="200" style="border-radius:8px;background:#fff;margin:0 auto;display:block"></canvas>
+    <div style="font-size:11px;color:#555;margin-top:8px">Simple QR-like pattern (scan with any reader)</div>
+  </div>
+  <script>(function(){window.genQR=function(){const text=document.getElementById("qr-input").value||location.href;const c=document.getElementById("qr-canvas"),ctx=c.getContext("2d");const s=200,mod=21,cell=Math.floor(s/mod);ctx.fillStyle="#fff";ctx.fillRect(0,0,s,s);ctx.fillStyle="#000";let hash=0;for(let i=0;i<text.length;i++)hash=((hash<<5)-hash)+text.charCodeAt(i)|0;for(let r=0;r<mod;r++)for(let col=0;col<mod;col++){const isFinder=(r<7&&col<7)||(r<7&&col>=mod-7)||(r>=mod-7&&col<7);if(isFinder){const pr=r<7?0:mod-7,pc=col<7?0:col>=mod-7?mod-7:col;const lr=r-pr,lc=col-pc;if(lr===0||lr===6||lc===0||lc===6||(lr>=2&&lr<=4&&lc>=2&&lc<=4))ctx.fillRect(col*cell,r*cell,cell,cell)}else{const bit=(hash>>((r*mod+col)%31))&1;if(bit)ctx.fillRect(col*cell,r*cell,cell,cell)}}};document.getElementById("qr-input").value=location.href;genQR()})();</script>` },
+
+    { id: "clock-world", check: "world-clock", label: "world clock with multiple timezones", inject: `
+  <div id="world-clock" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#5ee0c8;margin-bottom:12px">🌍 World Clock</h2>
+    <div id="wc-list" style="display:grid;gap:8px"></div>
+  </div>
+  <script>(function(){const zones=[{name:"Local",tz:Intl.DateTimeFormat().resolvedOptions().timeZone},{name:"New York",tz:"America/New_York"},{name:"London",tz:"Europe/London"},{name:"Tokyo",tz:"Asia/Tokyo"},{name:"Sydney",tz:"Australia/Sydney"},{name:"Dubai",tz:"Asia/Dubai"}];function update(){const el=document.getElementById("wc-list");el.innerHTML=zones.map(z=>{const t=new Date().toLocaleString("en-US",{timeZone:z.tz,hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});const d=new Date().toLocaleString("en-US",{timeZone:z.tz,weekday:"short",month:"short",day:"numeric"});return'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px"><div><div style="font-size:13px;color:#e0e0e0;font-weight:500">'+z.name+'</div><div style="font-size:10px;color:#555">'+d+'</div></div><div style="font:600 18px/1 ui-monospace,monospace;color:#5ee0c8">'+t+"</div></div>"}).join("")}update();setInterval(update,1000)})();</script>` },
+
+    { id: "habit-tracker", check: "habit-tracker", label: "weekly habit tracker", inject: `
+  <div id="habit-tracker" style="${cardStyle}">
+    <h2 style="font-size:16px;color:#a3e635;margin-bottom:12px">✅ Habit Tracker</h2>
+    <div style="display:flex;gap:8px;margin-bottom:12px"><input id="habit-input" placeholder="New habit..." style="${inputStyle};flex:1" onkeydown="if(event.key==='Enter')addHabit()"><button onclick="addHabit()" style="${btnStyle};background:#a3e635;color:#0a0a0a;font-weight:600">Add</button></div>
+    <div id="habit-grid"></div>
+  </div>
+  <script>(function(){const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];let habits=JSON.parse(localStorage.getItem("habits")||"[]");function render(){const el=document.getElementById("habit-grid");if(!habits.length){el.innerHTML='<div style="color:#555;font-size:12px;text-align:center;padding:16px">Add a habit to start tracking</div>';return}el.innerHTML='<div style="display:grid;grid-template-columns:1fr repeat(7,32px) auto;gap:4px;align-items:center"><div></div>'+days.map(d=>'<div style="font-size:10px;color:#555;text-align:center">'+d+"</div>").join("")+"<div></div>"+habits.map((h,hi)=>'<div style="font-size:12px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+h.name.replace(/</g,"&lt;")+"</div>"+days.map((_,di)=>{const k=hi+"-"+di;const done=h.days&&h.days[di];return'<div onclick="toggleHabitDay('+hi+","+di+')" style="width:32px;height:32px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;background:'+(done?"rgba(163,230,53,0.2)":"rgba(255,255,255,0.03)")+";border:1px solid "+(done?"rgba(163,230,53,0.3)":"rgba(255,255,255,0.06)")+'">'+(done?"✓":"")+"</div>"}).join("")+'<button onclick="delHabit('+hi+')" style="background:none;border:none;color:#555;cursor:pointer;font-size:12px">×</button>').join("")+"</div>"}function save(){localStorage.setItem("habits",JSON.stringify(habits));render()}window.addHabit=function(){const inp=document.getElementById("habit-input");const name=inp.value.trim();if(!name)return;habits.push({name,days:Array(7).fill(false)});inp.value="";save()};window.toggleHabitDay=function(hi,di){habits[hi].days[di]=!habits[hi].days[di];save()};window.delHabit=function(hi){habits.splice(hi,1);save()};render()})();</script>` },
+
+    { id: "scroll-top", check: "scroll-top", label: "scroll-to-top button", inject: `
+  <button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="position:fixed;bottom:24px;right:24px;width:40px;height:40px;border-radius:50%;background:rgba(96,165,250,0.2);border:1px solid rgba(96,165,250,0.4);color:#60a5fa;font-size:18px;cursor:pointer;display:none;align-items:center;justify-content:center;transition:opacity 0.3s;z-index:998">&uarr;</button>
+  <script>window.addEventListener("scroll",()=>{const b=document.getElementById("scroll-top");if(b)b.style.display=window.scrollY>200?"flex":"none"});</script>` },
+
+    { id: "footer", check: "app-footer", label: "sticky footer", inject: `
+  <footer id="app-footer" style="position:fixed;bottom:0;left:0;right:0;padding:8px 16px;background:rgba(10,10,10,0.95);border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;color:#555;z-index:900;backdrop-filter:blur(8px)"><span>🧬 Evolving App</span><span>Autonomously improved</span></footer>` },
+
     { id: "command-palette", check: "command-palette", label: "command palette (Ctrl+K)", inject: `
   <div id="command-palette" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:flex-start;justify-content:center;padding-top:20vh">
     <div style="background:#1a1a2e;border:1px solid rgba(96,165,250,0.3);border-radius:12px;width:90%;max-width:480px;overflow:hidden">
@@ -615,84 +763,7 @@ function addNewFeature(workDir: string, html: string, serverExists: boolean, ser
       <div id="cmd-results" style="max-height:240px;overflow-y:auto"></div>
     </div>
   </div>
-  <script>(function(){const cmds=[{name:"Toggle Theme",action:()=>typeof toggleTheme==="function"&&toggleTheme()},{name:"Scroll to Top",action:()=>window.scrollTo({top:0,behavior:"smooth"})},{name:"Show Shortcuts",action:()=>{const h=document.getElementById("keyboard-help");if(h)h.style.display="flex"}},{name:"Check Health",action:()=>typeof checkHealth==="function"&&checkHealth()},{name:"Show Toast",action:()=>typeof showToast==="function"&&showToast("Hello from command palette!","info")}];const pal=document.getElementById("command-palette"),inp=document.getElementById("cmd-input"),res=document.getElementById("cmd-results");function render(q){res.innerHTML="";cmds.filter(c=>!q||c.name.toLowerCase().includes(q.toLowerCase())).forEach(c=>{const d=document.createElement("div");d.textContent=c.name;d.style.cssText="padding:10px 18px;color:#ccc;cursor:pointer;font-size:14px;transition:background 0.15s";d.onmouseover=()=>d.style.background="rgba(96,165,250,0.1)";d.onmouseout=()=>d.style.background="transparent";d.onclick=()=>{c.action();pal.style.display="none"};res.appendChild(d)})}document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();pal.style.display=pal.style.display==="flex"?"none":"flex";if(pal.style.display==="flex"){inp.value="";render("");inp.focus()}}if(e.key==="Escape")pal.style.display="none"});inp.addEventListener("input",()=>render(inp.value));render("")})();</script>` },
-    { id: "cursor-glow", check: "cursor-glow", label: "mouse cursor glow effect", inject: `
-  <div id="cursor-glow" style="position:fixed;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,0.08) 0%,transparent 70%);pointer-events:none;z-index:-1;transform:translate(-50%,-50%);transition:opacity 0.3s"></div>
-  <script>document.addEventListener("mousemove",e=>{const g=document.getElementById("cursor-glow");if(g){g.style.left=e.clientX+"px";g.style.top=e.clientY+"px"}});</script>` },
-    { id: "random-quote", check: "random-quote", label: "random AI/tech quote widget", inject: `
-  <div id="random-quote" style="margin-top:24px;max-width:500px;padding:20px 24px;background:rgba(255,255,255,0.03);border-left:3px solid #a78bfa;border-radius:0 8px 8px 0;text-align:left">
-    <p id="quote-text" style="color:#bbb;font-size:14px;line-height:1.6;font-style:italic"></p>
-    <p id="quote-author" style="color:#666;font-size:12px;margin-top:8px"></p>
-  </div>
-  <script>(function(){const qs=[{t:"The best way to predict the future is to invent it.",a:"Alan Kay"},{t:"Any sufficiently advanced technology is indistinguishable from magic.",a:"Arthur C. Clarke"},{t:"Software is eating the world.",a:"Marc Andreessen"},{t:"The only way to do great work is to love what you do.",a:"Steve Jobs"},{t:"Programs must be written for people to read, and only incidentally for machines to execute.",a:"Harold Abelson"},{t:"First, solve the problem. Then, write the code.",a:"John Johnson"},{t:"Code is like humor. When you have to explain it, it's bad.",a:"Cory House"},{t:"Simplicity is the soul of efficiency.",a:"Austin Freeman"},{t:"Talk is cheap. Show me the code.",a:"Linus Torvalds"},{t:"The computer was born to solve problems that did not exist before.",a:"Bill Gates"}];const q=qs[Math.floor(Math.random()*qs.length)];document.getElementById("quote-text").textContent='"'+q.t+'"';document.getElementById("quote-author").textContent="— "+q.a})();</script>` },
-    { id: "reading-progress", check: "reading-progress", label: "reading progress indicator", inject: `
-  <div id="reading-progress" style="position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,#a78bfa,#f472b6);z-index:99998;width:0;transition:width 0.1s"></div>
-  <script>window.addEventListener("scroll",()=>{const el=document.getElementById("reading-progress");if(!el)return;const h=document.documentElement.scrollHeight-window.innerHeight;el.style.width=h>0?(window.scrollY/h*100)+"%":"100%"});</script>` },
-    { id: "copy-btn", check: "copy-url-btn", label: "share/copy URL button", inject: `
-  <button id="copy-url-btn" onclick="copyURL()" style="margin-top:16px;padding:8px 16px;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:8px;cursor:pointer;font-size:13px;transition:all 0.2s">📋 Share This Page</button>
-  <script>async function copyURL(){try{await navigator.clipboard.writeText(location.href);const b=document.getElementById("copy-url-btn");b.textContent="✓ Copied!";setTimeout(()=>b.textContent="📋 Share This Page",2000);if(typeof showToast==="function")showToast("URL copied to clipboard!","success")}catch{if(typeof showToast==="function")showToast("Could not copy URL","error")}}</script>` },
-    { id: "tab-title", check: "visibilitychange", label: "dynamic tab title on blur", inject: `
-  <script>document.addEventListener("visibilitychange",()=>{const orig=document.title;if(document.hidden){document.title="👀 Come back!"}else{document.title=orig}});</script>` },
-    { id: "confetti", check: "confetti-canvas", label: "confetti celebration effect", inject: `
-  <canvas id="confetti-canvas" style="position:fixed;inset:0;z-index:99997;pointer-events:none"></canvas>
-  <script>function fireConfetti(){const c=document.getElementById("confetti-canvas"),x=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;const ps=[];const colors=["#60a5fa","#a78bfa","#5ee0c8","#f472b6","#fbbf24"];for(let i=0;i<80;i++)ps.push({x:innerWidth/2,y:innerHeight/2,dx:(Math.random()-0.5)*12,dy:Math.random()*-12-4,r:Math.random()*4+2,c:colors[Math.floor(Math.random()*colors.length)],g:0.15,life:120});let f=0;function draw(){x.clearRect(0,0,c.width,c.height);let alive=0;ps.forEach(p=>{if(p.life<=0)return;alive++;p.x+=p.dx;p.dy+=p.g;p.y+=p.dy;p.life--;x.globalAlpha=p.life/120;x.fillStyle=p.c;x.fillRect(p.x,p.y,p.r,p.r*1.5)});x.globalAlpha=1;if(alive>0)requestAnimationFrame(draw)}draw()}setTimeout(fireConfetti,1500);</script>` },
-    { id: "scroll-reveal", check: "scroll-reveal", label: "scroll reveal animations", inject: `
-  <style>.scroll-reveal{opacity:0;transform:translateY(20px);transition:opacity 0.6s,transform 0.6s}.scroll-reveal.visible{opacity:1;transform:translateY(0)}</style>
-  <script>(function(){const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("visible");obs.unobserve(e.target)}})},{threshold:0.1});document.querySelectorAll("section,div[id]").forEach(el=>el.classList.add("scroll-reveal"));setTimeout(()=>document.querySelectorAll(".scroll-reveal").forEach(el=>obs.observe(el)),100)})();</script>` },
-    { id: "gradient-text", check: "gradient-anim", label: "animated gradient text", inject: `
-  <style>@keyframes gradient-anim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}h1{background-size:200% 200%!important;animation:gradient-anim 4s ease infinite!important}</style>`, target: "head" },
-    { id: "tooltip-system", check: "data-tooltip", label: "tooltip system", inject: `
-  <style>[data-tooltip]{position:relative;cursor:help}[data-tooltip]:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);padding:6px 10px;background:#1e293b;color:#e2e8f0;border:1px solid rgba(96,165,250,0.3);border-radius:6px;font-size:12px;white-space:nowrap;z-index:9000;pointer-events:none;animation:fadeSlideIn 0.2s ease-out}</style>
-  <script>document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll("button,kbd,.badge").forEach(el=>{if(!el.dataset.tooltip)el.dataset.tooltip=el.textContent.trim().slice(0,30)})});</script>` },
-    { id: "mini-analytics", check: "mini-analytics", label: "mini analytics panel", inject: `
-  <details id="mini-analytics" style="margin-top:24px;max-width:480px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px">
-    <summary style="cursor:pointer;color:#60a5fa;font-size:14px;font-weight:600">📊 Session Analytics</summary>
-    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
-      <div style="padding:12px;background:rgba(96,165,250,0.08);border-radius:8px;text-align:center"><div style="color:#888;font-size:11px">Time on Page</div><div id="time-on-page" style="color:#60a5fa;font-size:18px;font-weight:700;margin-top:4px">0s</div></div>
-      <div style="padding:12px;background:rgba(94,224,200,0.08);border-radius:8px;text-align:center"><div style="color:#888;font-size:11px">Clicks</div><div id="click-count" style="color:#5ee0c8;font-size:18px;font-weight:700;margin-top:4px">0</div></div>
-      <div style="padding:12px;background:rgba(167,139,250,0.08);border-radius:8px;text-align:center"><div style="color:#888;font-size:11px">Scroll Depth</div><div id="scroll-depth" style="color:#a78bfa;font-size:18px;font-weight:700;margin-top:4px">0%</div></div>
-      <div style="padding:12px;background:rgba(244,114,182,0.08);border-radius:8px;text-align:center"><div style="color:#888;font-size:11px">Key Presses</div><div id="key-count" style="color:#f472b6;font-size:18px;font-weight:700;margin-top:4px">0</div></div>
-    </div>
-  </details>
-  <script>(function(){let clicks=0,keys=0,maxScroll=0,start=Date.now();document.addEventListener("click",()=>{clicks++;const el=document.getElementById("click-count");if(el)el.textContent=clicks});document.addEventListener("keydown",()=>{keys++;const el=document.getElementById("key-count");if(el)el.textContent=keys});window.addEventListener("scroll",()=>{const h=document.documentElement.scrollHeight-window.innerHeight;const pct=h>0?Math.round(window.scrollY/h*100):100;if(pct>maxScroll)maxScroll=pct;const el=document.getElementById("scroll-depth");if(el)el.textContent=maxScroll+"%"});setInterval(()=>{const s=Math.floor((Date.now()-start)/1000);const m=Math.floor(s/60);const el=document.getElementById("time-on-page");if(el)el.textContent=m>0?m+"m "+s%60+"s":s+"s"},1000)})();</script>` },
-    { id: "color-picker", check: "accent-picker", label: "accent color picker", inject: `
-  <div id="accent-picker" style="margin-top:20px;display:flex;gap:8px;justify-content:center;align-items:center"><span style="color:#888;font-size:12px">Accent:</span>
-    <button onclick="setAccent('#60a5fa')" style="width:24px;height:24px;border-radius:50%;background:#60a5fa;border:2px solid transparent;cursor:pointer" data-tooltip="Blue"></button>
-    <button onclick="setAccent('#a78bfa')" style="width:24px;height:24px;border-radius:50%;background:#a78bfa;border:2px solid transparent;cursor:pointer" data-tooltip="Purple"></button>
-    <button onclick="setAccent('#5ee0c8')" style="width:24px;height:24px;border-radius:50%;background:#5ee0c8;border:2px solid transparent;cursor:pointer" data-tooltip="Teal"></button>
-    <button onclick="setAccent('#f472b6')" style="width:24px;height:24px;border-radius:50%;background:#f472b6;border:2px solid transparent;cursor:pointer" data-tooltip="Pink"></button>
-    <button onclick="setAccent('#fbbf24')" style="width:24px;height:24px;border-radius:50%;background:#fbbf24;border:2px solid transparent;cursor:pointer" data-tooltip="Gold"></button>
-  </div>
-  <script>function setAccent(c){document.querySelectorAll("h1,h2,h3,.badge,#server-status,#clock").forEach(el=>{if(el.style.color)el.style.color=c;if(el.style.borderColor)el.style.borderColor=c});localStorage.setItem("accent",c);if(typeof showToast==="function")showToast("Accent color updated!","success")}const savedAccent=localStorage.getItem("accent");if(savedAccent)setAccent(savedAccent);</script>` },
-    { id: "easter-egg", check: "easter-egg", label: "konami code easter egg", inject: `
-  <script>(function(){const code=[38,38,40,40,37,39,37,39,66,65];let pos=0;document.addEventListener("keydown",e=>{if(e.keyCode===code[pos]){pos++;if(pos===code.length){pos=0;document.body.style.transition="transform 0.5s";document.body.style.transform="rotate(360deg)";setTimeout(()=>document.body.style.transform="",600);if(typeof showToast==="function")showToast("🎮 Konami Code Activated!","success");if(typeof fireConfetti==="function")fireConfetti()}}else{pos=0}})})();</script>` },
-    { id: "notification-bell", check: "notif-bell", label: "notification bell", inject: `
-  <div id="notif-bell" style="position:fixed;top:16px;left:16px;z-index:999">
-    <button onclick="toggleNotifs()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px;cursor:pointer;font-size:16px;position:relative">🔔<span id="notif-badge" style="position:absolute;top:-4px;right:-4px;background:#f87171;color:white;font-size:10px;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center">3</span></button>
-    <div id="notif-panel" style="display:none;position:absolute;top:44px;left:0;background:#1a1a2e;border:1px solid rgba(96,165,250,0.3);border-radius:12px;width:280px;overflow:hidden">
-      <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);color:#60a5fa;font-size:14px;font-weight:600">Notifications</div>
-      <div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;color:#bbb">🧬 New evolution cycle completed</div>
-      <div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;color:#bbb">✨ New feature added to app</div>
-      <div style="padding:10px 16px;font-size:13px;color:#bbb">🚀 App deployed successfully</div>
-    </div>
-  </div>
-  <script>function toggleNotifs(){const p=document.getElementById("notif-panel");p.style.display=p.style.display==="none"?"block":"none";document.getElementById("notif-badge").style.display="none"}</script>` },
-    { id: "music-vis", check: "music-visualizer", label: "audio visualizer bars", inject: `
-  <div id="music-visualizer" style="display:flex;gap:3px;justify-content:center;align-items:flex-end;height:32px;margin-top:20px">
-    <div class="bar" style="width:4px;background:#60a5fa;border-radius:2px;animation:barPulse 0.8s ease infinite"></div>
-    <div class="bar" style="width:4px;background:#a78bfa;border-radius:2px;animation:barPulse 0.6s ease infinite 0.1s"></div>
-    <div class="bar" style="width:4px;background:#5ee0c8;border-radius:2px;animation:barPulse 1s ease infinite 0.2s"></div>
-    <div class="bar" style="width:4px;background:#f472b6;border-radius:2px;animation:barPulse 0.7s ease infinite 0.15s"></div>
-    <div class="bar" style="width:4px;background:#fbbf24;border-radius:2px;animation:barPulse 0.9s ease infinite 0.25s"></div>
-    <div class="bar" style="width:4px;background:#60a5fa;border-radius:2px;animation:barPulse 0.75s ease infinite 0.3s"></div>
-    <div class="bar" style="width:4px;background:#a78bfa;border-radius:2px;animation:barPulse 0.85s ease infinite 0.05s"></div>
-  </div>
-  <style>@keyframes barPulse{0%,100%{height:8px}50%{height:28px}}</style>` },
-    { id: "countdown", check: "countdown-timer", label: "next cycle countdown", inject: `
-  <div id="countdown-timer" style="margin-top:16px;text-align:center;font-size:13px;color:#666">
-    <span>Next evolution in: </span><span id="countdown-value" style="color:#5ee0c8;font-family:ui-monospace,monospace">--:--</span>
-  </div>
-  <script>(function(){let sec=90;function tick(){const m=Math.floor(sec/60);const s=sec%60;const el=document.getElementById("countdown-value");if(el)el.textContent=m+":"+(s<10?"0":"")+s;sec--;if(sec<0){sec=90;if(typeof showToast==="function")showToast("🧬 Evolution cycle running!","info")}}tick();setInterval(tick,1000)})();</script>` },
+  <script>(function(){const cmds=[{name:"Toggle Theme",action:()=>typeof toggleTheme==="function"&&toggleTheme()},{name:"Scroll to Top",action:()=>scrollTo({top:0,behavior:"smooth"})},{name:"Check Health",action:()=>typeof checkHealth==="function"&&checkHealth()}];const pal=document.getElementById("command-palette"),inp=document.getElementById("cmd-input"),res=document.getElementById("cmd-results");function render(q){res.innerHTML="";cmds.filter(c=>!q||c.name.toLowerCase().includes(q.toLowerCase())).forEach(c=>{const d=document.createElement("div");d.textContent=c.name;d.style.cssText="padding:10px 18px;color:#ccc;cursor:pointer;font-size:14px;transition:background 0.15s";d.onmouseover=()=>d.style.background="rgba(96,165,250,0.1)";d.onmouseout=()=>d.style.background="transparent";d.onclick=()=>{c.action();pal.style.display="none"};res.appendChild(d)})}document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();pal.style.display=pal.style.display==="flex"?"none":"flex";if(pal.style.display==="flex"){inp.value="";render("");inp.focus()}}if(e.key==="Escape")pal.style.display="none"});inp.addEventListener("input",()=>render(inp.value))})();</script>` },
   ];
 
   for (const feat of features) {
