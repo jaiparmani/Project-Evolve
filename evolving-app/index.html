@@ -42,19 +42,6 @@
       font-size: 12px;
       font-family: ui-monospace, monospace;
     }
-    .btn {
-      display: inline-block;
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
-      background: #60a5fa;
-      color: #fff;
-      border-radius: 4px;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .btn:hover {
-      background: #4f9ae0;
-    }
   </style>
 
   <style>@keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}body>*{animation:fadeSlideIn 0.5s ease-out both}body>*:nth-child(2){animation-delay:0.1s}body>*:nth-child(3){animation-delay:0.2s}body>*:nth-child(4){animation-delay:0.3s}body>*:nth-child(5){animation-delay:0.4s}</style>
@@ -63,16 +50,16 @@
   <meta name="description" content="An autonomously evolving web application powered by AI."><meta name="theme-color" content="#0a0a0a">
 
   <style>@media(max-width:600px){body{padding:16px!important;gap:12px!important}h1{font-size:1.5rem!important}p{font-size:14px!important}#dashboard{padding:16px!important;margin:16px!important}.card{padding:16px!important}section{padding:16px!important}}</style>
+
+  <style>@keyframes gradient-anim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}h1{background-size:200% 200%!important;animation:gradient-anim 4s ease infinite!important}</style>
 </head>
 <body>
   <div class="container">
     <h1>Evolving App</h1>
-    <p>Welcome to the evolving application.</p>
-    <span class="version">v1.0.0</span>
-    <a href="public/todos/index.html" class="btn">Todo List</a>
+    <p>This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
+    <p>Watch it grow.</p>
+    <span class="version">v0.1.0</span>
   </div>
-<<<<<<< HEAD
-=======
 
   <div id="dashboard" style="margin-top:32px;padding:24px;background:rgba(255,255,255,0.05);border-radius:12px;max-width:400px;margin-left:auto;margin-right:auto">
     <div style="display:flex;justify-content:space-between;margin-bottom:16px">
@@ -263,6 +250,5 @@
     <div style="display:flex;gap:6px;justify-content:center;margin-top:12px" id="pomo-dots"></div>
   </div>
   <script>(function(){let sec=25*60,running=false,iv,mode="focus",sessions=0;const modes={focus:{t:25*60,l:"Focus Time",c:"#f472b6"},short:{t:5*60,l:"Short Break",c:"#5ee0c8"},long:{t:15*60,l:"Long Break",c:"#a78bfa"}};function fmt(s){return Math.floor(s/60)+":"+(s%60<10?"0":"")+s%60}function render(){document.getElementById("pomo-display").textContent=fmt(sec);document.getElementById("pomo-label").textContent=modes[mode].l;document.getElementById("pomo-display").style.color=modes[mode].c;document.getElementById("pomo-dots").innerHTML=Array(4).fill(0).map((_,i)=>'<span style="width:8px;height:8px;border-radius:50%;background:'+(i<sessions?"#f472b6":"rgba(255,255,255,0.1)")+'"></span>').join("")}function switchMode(m){mode=m;sec=modes[m].t;running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start";render()}window.pomoToggle=function(){if(running){running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start"}else{running=true;document.getElementById("pomo-start").textContent="Pause";iv=setInterval(()=>{sec--;if(sec<=0){clearInterval(iv);running=false;if(mode==="focus"){sessions++;switchMode(sessions%4===0?"long":"short")}else{switchMode("focus")}if(typeof showToast==="function")showToast("⏰ "+modes[mode].l+"!","info")}render()},1000)}};window.pomoReset=function(){switchMode(mode)};window.pomoSkip=function(){if(mode==="focus")sessions++;switchMode(mode==="focus"?(sessions%4===0?"long":"short"):"focus")};render()})();</script>
->>>>>>> evolve/exp-iK-HOhzg
 </body>
 </html>
