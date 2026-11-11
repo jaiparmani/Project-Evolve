@@ -54,11 +54,10 @@
   <style>@keyframes gradient-anim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}h1{background-size:200% 200%!important;animation:gradient-anim 4s ease infinite!important}</style>
 </head>
 <body>
-<main role="main" aria-label="Main content">
   <div class="container">
-    <h1 aria-level="1">Evolving App</h1>
-    <p role="text">This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
-    <p role="text">Watch it grow.</p>
+    <h1>Evolving App</h1>
+    <p>This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
+    <p>Watch it grow.</p>
     <span class="version">v0.1.0</span>
   </div>
 
@@ -238,7 +237,6 @@
     <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px"><button onclick="clearDone()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:transparent;color:#888;font-size:11px;padding:4px 8px;border:1px solid rgba(255,255,255,0.1)">Clear done</button><span id="todo-stats" style="color:#555"></span></div>
   </div>
   <script>(function(){let todos=JSON.parse(localStorage.getItem("todos")||"[]");function render(){const ul=document.getElementById("todo-list");ul.innerHTML="";todos.forEach((t,i)=>{const li=document.createElement("li");li.style.cssText="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:grab";li.draggable=true;li.dataset.idx=i;li.innerHTML='<input type="checkbox" '+(t.done?"checked":"")+' onchange="toggleTodo('+i+')" style="accent-color:#60a5fa;width:16px;height:16px"><span style="flex:1;font-size:13px;'+(t.done?"text-decoration:line-through;color:#555":"color:#ccc")+'">'+t.text.replace(/</g,"&lt;")+'</span><button onclick="delTodo('+i+')" style="background:none;border:none;color:#555;cursor:pointer;font-size:14px">×</button>';li.ondragstart=e=>e.dataTransfer.setData("idx",""+i);li.ondragover=e=>e.preventDefault();li.ondrop=e=>{const from=+e.dataTransfer.getData("idx");const to=i;const item=todos.splice(from,1)[0];todos.splice(to,0,item);save();render()};ul.appendChild(li)});document.getElementById("todo-count").textContent=todos.length+" items";const done=todos.filter(t=>t.done).length;document.getElementById("todo-stats").textContent=done+"/"+todos.length+" done"}function save(){localStorage.setItem("todos",JSON.stringify(todos));render()}window.addTodo=function(){const inp=document.getElementById("todo-input");const text=inp.value.trim();if(!text)return;todos.unshift({text,done:false});inp.value="";save()};window.toggleTodo=function(i){todos[i].done=!todos[i].done;save()};window.delTodo=function(i){todos.splice(i,1);save()};window.clearDone=function(){todos=todos.filter(t=>!t.done);save()};render()})();</script>
-<<<<<<< HEAD
 
   <div id="pomodoro-timer" style="margin-top:24px;max-width:520px;width:100%;padding:20px 24px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;text-align:center">
     <h2 style="font-size:16px;color:#f472b6;margin-bottom:16px">🍅 Pomodoro Timer</h2>
@@ -252,8 +250,5 @@
     <div style="display:flex;gap:6px;justify-content:center;margin-top:12px" id="pomo-dots"></div>
   </div>
   <script>(function(){let sec=25*60,running=false,iv,mode="focus",sessions=0;const modes={focus:{t:25*60,l:"Focus Time",c:"#f472b6"},short:{t:5*60,l:"Short Break",c:"#5ee0c8"},long:{t:15*60,l:"Long Break",c:"#a78bfa"}};function fmt(s){return Math.floor(s/60)+":"+(s%60<10?"0":"")+s%60}function render(){document.getElementById("pomo-display").textContent=fmt(sec);document.getElementById("pomo-label").textContent=modes[mode].l;document.getElementById("pomo-display").style.color=modes[mode].c;document.getElementById("pomo-dots").innerHTML=Array(4).fill(0).map((_,i)=>'<span style="width:8px;height:8px;border-radius:50%;background:'+(i<sessions?"#f472b6":"rgba(255,255,255,0.1)")+'"></span>').join("")}function switchMode(m){mode=m;sec=modes[m].t;running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start";render()}window.pomoToggle=function(){if(running){running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start"}else{running=true;document.getElementById("pomo-start").textContent="Pause";iv=setInterval(()=>{sec--;if(sec<=0){clearInterval(iv);running=false;if(mode==="focus"){sessions++;switchMode(sessions%4===0?"long":"short")}else{switchMode("focus")}if(typeof showToast==="function")showToast("⏰ "+modes[mode].l+"!","info")}render()},1000)}};window.pomoReset=function(){switchMode(mode)};window.pomoSkip=function(){if(mode==="focus")sessions++;switchMode(mode==="focus"?(sessions%4===0?"long":"short"):"focus")};render()})();</script>
-=======
-</main>
->>>>>>> evolve/exp-jixgGymI
 </body>
 </html>
