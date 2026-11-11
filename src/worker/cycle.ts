@@ -15,6 +15,64 @@ import { resolve, relative } from "path";
 
 const log = childLogger("cycle");
 
+const USEFUL_FALLBACKS: Array<{ title: string; desc: string; mode: string }> = [
+  // features
+  { title: "Add drag-and-drop todo list", desc: "Interactive todo list with reorder, check-off, and localStorage persistence", mode: "features" },
+  { title: "Add Pomodoro focus timer", desc: "25/5/15 minute timer with start/pause/skip and session counter", mode: "features" },
+  { title: "Add scientific calculator", desc: "Calculator with parentheses, operator precedence, and keyboard support", mode: "features" },
+  { title: "Add markdown notepad with live preview", desc: "Split-pane editor with auto-save to localStorage and word count", mode: "features" },
+  { title: "Add JSON formatter and validator", desc: "Paste JSON to format/minify/validate with copy button", mode: "features" },
+  { title: "Add password generator", desc: "Configurable length, character sets, strength meter, one-click copy", mode: "features" },
+  { title: "Add stopwatch with lap times", desc: "Precision stopwatch with start/stop/lap/reset and history", mode: "features" },
+  { title: "Add unit converter", desc: "Convert length/weight/temperature/data units with instant results", mode: "features" },
+  { title: "Add color picker and palette generator", desc: "Pick color, see HEX/RGB/HSL, generate palettes", mode: "features" },
+  { title: "Add Base64 encoder/decoder", desc: "Encode or decode Base64 text with one-click copy", mode: "features" },
+  { title: "Add regex tester", desc: "Live regex matching with pattern input and highlighted results", mode: "features" },
+  { title: "Add CSS gradient generator", desc: "Pick colors and direction, copy the CSS gradient code", mode: "features" },
+  { title: "Add QR code generator", desc: "Enter URL or text and render a QR code on canvas", mode: "features" },
+  { title: "Add world clock", desc: "Show live time in 6 major cities around the world", mode: "features" },
+  { title: "Add weekly habit tracker", desc: "7-day grid with checkmarks for daily habits", mode: "features" },
+  { title: "Add lorem ipsum generator", desc: "Generate 1-10 paragraphs of placeholder text", mode: "features" },
+  { title: "Add expense tracker", desc: "Log expenses with amount/category, see totals and breakdown", mode: "features" },
+  { title: "Add kanban board", desc: "Three-column board with draggable cards and persistence", mode: "features" },
+  { title: "Add typing speed test", desc: "Timed test with WPM and accuracy calculation", mode: "features" },
+  { title: "Add bookmark manager", desc: "Save URLs with titles and tags, search and filter", mode: "features" },
+  { title: "Add countdown to custom date", desc: "Set target date, see live countdown in days/hours/minutes", mode: "features" },
+  { title: "Add BMI calculator", desc: "Enter height/weight, see BMI with color-coded category", mode: "features" },
+  { title: "Add tip calculator", desc: "Bill amount, tip %, and per-person split for groups", mode: "features" },
+  { title: "Add text diff checker", desc: "Compare two texts side by side with highlighted differences", mode: "features" },
+  { title: "Add hash generator", desc: "Generate MD5/SHA-1/SHA-256 hashes using Web Crypto API", mode: "features" },
+  { title: "Add dice roller and coin flipper", desc: "Roll d4-d100 dice or flip coins with animated results", mode: "features" },
+  { title: "Add flashcard study system", desc: "Create decks, flip cards, track correct/incorrect", mode: "features" },
+  { title: "Add interactive code playground", desc: "HTML/CSS/JS editor with live iframe preview", mode: "features" },
+  // quality
+  { title: "Add focus-visible accessibility outlines", desc: "Keyboard focus indicators for all interactive elements", mode: "quality" },
+  { title: "Add reduced-motion media query support", desc: "Disable animations for users who prefer reduced motion", mode: "quality" },
+  { title: "Add print stylesheet", desc: "Clean print layout hiding non-essential UI elements", mode: "quality" },
+  { title: "Add screen reader utility classes", desc: "sr-only and aria-label patterns for accessibility", mode: "quality" },
+  { title: "Add responsive breakpoints", desc: "Mobile-first layout adjustments for small screens", mode: "quality" },
+  // polish
+  { title: "Add smooth scroll behavior", desc: "CSS smooth scrolling for all anchor and scroll interactions", mode: "polish" },
+  { title: "Add custom scrollbar styling", desc: "Themed thin scrollbar matching the app's color scheme", mode: "polish" },
+  { title: "Add SVG favicon", desc: "Dynamic emoji favicon for the browser tab", mode: "polish" },
+  { title: "Add Open Graph meta tags", desc: "OG title/type/description for better social sharing", mode: "polish" },
+  // foundation
+  { title: "Add server health check endpoint", desc: "GET /health returning status, uptime, and timestamp", mode: "foundation" },
+  { title: "Add request logging middleware", desc: "Log method, URL, status code, and response time for each request", mode: "foundation" },
+  { title: "Add 404 error handler", desc: "Catch unmatched routes and return a proper JSON 404 response", mode: "foundation" },
+  { title: "Add CORS headers", desc: "Allow cross-origin requests with proper Access-Control headers", mode: "foundation" },
+];
+
+let fallbackIdx = Math.floor(Math.random() * USEFUL_FALLBACKS.length);
+
+function pickFallbackIdea(mode: string): { title: string; desc: string } {
+  const matching = USEFUL_FALLBACKS.filter(f => f.mode === mode);
+  const pool = matching.length > 0 ? matching : USEFUL_FALLBACKS;
+  const pick = pool[fallbackIdx % pool.length];
+  fallbackIdx++;
+  return { title: pick.title, desc: pick.desc };
+}
+
 type CyclePhase =
   | "pending"
   | "observing"
@@ -156,11 +214,8 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
         log.warn({ error: (stratErr as Error).message }, "Strategy failed — using deterministic idea, cycle continues");
         const { getEvolutionMode } = await import("./state.js");
         const mode = getEvolutionMode();
-        const fallbackTitle = mode === "features" ? "Add new user-facing feature"
-          : mode === "quality" ? "Improve code quality and accessibility"
-          : mode === "polish" ? "Polish visual design and UX"
-          : "Improve application foundation";
-        const fallbackIdea = { title: fallbackTitle, description: fallbackTitle, category: mode, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Deterministic fallback" };
+        const fallbackTitle = pickFallbackIdea(mode);
+        const fallbackIdea = { title: fallbackTitle.title, description: fallbackTitle.desc, category: mode, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Deterministic fallback" };
         strategy = {
           ideas: [fallbackIdea],
           selectedIdea: fallbackIdea,
@@ -177,11 +232,8 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       log.warn("Strategist selected no idea — forcing deterministic idea based on evolution mode");
       const { getEvolutionMode: getMode2 } = await import("./state.js");
       const mode2 = getMode2();
-      const fallbackTitle2 = mode2 === "features" ? "Add new user-facing feature"
-        : mode2 === "quality" ? "Improve code quality and accessibility"
-        : mode2 === "polish" ? "Polish visual design and UX"
-        : "Improve application foundation";
-      strategy.selectedIdea = { title: fallbackTitle2, description: fallbackTitle2, category: mode2, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Forced fallback" };
+      const fb2 = pickFallbackIdea(mode2);
+      strategy.selectedIdea = { title: fb2.title, description: fb2.desc, category: mode2, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Forced fallback" };
       strategy.ideas = [strategy.selectedIdea];
       strategy.selectionReason = "Forced fallback — strategist found no actionable idea";
     }

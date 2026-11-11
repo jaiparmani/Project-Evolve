@@ -228,8 +228,17 @@ apiRouter.post("/idea-bank/generate", async (_req, res) => {
     const existingIdeas = await db.select({ title: schema.ideas.title }).from(schema.ideas);
     const existingTitles = new Set(existingIdeas.map(i => i.title));
 
-    const fresh = FEATURE_IDEAS.filter(i => !existingTitles.has(i.title));
-    if (!fresh.length) return res.json({ ok: true, generated: 0, message: "All ideas already generated" });
+    let fresh = FEATURE_IDEAS.filter(i => !existingTitles.has(i.title));
+    if (!fresh.length) {
+      // All ideas used — recycle with "v2/v3/..." suffix so they appear fresh
+      const round = Math.floor(existingTitles.size / FEATURE_IDEAS.length) + 1;
+      fresh = FEATURE_IDEAS.map(i => ({
+        ...i,
+        title: `${i.title} v${round}`,
+        description: `${i.description} — enhanced version with improvements`,
+      })).filter(i => !existingTitles.has(i.title));
+      if (!fresh.length) return res.json({ ok: true, generated: 0, message: "All idea rounds generated" });
+    }
 
     const batch = fresh.slice(0, 5);
     const { nanoid } = await import("nanoid");
