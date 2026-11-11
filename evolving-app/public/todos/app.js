@@ -1,83 +1,81 @@
-// Todo List client‑side logic with localStorage persistence
+// Todo List client‑side logic using the server API
 
-const STORAGE_KEY = "todos";
+const API_URL = "/api/todos";
 
-/** Retrieve todos from localStorage */
-function loadTodos() {
-  const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
-}
-
-/** Save todos array to localStorage */
-function saveTodos(todos) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+/** Fetch all todos from the server */
+async function loadTodos() {
+  const res = await fetch(API_URL);
+  if (!res.ok) throw new Error("Failed to load todos");
+  return await res.json();
 }
 
 /** Render the todo list */
-function renderTodos() {
+async function renderTodos() {
   const listEl = document.getElementById("todo-list");
   listEl.innerHTML = "";
-  const todos = loadTodos();
+  try {
+    const todos = await loadTodos();
+    todos.forEach((todo) => {
+      const li = document.createElement("li");
+      li.setAttribute("role", "listitem");
+      if (todo.completed) li.classList.add("completed");
 
-  todos.forEach((todo, index) => {
-    const li = document.createElement("li");
-    li.setAttribute("role", "listitem");
-    if (todo.completed) li.classList.add("completed");
+      const span = document.createElement("span");
+      span.textContent = todo.text;
+      span.tabIndex = 0;
+      span.addEventListener("click", () => toggleTodo(todo.id));
+      span.addEventListener("keypress", (e) => {
+        if (e.key === "Enter" || e.key === " ") toggleTodo(todo.id);
+      });
 
-    const span = document.createElement("span");
-    span.textContent = todo.text;
-    span.tabIndex = 0; // make focusable
-    span.addEventListener("click", () => toggleTodo(index));
-    span.addEventListener("keypress", (e) => {
-      if (e.key === "Enter" || e.key === " ") toggleTodo(index);
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "Delete";
+      delBtn.setAttribute("aria-label", `Delete todo ${todo.text}`);
+      delBtn.addEventListener("click", () => deleteTodo(todo.id));
+
+      li.appendChild(span);
+      li.appendChild(delBtn);
+      listEl.appendChild(li);
     });
-
-    const delBtn = document.createElement("button");
-    delBtn.textContent = "Delete";
-    delBtn.setAttribute("aria-label", `Delete todo ${todo.text}`);
-    delBtn.addEventListener("click", () => deleteTodo(index));
-
-    li.appendChild(span);
-    li.appendChild(delBtn);
-    listEl.appendChild(li);
-  });
-}
-
-/** Add a new todo */
-function addTodo(text) {
-  const todos = loadTodos();
-  todos.push({ text: text.trim(), completed: false });
-  saveTodos(todos);
-  renderTodos();
-}
-
-/** Delete a todo by its index */
-function deleteTodo(idx) {
-  const todos = loadTodos();
-  todos.splice(idx, 1);
-  saveTodos(todos);
-  renderTodos();
-}
-
-/** Toggle completed state */
-function toggleTodo(idx) {
-  const todos = loadTodos();
-  todos[idx].completed = !todos[idx].completed;
-  saveTodos(todos);
-  renderTodos();
-}
-
-/** Form submission handler */
-function handleFormSubmit(event) {
-  event.preventDefault();
-  const input = document.getElementById("todo-input");
-  const value = input.value;
-  if (value.trim() !== "") {
-    addTodo(value);
-    input.value = "";
+  } catch (err) {
+    console.error(err);
+    listEl.innerHTML = "<li>Error loading todos</li>";
   }
 }
 
-// Initialise
-document.getElementById("todo-form").addEventListener("submit", handleFormSubmit);
+/** Add a new todo via POST */
+async function addTodo(text) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+  if (!res.ok) throw new Error("Failed to add todo");
+  await renderTodos();
+}
+
+/** Delete a todo via DELETE */
+async function deleteTodo(id) {
+  const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete todo");
+  await renderTodos();
+}
+
+/** Toggle completed state via PUT */
+async function toggleTodo(id) {
+  // Retrieve current state
+  const getRes = await fetch(`${API_URL}/${id}`);
+  if (!getRes.ok) throw new Error("Failed to fetch todo");
+  const todo = await getRes.json();
+
+  const res = await fetch(`${API_URL}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ completed: !todo.completed })
+  });
+  if (!res.ok) throw new Error("Failed to toggle todo");
+  await renderTodos();
+}
+
+// Initial render
 renderTodos();
