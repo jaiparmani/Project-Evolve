@@ -51,16 +51,21 @@ async function updatePhase(cycleId: string, phase: CyclePhase, extra?: Record<st
 
 const CYCLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes max per cycle
 
-export async function runCycle(projectId: string): Promise<CycleResult> {
+export interface UserIdea {
+  title: string;
+  description: string;
+}
+
+export async function runCycle(projectId: string, userIdea?: UserIdea): Promise<CycleResult> {
   return Promise.race([
-    runCycleInner(projectId),
+    runCycleInner(projectId, userIdea),
     new Promise<CycleResult>((_, reject) =>
       setTimeout(() => reject(new Error("Cycle timed out after 5 minutes")), CYCLE_TIMEOUT_MS)
     ),
   ]);
 }
 
-async function runCycleInner(projectId: string): Promise<CycleResult> {
+async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<CycleResult> {
   const now = new Date().toISOString();
   const git = getGitManager();
 
@@ -122,30 +127,49 @@ async function runCycleInner(projectId: string): Promise<CycleResult> {
       qualityBefore: observations.qualityScore,
     });
 
-    // Phase 2: Strategize
+    // Phase 2: Strategize (skip if user provided an idea)
     await updatePhase(cycleId, "strategizing");
-    log.info({ cycleId }, "Phase 2: Strategizing");
+    log.info({ cycleId, userIdea: userIdea?.title }, "Phase 2: Strategizing");
 
     let strategy: Awaited<ReturnType<typeof strategize>>;
-    try {
-      strategy = await strategize(projectId, cycleId, observations);
-    } catch (stratErr) {
-      log.warn({ error: (stratErr as Error).message }, "Strategy failed — using deterministic idea, cycle continues");
-      const { getEvolutionMode } = await import("./state.js");
-      const mode = getEvolutionMode();
-      const fallbackTitle = mode === "features" ? "Add new user-facing feature"
-        : mode === "quality" ? "Improve code quality and accessibility"
-        : mode === "polish" ? "Polish visual design and UX"
-        : "Improve application foundation";
-      const fallbackIdea = { title: fallbackTitle, description: fallbackTitle, category: mode, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Deterministic fallback" };
+    if (userIdea) {
+      log.info({ title: userIdea.title }, "Using user-provided idea — skipping strategist");
+      const userIdeaObj = {
+        title: userIdea.title,
+        description: userIdea.description || userIdea.title,
+        category: "feature" as const,
+        impact: 9, confidence: 10, effort: 4, strategicValue: 9,
+        reason: "User-requested feature",
+      };
       strategy = {
-        ideas: [fallbackIdea],
-        selectedIdea: fallbackIdea,
-        selectionReason: "Deterministic fallback — LLM unavailable",
+        ideas: [userIdeaObj],
+        selectedIdea: userIdeaObj,
+        selectionReason: `User requested: "${userIdea.title}"`,
         noActionJustification: undefined,
         flaggedForReview: false,
         dismissedFindings: [],
       };
+    } else {
+      try {
+        strategy = await strategize(projectId, cycleId, observations);
+      } catch (stratErr) {
+        log.warn({ error: (stratErr as Error).message }, "Strategy failed — using deterministic idea, cycle continues");
+        const { getEvolutionMode } = await import("./state.js");
+        const mode = getEvolutionMode();
+        const fallbackTitle = mode === "features" ? "Add new user-facing feature"
+          : mode === "quality" ? "Improve code quality and accessibility"
+          : mode === "polish" ? "Polish visual design and UX"
+          : "Improve application foundation";
+        const fallbackIdea = { title: fallbackTitle, description: fallbackTitle, category: mode, impact: 7, confidence: 8, effort: 3, strategicValue: 7, reason: "Deterministic fallback" };
+        strategy = {
+          ideas: [fallbackIdea],
+          selectedIdea: fallbackIdea,
+          selectionReason: "Deterministic fallback — LLM unavailable",
+          noActionJustification: undefined,
+          flaggedForReview: false,
+          dismissedFindings: [],
+        };
+      }
     }
 
     // If strategist returned no idea, force one based on evolution mode

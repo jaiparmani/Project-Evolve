@@ -4,7 +4,7 @@ import { eq, desc, sql, count } from "drizzle-orm";
 import { getWorkerStatus, getRunning, setRunning, setCycleId, incrementCycles, canRunCycle, startLoop, stopLoop, isLoopActive, getEvolutionMode, setEvolutionMode, type EvolutionMode } from "../worker/state.js";
 import { getDeployStatus } from "../deploy/deployer.js";
 import { getClient } from "../llm/openrouter.js";
-import { runCycle } from "../worker/cycle.js";
+import { runCycle, type UserIdea } from "../worker/cycle.js";
 import { childLogger } from "../core/logger.js";
 import { evaluateRoadmap, ROADMAP } from "../core/roadmap.js";
 import { config } from "../core/config.js";
@@ -123,7 +123,7 @@ apiRouter.post("/config", async (req, res) => {
   res.json({ ok: true });
 });
 
-export async function ensureProjectAndRunCycle() {
+export async function ensureProjectAndRunCycle(userIdea?: UserIdea) {
   setRunning(true);
   try {
     let projects = await db.select().from(schema.projects).limit(1);
@@ -142,7 +142,7 @@ export async function ensureProjectAndRunCycle() {
       });
       projects = await db.select().from(schema.projects).limit(1);
     }
-    await runCycle(projects[0].id);
+    await runCycle(projects[0].id, userIdea);
     incrementCycles();
   } finally {
     setRunning(false);
@@ -161,6 +161,101 @@ apiRouter.post("/evolve", async (_req, res) => {
 
   res.json({ ok: true, message: "Evolution cycle triggered" });
   setImmediate(() => { ensureProjectAndRunCycle().catch((e) => log.error({ error: (e as Error).message }, "Manual cycle failed")); });
+});
+
+// Steered evolution: user provides a specific idea to build
+apiRouter.post("/evolve/steer", async (req, res) => {
+  const { title, description } = req.body;
+  if (!title) return res.status(400).json({ error: "title is required" });
+  if (getRunning()) return res.status(409).json({ error: "A cycle is already running" });
+
+  const idea: UserIdea = { title, description: description || title };
+  res.json({ ok: true, message: `Steered evolution started: ${title}` });
+  setImmediate(() => {
+    ensureProjectAndRunCycle(idea).catch((e) => log.error({ error: (e as Error).message }, "Steered cycle failed"));
+  });
+});
+
+// Idea planner: generate specific feature ideas
+const FEATURE_IDEAS = [
+  { title: "Add animated particle background", description: "Canvas-based floating particle system with mouse interaction, creating a dynamic ambient background effect", category: "visual" },
+  { title: "Add typewriter text animation", description: "Cycling through motivational messages with a typewriter typing and erasing effect", category: "visual" },
+  { title: "Add command palette (Ctrl+K)", description: "Spotlight-style command palette to quickly navigate, toggle theme, check health, and run actions", category: "interactive" },
+  { title: "Add mouse cursor glow effect", description: "Subtle radial gradient that follows the mouse cursor for an ambient lighting effect", category: "visual" },
+  { title: "Add random tech quote widget", description: "Display rotating inspirational quotes from tech leaders with attribution", category: "content" },
+  { title: "Add confetti celebration effect", description: "Burst of colorful confetti particles on page load or triggered by the Konami code", category: "visual" },
+  { title: "Add scroll reveal animations", description: "Elements fade and slide in as they enter the viewport using IntersectionObserver", category: "visual" },
+  { title: "Add mini analytics dashboard", description: "Track and display session time, clicks, scroll depth, and key presses in a collapsible panel", category: "interactive" },
+  { title: "Add accent color picker", description: "Let users choose from 5 accent colors that persist in localStorage and restyle the page", category: "interactive" },
+  { title: "Add Konami code easter egg", description: "Enter ↑↑↓↓←→←→BA to trigger a page spin and confetti celebration", category: "fun" },
+  { title: "Add notification bell with alerts", description: "Fixed notification bell icon showing evolution events like cycle completions and new features", category: "interactive" },
+  { title: "Add audio visualizer bars", description: "Animated bars that pulse at different frequencies creating a music visualizer effect", category: "visual" },
+  { title: "Add countdown timer to next cycle", description: "Live countdown showing when the next evolution cycle will run", category: "informational" },
+  { title: "Add glassmorphism card styling", description: "Apply frosted glass effect with backdrop-filter blur to all card and section elements", category: "visual" },
+  { title: "Add custom scrollbar styling", description: "Replace default scrollbar with a thin, themed scrollbar matching the app's color scheme", category: "visual" },
+  { title: "Add skeleton loading placeholders", description: "Shimmering skeleton loader CSS for content that's still loading", category: "ux" },
+  { title: "Add live pulse indicator dot", description: "Green pulsing dot next to server status to indicate the app is alive", category: "visual" },
+  { title: "Add sticky navigation sidebar", description: "Collapsible side navigation for jumping between sections of the page", category: "interactive" },
+  { title: "Add drag-and-drop todo list", description: "Interactive todo list widget where items can be dragged to reorder, with localStorage persistence", category: "interactive" },
+  { title: "Add weather widget with live data", description: "Fetch and display current weather based on a default location using a free weather API", category: "interactive" },
+  { title: "Add interactive code playground", description: "Embedded textarea where users can write HTML/CSS/JS and see a live preview in an iframe", category: "interactive" },
+  { title: "Add digital rain matrix effect", description: "Canvas-based Matrix-style falling green characters as a toggleable background effect", category: "visual" },
+  { title: "Add animated gradient border cards", description: "Cards with rotating rainbow gradient borders using CSS conic-gradient animation", category: "visual" },
+  { title: "Add reading time estimator", description: "Calculate and display estimated reading time for all text content on the page", category: "informational" },
+  { title: "Add floating action button menu", description: "Material-design-style FAB that expands into a radial menu of quick actions", category: "interactive" },
+  { title: "Add parallax scrolling sections", description: "Background images or elements that scroll at different speeds for depth effect", category: "visual" },
+  { title: "Add dark/light mode schedule", description: "Auto-switch theme based on time of day — dark at night, light during daytime", category: "ux" },
+  { title: "Add page transition animations", description: "Smooth fade/slide transitions when switching between sections or tabs", category: "visual" },
+  { title: "Add interactive emoji reaction bar", description: "Row of emoji buttons that count reactions with animated feedback when clicked", category: "interactive" },
+  { title: "Add live character count textarea", description: "Text input area with real-time character/word count and a max-length progress bar", category: "interactive" },
+];
+
+let ideaPlannerTimer: ReturnType<typeof setInterval> | null = null;
+
+apiRouter.get("/idea-bank", async (_req, res) => {
+  const ideas = await db.select().from(schema.ideas)
+    .orderBy(desc(schema.ideas.createdAt))
+    .limit(50);
+  res.json(ideas);
+});
+
+apiRouter.post("/idea-bank/generate", async (_req, res) => {
+  try {
+    const existingIdeas = await db.select({ title: schema.ideas.title }).from(schema.ideas);
+    const existingTitles = new Set(existingIdeas.map(i => i.title));
+
+    const fresh = FEATURE_IDEAS.filter(i => !existingTitles.has(i.title));
+    if (!fresh.length) return res.json({ ok: true, generated: 0, message: "All ideas already generated" });
+
+    const batch = fresh.slice(0, 5);
+    const { nanoid } = await import("nanoid");
+    const now = new Date().toISOString();
+
+    const projects = await db.select().from(schema.projects).limit(1);
+    const projectId = projects[0]?.id || "default";
+
+    for (const idea of batch) {
+      await db.insert(schema.ideas).values({
+        id: nanoid(),
+        projectId,
+        cycleId: "planner",
+        title: idea.title,
+        description: idea.description,
+        category: idea.category,
+        impact: Math.floor(Math.random() * 3) + 7,
+        confidence: 9,
+        effort: Math.floor(Math.random() * 3) + 2,
+        strategicValue: Math.floor(Math.random() * 3) + 7,
+        priorityScore: 50 + Math.floor(Math.random() * 50),
+        status: "proposed",
+        reason: "Generated by idea planner",
+        createdAt: now,
+      });
+    }
+    res.json({ ok: true, generated: batch.length });
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
+  }
 });
 
 apiRouter.post("/loop/start", (_req, res) => {

@@ -423,6 +423,7 @@ function getDashboardHtml(): string {
     async function render() {
       await loadTimeline();
       renderOverview();
+      updateModeUI();
       renderVersionPills('overviewVersionPills', 'switchAppPreview');
       if (currentTab === 'timeline') renderTimeline();
       renderHistory();
@@ -470,6 +471,21 @@ function getDashboardHtml(): string {
             <button class="mode-btn" data-mode="polish" onclick="setMode('polish')">💎 Polish</button>
           </div>
           <div id="modeDescription" style="margin-top:8px;font:11px/1.4 var(--sans);color:var(--text-2)"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">🎯 STEER EVOLUTION</div>
+          <p style="font-size:11px;color:var(--text-2);margin-bottom:12px">Enter a feature to build, or pick one from the Idea Bank below.</p>
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <input id="steerInput" type="text" placeholder="e.g. Add animated particle background..." style="flex:1;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border-2);border-radius:8px;color:var(--text);font:13px/1.4 var(--mono);outline:none" onkeydown="if(event.key==='Enter')steerEvolve()">
+            <button id="steerBtn" onclick="steerEvolve()" style="padding:10px 20px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;font:600 12px/1 var(--sans);cursor:pointer;white-space:nowrap">⚡ Evolve This</button>
+          </div>
+          <div id="steerStatus" style="margin-top:8px;font-size:11px;color:var(--text-3);display:none"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">💡 IDEA BANK <button onclick="generateIdeas()" style="margin-left:auto;padding:4px 10px;background:var(--surface-2);border:1px solid var(--border-2);border-radius:6px;color:var(--text-2);cursor:pointer;font:11px/1.4 var(--sans)">Generate Ideas</button></div>
+          <div id="ideaBankList" style="max-height:300px;overflow-y:auto"></div>
         </div>
 
         <div class="card" style="margin-bottom:20px">
@@ -576,24 +592,53 @@ function getDashboardHtml(): string {
 
     function renderIdeas() {
       document.getElementById('tab-ideas').innerHTML = \`
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">🎯 STEER EVOLUTION</div>
+          <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:12px">
+            <input id="steerInput2" type="text" placeholder="Enter a feature to build..." style="flex:1;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border-2);border-radius:8px;color:var(--text);font:13px/1.4 var(--mono);outline:none" onkeydown="if(event.key==='Enter'){steerEvolve(this.value);this.value=''}">
+            <button onclick="steerEvolve(document.getElementById('steerInput2').value);document.getElementById('steerInput2').value=''" style="padding:10px 20px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;font:600 12px/1 var(--sans);cursor:pointer;white-space:nowrap">⚡ Evolve This</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">💡 IDEA BANK <button onclick="generateIdeas()" style="margin-left:auto;padding:4px 10px;background:var(--surface-2);border:1px solid var(--border-2);border-radius:6px;color:var(--text-2);cursor:pointer;font:11px/1.4 var(--sans)">+ Generate More</button></div>
+          <div id="ideaBankList2"></div>
+        </div>
         <div class="card">
-          <div class="card-header">IDEAS & PROPOSALS</div>
+          <div class="card-header">PAST IDEAS & PROPOSALS</div>
           <ul class="timeline">
             \${state.ideas.map(i => \`
               <li class="timeline-item">
                 <div>
-                  <div class="timeline-title">\${i.title}</div>
-                  <div class="timeline-meta">\${i.description?.slice(0,100) || ''}</div>
+                  <div class="timeline-title">\${escapeHtml(i.title)}</div>
+                  <div class="timeline-meta">\${escapeHtml(i.description?.slice(0,100) || '')}</div>
                   <div class="timeline-meta" style="margin-top:4px">
                     Impact: \${i.impact} · Confidence: \${i.confidence} · Effort: \${i.effort} · Priority: \${i.priority_score?.toFixed(1)}
                   </div>
                 </div>
-                <span class="badge \${i.status === 'selected' ? 'green' : i.status === 'rejected' ? 'red' : 'blue'}">\${i.status}</span>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                  <span class="badge \${i.status === 'selected' ? 'green' : i.status === 'implemented' ? 'green' : i.status === 'rejected' ? 'red' : 'blue'}">\${i.status}</span>
+                  \${i.status === 'proposed' ? '<button onclick="steerEvolve(\\'' + escapeHtml(i.title).replace(/'/g,"\\\\\\'") + '\\')" style="padding:3px 8px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);border-radius:4px;font:600 9px/1 var(--sans);cursor:pointer;white-space:nowrap">⚡ Evolve</button>' : ''}
+                </div>
               </li>
             \`).join('') || '<li class="empty"><p>No ideas generated yet.</p></li>'}
           </ul>
         </div>
       \`;
+      // Also render idea bank in the ideas tab
+      const el2 = document.getElementById('ideaBankList2');
+      if (el2) {
+        const proposed = ideaBankData.filter(i => i.status === 'proposed');
+        el2.innerHTML = proposed.map(i => \`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);transition:background 0.15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+            <div style="flex:1;min-width:0">
+              <div style="font:500 12px/1.4 var(--sans);color:var(--text)">\${escapeHtml(i.title)}</div>
+              <div style="font-size:11px;color:var(--text-3)">\${escapeHtml(i.description || '').slice(0,100)}</div>
+            </div>
+            <span class="badge blue" style="flex-shrink:0">\${i.category || 'feature'}</span>
+            <button onclick="steerEvolve('\${escapeHtml(i.title).replace(/'/g,"\\\\'")}','\${escapeHtml(i.description||'').replace(/'/g,"\\\\'")}')" style="flex-shrink:0;padding:5px 12px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);border-radius:6px;font:600 10px/1 var(--sans);cursor:pointer;white-space:nowrap">⚡ Evolve</button>
+          </div>
+        \`).join('') || '<div class="empty"><p>Click "Generate More" to get ideas.</p></div>';
+      }
     }
 
     function renderUsage() {
@@ -932,9 +977,79 @@ function getDashboardHtml(): string {
       btn.style.color = active ? 'var(--accent)' : 'var(--text)';
     }
 
+    async function steerEvolve(title, description) {
+      if (!title) {
+        title = document.getElementById('steerInput')?.value?.trim();
+      }
+      if (!title) return;
+      const btn = document.getElementById('steerBtn');
+      const status = document.getElementById('steerStatus');
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+      status.style.display = 'block';
+      status.textContent = 'Starting steered evolution: ' + title + '...';
+      status.style.color = 'var(--accent)';
+      try {
+        const res = await fetch('/api/evolve/steer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description: description || title }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          status.textContent = '✓ ' + data.message;
+          status.style.color = 'var(--good)';
+          document.getElementById('steerInput').value = '';
+        } else {
+          status.textContent = '✗ ' + data.error;
+          status.style.color = 'var(--rose)';
+        }
+      } catch (e) {
+        status.textContent = '✗ Failed: ' + e.message;
+        status.style.color = 'var(--rose)';
+      }
+      setTimeout(() => { btn.disabled = false; btn.textContent = '⚡ Evolve This'; loadData(); }, 5000);
+    }
+
+    let ideaBankData = [];
+    async function loadIdeaBank() {
+      try {
+        ideaBankData = await fetchApi('/idea-bank') || [];
+        renderIdeaBank();
+      } catch {}
+    }
+
+    function renderIdeaBank() {
+      const el = document.getElementById('ideaBankList');
+      if (!el) return;
+      const proposed = ideaBankData.filter(i => i.status === 'proposed');
+      if (!proposed.length) {
+        el.innerHTML = '<div class="empty"><p>No ideas yet. Click "Generate Ideas" to get started.</p></div>';
+        return;
+      }
+      el.innerHTML = proposed.map(i => \`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+          <div style="flex:1;min-width:0">
+            <div style="font:500 12px/1.4 var(--sans);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">\${escapeHtml(i.title)}</div>
+            <div style="font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">\${escapeHtml(i.description || '').slice(0,80)}</div>
+          </div>
+          <span class="badge blue" style="flex-shrink:0">\${i.category || 'feature'}</span>
+          <button onclick="event.stopPropagation();steerEvolve('\${escapeHtml(i.title).replace(/'/g,"\\\\'")}','\${escapeHtml(i.description||'').replace(/'/g,"\\\\'")}')" style="flex-shrink:0;padding:5px 12px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);border-radius:6px;font:600 10px/1 var(--sans);cursor:pointer;white-space:nowrap">⚡ Evolve</button>
+        </div>
+      \`).join('');
+    }
+
+    async function generateIdeas() {
+      try {
+        await fetch('/api/idea-bank/generate', { method: 'POST' });
+        await loadIdeaBank();
+      } catch (e) { console.error(e); }
+    }
+
     loadData();
     loadMode();
-    refreshInterval = setInterval(loadData, 10000);
+    loadIdeaBank();
+    refreshInterval = setInterval(() => { loadData(); loadIdeaBank(); }, 10000);
   </script>
 </body>
 </html>`;
