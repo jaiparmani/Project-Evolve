@@ -2,7 +2,9 @@ import { config } from "../core/config.js";
 import { db, schema } from "../db/index.js";
 import { childLogger } from "../core/logger.js";
 import { nanoid } from "nanoid";
-import { execSync, spawn, type ChildProcess } from "child_process";
+import { exec, execSync, spawn, type ChildProcess } from "child_process";
+import { promisify } from "util";
+const execAsync = promisify(exec);
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { eq } from "drizzle-orm";
@@ -93,7 +95,7 @@ async function deployLocal(appDir: string): Promise<DeployResult> {
   }
 
   try {
-    execSync("npm install --ignore-scripts", { cwd: appDir, timeout: 120000, stdio: "pipe" });
+    await execAsync("npm install --ignore-scripts", { cwd: appDir, timeout: 120000 });
   } catch (e) {
     log.warn("npm install had issues: %s", (e as Error).message?.slice(0, 200));
   }
@@ -101,7 +103,7 @@ async function deployLocal(appDir: string): Promise<DeployResult> {
   const port = config.deploy.port;
 
   try {
-    const pkg = JSON.parse(execSync("cat package.json", { cwd: appDir, encoding: "utf-8" }));
+    const pkg = JSON.parse(readFileSync(resolve(appDir, "package.json"), "utf-8"));
     const startCmd = pkg.scripts?.start || pkg.scripts?.dev;
 
     if (!startCmd) {

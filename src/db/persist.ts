@@ -1,13 +1,15 @@
-import { execSync } from "child_process";
+import { exec, execSync } from "child_process";
+import { promisify } from "util";
 import { existsSync, readFileSync, statSync } from "fs";
 import { resolve } from "path";
 import { childLogger } from "../core/logger.js";
 
+const execAsync = promisify(exec);
 const log = childLogger("db-persist");
 const ROOT = resolve(process.cwd());
 const DB_PATH = "data/evolve.db";
 
-function git(cmd: string): string {
+function gitSync(cmd: string): string {
   try {
     return execSync(`git ${cmd}`, { cwd: ROOT, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
   } catch (e: any) {
@@ -18,27 +20,39 @@ function git(cmd: string): string {
   }
 }
 
+async function git(cmd: string): Promise<string> {
+  try {
+    const { stdout, stderr } = await execAsync(`git ${cmd}`, { cwd: ROOT, timeout: 30000 });
+    return (stdout || stderr || "").trim();
+  } catch (e: any) {
+    const stderr = e.stderr?.toString?.()?.trim?.() || "";
+    if (e.status === 0) return stderr;
+    log.warn({ cmd, error: (stderr || e.message)?.slice(0, 200) }, "git command failed");
+    return "";
+  }
+}
+
 export function restoreDb(): void {
   log.info("Checking for persisted DB in git...");
-  git("config user.email \"evolve-bot@project-evolve.app\"");
-  git("config user.name \"Project Evolve Bot\"");
+  gitSync("config user.email \"evolve-bot@project-evolve.app\"");
+  gitSync("config user.name \"Project Evolve Bot\"");
 
   const token = process.env.GITHUB_TOKEN;
   if (token) {
-    const remoteUrl = git("remote get-url origin");
+    const remoteUrl = gitSync("remote get-url origin");
     if (remoteUrl?.startsWith("https://") && !remoteUrl.includes("@")) {
-      git(`remote set-url origin ${remoteUrl.replace("https://", `https://${token}@`)}`);
+      gitSync(`remote set-url origin ${remoteUrl.replace("https://", `https://${token}@`)}`);
     }
   }
 
-  git("fetch origin main --depth=1");
+  gitSync("fetch origin main --depth=1");
 
   // Always try to restore from git — the local DB is fresh/empty on Render redeploy
   const fileSize = (p: string) => { try { return statSync(p).size; } catch { return 0; } };
   const dbFullPath = resolve(ROOT, DB_PATH);
   const localSize = fileSize(dbFullPath);
 
-  git(`checkout origin/main -- ${DB_PATH}`);
+  gitSync(`checkout origin/main -- ${DB_PATH}`);
   const restoredSize = fileSize(dbFullPath);
 
   if (restoredSize > 100) {
@@ -50,12 +64,11 @@ export function restoreDb(): void {
   }
 }
 
-function getRepoInfo(): { owner: string; repo: string } | null {
-  const url = git("remote get-url origin");
+async function getRepoInfo(): Promise<{ owner: string; repo: string } | null> {
+  const url = await git("remote get-url origin");
   log.info({ remoteUrl: url.replace(/\/\/[^@]+@/, "//***@") }, "Parsed remote URL");
   const match = url.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
   if (match) return { owner: match[1], repo: match[2] };
-  // Fallback: hardcoded for Render where git remote may be unreliable
   log.warn("Could not parse remote URL — using hardcoded repo info");
   return { owner: "jaiparmani", repo: "Project-Evolve" };
 }

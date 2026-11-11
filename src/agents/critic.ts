@@ -1,9 +1,11 @@
 import { chatForTask } from "../llm/router.js";
 import { childLogger } from "../core/logger.js";
-import { execSync } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 
+const execAsync = promisify(exec);
 const log = childLogger("critic");
 
 interface CheckResult {
@@ -32,10 +34,10 @@ interface EvaluationResult {
   rejectionReason?: string;
 }
 
-function runCommand(cmd: string, cwd: string): CheckResult {
+async function runCommand(cmd: string, cwd: string): Promise<CheckResult> {
   try {
-    const output = execSync(cmd, { cwd, timeout: 60000, encoding: "utf-8", stdio: "pipe" });
-    return { passed: true, output: output.slice(-2000) };
+    const { stdout, stderr } = await execAsync(cmd, { cwd, timeout: 60000 });
+    return { passed: true, output: (stdout || stderr || "").slice(-2000) };
   } catch (e: unknown) {
     const err = e as { stdout?: string; stderr?: string; message?: string };
     return {
@@ -59,9 +61,9 @@ export async function evaluate(
   let tsCheck: CheckResult = { passed: true, output: "No TypeScript config found" };
   if (hasTsConfig) {
     if (hasPackageJson) {
-      runCommand("npm install --ignore-scripts 2>&1 || true", workDir);
+      await runCommand("npm install --ignore-scripts 2>&1 || true", workDir);
     }
-    tsCheck = runCommand("npx tsc --noEmit 2>&1 || true", workDir);
+    tsCheck = await runCommand("npx tsc --noEmit 2>&1 || true", workDir);
     tsCheck.passed = !tsCheck.output.includes("error TS");
   }
 
@@ -71,7 +73,7 @@ export async function evaluate(
     try {
       const pkg = JSON.parse(readFileSync(resolve(workDir, "package.json"), "utf-8"));
       if (pkg.scripts?.build) {
-        buildCheck = runCommand("npm run build 2>&1", workDir);
+        buildCheck = await runCommand("npm run build 2>&1", workDir);
       }
     } catch {}
   }
@@ -82,7 +84,7 @@ export async function evaluate(
     try {
       const pkg = JSON.parse(readFileSync(resolve(workDir, "package.json"), "utf-8"));
       if (pkg.scripts?.test && pkg.scripts.test !== "echo \"Error: no test specified\" && exit 1") {
-        testCheck = runCommand("npm test 2>&1", workDir);
+        testCheck = await runCommand("npm test 2>&1", workDir);
       }
     } catch {}
   }
@@ -172,8 +174,6 @@ The goal is FORWARD PROGRESS. Any change that doesn't break the app should be ap
     log.warn("Code review LLM call failed, using automated checks only");
   }
 
-  // Approve if code review passes. TS/build/test failures are informational —
-  // the whole point of the evolution loop is to FIX these over time.
   const overallPassed = codeReview.approved;
 
   if (!overallPassed && !rejectionReason) {

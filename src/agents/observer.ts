@@ -5,7 +5,9 @@ import { childLogger } from "../core/logger.js";
 import { nanoid } from "nanoid";
 import { readdirSync, readFileSync, statSync, existsSync } from "fs";
 import { resolve, extname } from "path";
-import { execSync } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
+const execAsync = promisify(exec);
 import { evaluateRoadmap } from "../core/roadmap.js";
 
 const log = childLogger("observer");
@@ -133,12 +135,11 @@ function gatherVerifiableFacts(appDir: string): string {
   }
 
   try {
-    const tsResult = execSync("npx tsc --noEmit 2>&1 || true", {
+    const { stdout } = await execAsync("npx tsc --noEmit 2>&1 || true", {
       cwd: appDir,
       timeout: 30000,
-      encoding: "utf-8",
     });
-    const tsErrors = tsResult.split("\n").filter((l) => l.includes("error TS"));
+    const tsErrors = (stdout || "").split("\n").filter((l: string) => l.includes("error TS"));
     facts.push(`TypeScript check: ${tsErrors.length} errors`);
     if (tsErrors.length > 0) {
       facts.push(`First 5 TS errors:\n${tsErrors.slice(0, 5).join("\n")}`);
