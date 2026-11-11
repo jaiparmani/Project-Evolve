@@ -74,17 +74,24 @@ li.completed {
   border: 0;
 }
 
-/* New style for the clear completed button */
-#clear-completed {
+/* New empty‑state styling */
+.empty-state {
+  text-align: center;
+  color: #666;
   margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
-#clear-completed:hover {
-  background-color: #45a049;
+footer {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+footer a {
+  color: #4caf50;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+footer a:hover {
+  text-decoration: underline;
 }
