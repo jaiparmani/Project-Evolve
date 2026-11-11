@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.6",
     "cron": "^3.5.0",
     "drizzle-orm": "^0.38.4",
