@@ -2,12 +2,17 @@
   "name": "evolving-app",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "build": "echo 'Static app, no build needed'",
-    "test": "node test.js"
+    "build": "tsc",
+    "start": "npm run build && node dist/server.js",
+    "test": "node test/todos.test.js"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "helmet": "^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
   }
 }
