@@ -280,6 +280,18 @@ function getDashboardHtml(): string {
     .detail-section { margin-top: 16px; }
     .detail-section h3 { font: 600 11px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); margin-bottom: 8px; }
     pre { background: var(--surface-2); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 11px; white-space: pre-wrap; }
+
+    @media (max-width: 768px) {
+      .topbar { flex-wrap: wrap; height: auto; padding: 10px 12px; gap: 6px; }
+      .topbar nav { margin-left: 0; order: 3; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; }
+      .topbar nav button { padding: 6px 10px; font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+      .topbar .actions { order: 2; }
+      .main { padding: 12px; }
+      .grid { grid-template-columns: 1fr; }
+      .detail-content { width: 96%; padding: 16px; }
+      .version-viewer { flex-direction: column; }
+      .version-sidebar { max-height: 120px; overflow-y: auto; }
+    }
   </style>
 </head>
 <body>
@@ -301,7 +313,7 @@ function getDashboardHtml(): string {
   </div>
 
   <div class="main">
-    <div id="loading"><div class="spinner"></div></div>
+    <div id="loading"><div class="spinner"></div><div style="margin-top:16px;font:12px/1.4 var(--sans);color:var(--text-3)">Loading control room...</div></div>
     <div id="content" style="display:none">
       <div id="tab-overview"></div>
       <div id="tab-timeline" style="display:none"></div>
@@ -434,61 +446,66 @@ function getDashboardHtml(): string {
       return html || '<pre>' + escapeHtml(JSON.stringify(plan, null, 2).slice(0, 1000)) + '</pre>';
     }
 
+    let isLoading = false;
     async function loadData() {
+      if (isLoading) return;
+      isLoading = true;
       try {
-        // Load only critical data first — show UI immediately
         const [status, cycles, loop] = await Promise.all([
           fetchApi('/status', {}),
           fetchApi('/cycles?limit=20', { cycles: [], total: 0 }),
           fetchApi('/loop/status'),
         ]);
         state.status = status;
-        state.cycles = cycles.cycles;
+        state.cycles = cycles.cycles || [];
         state.loop = loop;
 
-        // Show UI immediately with what we have
         document.getElementById('loading').style.display = 'none';
         document.getElementById('content').style.display = 'block';
+        document.getElementById('errorBanner')?.remove();
         render();
 
-        // Load secondary data in background (non-blocking)
-        Promise.all([
+        const [ideas, roadmap, snapshots] = await Promise.all([
           fetchApi('/ideas', []),
           fetchApi('/roadmap'),
-        ]).then(([ideas, roadmap]) => {
-          state.ideas = ideas;
-          state.roadmap = roadmap;
-          render();
-        });
-
-        // Lazy-load usage/config only when those tabs are opened
-        if (!state.usage) {
-          fetchApi('/usage', { usage: [], totals: {} }).then(u => { state.usage = u; if (currentTab === 'usage') renderUsage(); });
-        }
-        if (!state.configs) {
-          fetchApi('/config', []).then(c => { state.configs = c; if (currentTab === 'config') renderConfig(); });
-        }
+          fetchApi('/snapshots', []),
+        ]);
+        state.ideas = ideas;
+        state.roadmap = roadmap;
+        timelineSnapshots = snapshots || [];
+        render();
       } catch (e) {
         console.error('Failed to load:', e);
         document.getElementById('loading').style.display = 'none';
         document.getElementById('content').style.display = 'block';
+        if (!document.getElementById('errorBanner')) {
+          const banner = document.createElement('div');
+          banner.id = 'errorBanner';
+          banner.style.cssText = 'padding:12px 16px;background:rgba(239,95,123,0.1);border:1px solid rgba(239,95,123,0.3);border-radius:8px;margin:16px;color:var(--rose);font:12px/1.4 var(--sans);text-align:center';
+          banner.textContent = 'Failed to load data. The server may be waking up — retrying in a few seconds...';
+          document.querySelector('.main').prepend(banner);
+        }
+      } finally {
+        isLoading = false;
       }
     }
 
-    async function render() {
-      await loadTimeline();
-      renderOverview();
+    function render() {
+      switch (currentTab) {
+        case 'overview':
+          renderOverview();
+          renderVersionPills('overviewVersionPills', 'switchAppPreview');
+          setTimeout(initChartTooltips, 50);
+          break;
+        case 'timeline': renderTimeline(); break;
+        case 'changelog': renderChangelog(); break;
+        case 'history': renderHistory(); break;
+        case 'ideas': renderIdeas(); break;
+        case 'usage': renderUsage(); break;
+        case 'config': renderConfig(); break;
+      }
       updateModeUI();
-      renderVersionPills('overviewVersionPills', 'switchAppPreview');
-      if (currentTab === 'timeline') renderTimeline();
-      if (currentTab === 'changelog') renderChangelog();
-      renderChangelog();
-      renderHistory();
-      renderIdeas();
-      renderUsage();
-      renderConfig();
       updateLoopButton();
-      setTimeout(initChartTooltips, 50);
     }
 
     function renderOverview() {
@@ -824,8 +841,7 @@ function getDashboardHtml(): string {
       renderVersionPills('overviewVersionPills', 'switchAppPreview');
     }
 
-    async function renderTimeline() {
-      await loadTimeline();
+    function renderTimeline() {
       const versions = buildVersionList();
 
       document.getElementById('tab-timeline').innerHTML = \`
@@ -996,8 +1012,13 @@ function getDashboardHtml(): string {
           document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
         });
         currentTab = tab;
-        if (tab === 'timeline') renderTimeline();
-        if (tab === 'changelog') renderChangelog();
+        render();
+        if (tab === 'usage' && !state.usage) {
+          fetchApi('/usage', { usage: [], totals: {} }).then(u => { state.usage = u; if (currentTab === 'usage') renderUsage(); });
+        }
+        if (tab === 'config' && !state.configs) {
+          fetchApi('/config', []).then(c => { state.configs = c; if (currentTab === 'config') renderConfig(); });
+        }
       });
     });
 
@@ -1236,7 +1257,7 @@ function getDashboardHtml(): string {
     loadData();
     loadMode();
     loadIdeaBank();
-    refreshInterval = setInterval(() => { loadData(); loadIdeaBank(); }, 15000);
+    refreshInterval = setInterval(() => { loadData(); loadIdeaBank(); }, 60000);
   </script>
 </body>
 </html>`;
