@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="global-error" role="alert" aria-live="assertive"></div>
   <header>
     <h1>Todo List</h1>
   </header>
@@ -29,6 +30,27 @@
       <ul id="todo-list" role="list"></ul>
     </section>
   </main>
+  <script>
+    (function () {
+      function showError(message) {
+        try {
+          var el = document.getElementById('global-error');
+          if (!el) return;
+          el.textContent = 'Something went wrong: ' + message;
+          el.style.display = 'block';
+        } catch (e) { /* never let the handler itself throw */ }
+      }
+      window.addEventListener('error', function (event) {
+        var msg = event && event.message ? event.message : 'Unknown error';
+        showError(msg);
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event && event.reason;
+        var msg = (reason && reason.message) ? reason.message : String(reason || 'Unhandled promise rejection');
+        showError(msg);
+      });
+    })();
+  </script>
   <script src="app.js" type="module"></script>
 </body>
 </html>
