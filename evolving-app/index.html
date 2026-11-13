@@ -51,38 +51,51 @@
 
   <style>@media(max-width:600px){body{padding:16px!important;gap:12px!important}h1{font-size:1.5rem!important}p{font-size:14px!important}#dashboard{padding:16px!important;margin:16px!important}.card{padding:16px!important}section{padding:16px!important}}</style>
 
-  <style>#global-error{position:fixed;left:0;right:0;bottom:0;display:none;background:#7f1d1d;color:#fee2e2;padding:12px 16px;font-size:14px;font-family:ui-monospace,monospace;border-top:2px solid #ef4444;z-index:100000;line-height:1.4;word-break:break-word}</style>
+  <style>@keyframes gradient-anim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}h1{background-size:200% 200%!important;animation:gradient-anim 4s ease infinite!important}</style>
 </head>
 <body>
   <div class="container">
     <h1>Evolving App</h1>
-    <p>An autonomously evolving web application. Check back soon for new features as the app continues to grow.</p>
-    <span class="version">v1.0.0</span>
+    <p>This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
+    <p>Watch it grow.</p>
+    <span class="version">v0.1.0</span>
   </div>
-  <div id="progress-bar" style="width:0" aria-hidden="true"></div>
-  <div id="global-error" role="alert" aria-live="assertive"></div>
+
+  <div id="dashboard" style="margin-top:32px;padding:24px;background:rgba(255,255,255,0.05);border-radius:12px;max-width:400px;margin-left:auto;margin-right:auto">
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <span style="color:#888;font-size:14px">Local Time</span>
+      <span id="clock" style="font-family:ui-monospace,monospace;color:#5ee0c8;font-size:14px">--:--:--</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <span style="color:#888;font-size:14px">Server Status</span>
+      <span id="server-status" style="font-size:14px;color:#666">checking...</span>
+    </div>
+    <button onclick="checkHealth()" style="width:100%;padding:10px;background:rgba(94,224,200,0.15);color:#5ee0c8;border:1px solid rgba(94,224,200,0.3);border-radius:8px;cursor:pointer;font-size:14px;transition:all 0.2s" onmouseover="this.style.background='rgba(94,224,200,0.25)'" onmouseout="this.style.background='rgba(94,224,200,0.15)'">Check Server Health</button>
+  </div>
   <script>
-    (function () {
-      function showError(message) {
-        try {
-          var el = document.getElementById('global-error');
-          if (!el) return;
-          el.textContent = 'Something went wrong: ' + message;
-          el.style.display = 'block';
-        } catch (e) { /* never let the handler itself throw */ }
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("clock").textContent = now.toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    async function checkHealth() {
+      const el = document.getElementById("server-status");
+      el.textContent = "checking...";
+      el.style.color = "#888";
+      try {
+        const res = await fetch("/health");
+        const data = await res.json();
+        el.textContent = data.status === "ok" ? "Online ✓" : "Error";
+        el.style.color = data.status === "ok" ? "#5ee0c8" : "#ff6b6b";
+      } catch {
+        el.textContent = "Offline ✗";
+        el.style.color = "#ff6b6b";
       }
-      window.addEventListener('error', function (event) {
-        var msg = event && event.message ? event.message : 'Unknown error';
-        showError(msg);
-      });
-      window.addEventListener('unhandledrejection', function (event) {
-        var reason = event && event.reason;
-        var msg = (reason && reason.message) ? reason.message : String(reason || 'Unhandled promise rejection');
-        showError(msg);
-      });
-    })();
+    }
+    checkHealth();
   </script>
-<<<<<<< HEAD
 
   <div id="visitor-info" style="margin-top:24px;text-align:center">
     <p id="greeting-text" style="color:#5ee0c8;font-size:18px;margin-bottom:8px"></p>
@@ -237,7 +250,5 @@
     <div style="display:flex;gap:6px;justify-content:center;margin-top:12px" id="pomo-dots"></div>
   </div>
   <script>(function(){let sec=25*60,running=false,iv,mode="focus",sessions=0;const modes={focus:{t:25*60,l:"Focus Time",c:"#f472b6"},short:{t:5*60,l:"Short Break",c:"#5ee0c8"},long:{t:15*60,l:"Long Break",c:"#a78bfa"}};function fmt(s){return Math.floor(s/60)+":"+(s%60<10?"0":"")+s%60}function render(){document.getElementById("pomo-display").textContent=fmt(sec);document.getElementById("pomo-label").textContent=modes[mode].l;document.getElementById("pomo-display").style.color=modes[mode].c;document.getElementById("pomo-dots").innerHTML=Array(4).fill(0).map((_,i)=>'<span style="width:8px;height:8px;border-radius:50%;background:'+(i<sessions?"#f472b6":"rgba(255,255,255,0.1)")+'"></span>').join("")}function switchMode(m){mode=m;sec=modes[m].t;running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start";render()}window.pomoToggle=function(){if(running){running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start"}else{running=true;document.getElementById("pomo-start").textContent="Pause";iv=setInterval(()=>{sec--;if(sec<=0){clearInterval(iv);running=false;if(mode==="focus"){sessions++;switchMode(sessions%4===0?"long":"short")}else{switchMode("focus")}if(typeof showToast==="function")showToast("⏰ "+modes[mode].l+"!","info")}render()},1000)}};window.pomoReset=function(){switchMode(mode)};window.pomoSkip=function(){if(mode==="focus")sessions++;switchMode(mode==="focus"?(sessions%4===0?"long":"short"):"focus")};render()})();</script>
-=======
->>>>>>> evolve/exp-SQNymOYw
 </body>
 </html>
