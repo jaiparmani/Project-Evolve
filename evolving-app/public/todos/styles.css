@@ -73,3 +73,13 @@ li.completed {
   white-space: nowrap;
   border: 0;
 }
+
+/* Styling for the new Clear Completed button */
+#clear-completed {
+  margin-top: 0.5rem;
+  background-color: #f44336;
+}
+
+#clear-completed:hover {
+  background-color: #d32f2f;
+}
