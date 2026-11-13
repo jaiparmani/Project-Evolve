@@ -42,40 +42,18 @@
       font-size: 12px;
       font-family: ui-monospace, monospace;
     }
-    @keyframes fadeSlideIn {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    body > * {
-      animation: fadeSlideIn 0.5s ease-out both;
-    }
-    body > *:nth-child(2) { animation-delay: 0.1s; }
-    body > *:nth-child(3) { animation-delay: 0.2s; }
-    body > *:nth-child(4) { animation-delay: 0.3s; }
-    body > *:nth-child(5) { animation-delay: 0.4s; }
-    #progress-bar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #60a5fa, #a78bfa);
-      z-index: 99999;
-      transition: width 0.3s;
-    }
-    @media (max-width: 600px) {
-      body { padding: 16px !important; gap: 12px !important; }
-      h1 { font-size: 1.5rem !important; }
-      p { font-size: 14px !important; }
-      #dashboard { padding: 16px !important; margin: 16px !important; }
-      .card { padding: 16px !important; }
-      section { padding: 16px !important; }
-    }
   </style>
-  <meta name="description" content="An autonomously evolving web application powered by AI.">
-  <meta name="theme-color" content="#0a0a0a">
+
+  <style>@keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}body>*{animation:fadeSlideIn 0.5s ease-out both}body>*:nth-child(2){animation-delay:0.1s}body>*:nth-child(3){animation-delay:0.2s}body>*:nth-child(4){animation-delay:0.3s}body>*:nth-child(5){animation-delay:0.4s}</style>
+
+  <style>#progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#60a5fa,#a78bfa);z-index:99999;transition:width 0.3s}</style>
+  <meta name="description" content="An autonomously evolving web application powered by AI."><meta name="theme-color" content="#0a0a0a">
+
+  <style>@media(max-width:600px){body{padding:16px!important;gap:12px!important}h1{font-size:1.5rem!important}p{font-size:14px!important}#dashboard{padding:16px!important;margin:16px!important}.card{padding:16px!important}section{padding:16px!important}}</style>
+
+  <style>@keyframes gradient-anim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}h1{background-size:200% 200%!important;animation:gradient-anim 4s ease infinite!important}</style>
 </head>
 <body>
-<<<<<<< HEAD
   <div class="container">
     <h1>Evolving App</h1>
     <p>This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
@@ -272,8 +250,5 @@
     <div style="display:flex;gap:6px;justify-content:center;margin-top:12px" id="pomo-dots"></div>
   </div>
   <script>(function(){let sec=25*60,running=false,iv,mode="focus",sessions=0;const modes={focus:{t:25*60,l:"Focus Time",c:"#f472b6"},short:{t:5*60,l:"Short Break",c:"#5ee0c8"},long:{t:15*60,l:"Long Break",c:"#a78bfa"}};function fmt(s){return Math.floor(s/60)+":"+(s%60<10?"0":"")+s%60}function render(){document.getElementById("pomo-display").textContent=fmt(sec);document.getElementById("pomo-label").textContent=modes[mode].l;document.getElementById("pomo-display").style.color=modes[mode].c;document.getElementById("pomo-dots").innerHTML=Array(4).fill(0).map((_,i)=>'<span style="width:8px;height:8px;border-radius:50%;background:'+(i<sessions?"#f472b6":"rgba(255,255,255,0.1)")+'"></span>').join("")}function switchMode(m){mode=m;sec=modes[m].t;running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start";render()}window.pomoToggle=function(){if(running){running=false;clearInterval(iv);document.getElementById("pomo-start").textContent="Start"}else{running=true;document.getElementById("pomo-start").textContent="Pause";iv=setInterval(()=>{sec--;if(sec<=0){clearInterval(iv);running=false;if(mode==="focus"){sessions++;switchMode(sessions%4===0?"long":"short")}else{switchMode("focus")}if(typeof showToast==="function")showToast("⏰ "+modes[mode].l+"!","info")}render()},1000)}};window.pomoReset=function(){switchMode(mode)};window.pomoSkip=function(){if(mode==="focus")sessions++;switchMode(mode==="focus"?(sessions%4===0?"long":"short"):"focus")};render()})();</script>
-=======
-  <!-- Content goes here -->
->>>>>>> evolve/exp-Sxb9mhfS
 </body>
 </html>
