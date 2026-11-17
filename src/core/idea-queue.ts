@@ -10,6 +10,8 @@
 import { db, schema } from "../db/index.js";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 import { chatForTask } from "../llm/router.js";
 import { childLogger } from "./logger.js";
 import { getEvolutionMode } from "../worker/state.js";
@@ -331,6 +333,60 @@ export async function finishIdea(id: string, result: { cycleId?: string; status:
     reason: shipped ? "Built and deployed" : (result.error || `Cycle ${result.status}`).slice(0, 500),
     updatedAt: nowIso(),
   }).where(eq(schema.ideas.id, id));
+}
+
+/**
+ * Import roadmap/ideas.json: any entry whose key hasn't been imported yet is
+ * queued (in file order) with its brief already written, so it skips analysis.
+ */
+export async function importRoadmap(file = resolve(process.cwd(), "roadmap", "ideas.json")): Promise<number> {
+  if (!existsSync(file)) return 0;
+  let entries: Array<Record<string, any>> = [];
+  try { entries = JSON.parse(readFileSync(file, "utf-8")).ideas || []; } catch (e) {
+    log.warn({ error: (e as Error).message }, "roadmap/ideas.json is not valid JSON");
+    return 0;
+  }
+  const [row] = await db.select().from(schema.systemConfig).where(eq(schema.systemConfig.key, "roadmap_imported"));
+  const done = new Set<string>(row ? (() => { try { return JSON.parse(row.value); } catch { return []; } })() : []);
+  const pid = await projectId();
+  let added = 0;
+  for (const e of entries) {
+    if (!e?.key || !e?.title || done.has(e.key)) continue;
+    const num = (v: unknown, f: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(10, Math.max(1, n)) : f; };
+    const scores = { impact: num(e.impact, 8), confidence: num(e.confidence, 8), effort: num(e.effort, 5), strategicValue: num(e.strategicValue, 8) };
+    const analysis: IdeaAnalysis = {
+      summary: String(e.summary || e.title),
+      spec: Array.isArray(e.spec) ? e.spec.map(String) : [],
+      acceptance: Array.isArray(e.acceptance) ? e.acceptance.map(String) : [],
+      risks: Array.isArray(e.risks) ? e.risks.map(String) : [],
+      verdict: "build",
+      verdictReason: "Recommended in the project roadmap.",
+    };
+    const now = nowIso();
+    await db.insert(schema.ideas).values({
+      id: nanoid(), projectId: pid, cycleId: null,
+      title: String(e.title).slice(0, 200),
+      description: String(e.summary || e.title).slice(0, 4000),
+      category: String(e.category || "feature"),
+      ...scores,
+      priorityScore: score(scores),
+      status: "queued",
+      source: "user",
+      analysis: JSON.stringify(analysis),
+      queueRank: await nextRank(),
+      reason: "From the recommended roadmap",
+      createdAt: now, updatedAt: now,
+    });
+    done.add(e.key);
+    added++;
+  }
+  if (added) {
+    const now = nowIso();
+    await db.insert(schema.systemConfig).values({ key: "roadmap_imported", value: JSON.stringify([...done]), updatedAt: now })
+      .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value: JSON.stringify([...done]), updatedAt: now } });
+    log.info({ added }, "Imported roadmap ideas into the queue");
+  }
+  return added;
 }
 
 /** On boot, anything left "building" was interrupted by a restart: put it back at the front. */

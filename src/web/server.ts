@@ -63,8 +63,9 @@ app.listen(config.server.port, () => {
       } catch (e) { log.warn({ error: (e as Error).message }, "Failed to clean up orphaned cycles"); }
 
       try {
-        const { recoverInterrupted } = await import("../core/idea-queue.js");
+        const { recoverInterrupted, importRoadmap } = await import("../core/idea-queue.js");
         await recoverInterrupted();
+        await importRoadmap();
       } catch (e) { log.warn({ error: (e as Error).message }, "Failed to recover idea queue"); }
 
       import("../api/routes.js").then(({ ensureProjectAndRunCycle }) => {

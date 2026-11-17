@@ -1,0 +1,142 @@
+{
+  "about": "Recommended features for the evolving app. On boot the server adds any idea whose key it hasn't seen yet to the build queue, in this order, ahead of the AI's auto-planned picks. Add new entries with a new key; editing an imported entry has no effect.",
+  "ideas": [
+    {
+      "key": "shared-shell",
+      "title": "Shared app shell: navigation, design tokens and page layout",
+      "category": "architecture",
+      "impact": 9, "confidence": 8, "effort": 5, "strategicValue": 10,
+      "summary": "Give every tool the same top navigation, colours and layout so the app feels like one product, and so new tools can be added as separate pages instead of growing index.html.",
+      "spec": [
+        "Create evolving-app/assets/app.css with CSS custom properties (colors, radius, spacing, fonts) and shared components (.card, .btn, .input, .page-header), light and dark themes",
+        "Create evolving-app/assets/shell.js that injects a responsive top nav (Home, Todos, Kanban, Habits, Money, Planner, Settings) and highlights the current page",
+        "Link app.css and shell.js from index.html and keep every existing widget working",
+        "Read the theme from localStorage key 'evolve.theme' so the choice applies on every page",
+        "Make the nav collapse to a horizontal scroller on screens under 640px"
+      ],
+      "acceptance": [
+        "index.html loads with the new nav and all existing widgets still work",
+        "Theme toggle persists across reloads",
+        "No horizontal scrolling at 375px width"
+      ],
+      "risks": ["index.html is large: change only the head and the top of the body, do not rewrite the widgets"]
+    },
+    {
+      "key": "kanban",
+      "title": "Kanban board with drag-and-drop",
+      "category": "feature",
+      "impact": 9, "confidence": 8, "effort": 5, "strategicValue": 9,
+      "summary": "A Trello-style board for planning work: To do, In progress and Done columns, draggable cards with labels and due dates, saved locally.",
+      "spec": [
+        "Create evolving-app/kanban/index.html using assets/app.css and assets/shell.js",
+        "Three default columns; add, rename and delete columns",
+        "Cards with title, notes, colour label and optional due date; add, edit and delete via a small modal",
+        "Drag cards between and within columns with the HTML5 drag-and-drop API, plus keyboard moves (arrow keys) for accessibility",
+        "Persist the board to localStorage key 'evolve.kanban'",
+        "Show card counts per column and highlight overdue cards"
+      ],
+      "acceptance": [
+        "Cards can be dragged between columns and the order survives a reload",
+        "Overdue cards are visibly flagged",
+        "Board works on a 375px wide screen"
+      ],
+      "risks": ["Touch drag on mobile: provide a 'Move to' menu as a fallback"]
+    },
+    {
+      "key": "habits",
+      "title": "Habit tracker with streaks and a yearly heatmap",
+      "category": "feature",
+      "impact": 9, "confidence": 9, "effort": 4, "strategicValue": 8,
+      "summary": "Track daily habits, see current and best streaks, and a GitHub-style heatmap of the last year that makes progress visible and motivating.",
+      "spec": [
+        "Create evolving-app/habits/index.html using the shared shell",
+        "Add, rename, colour and archive habits; tick today (or any past day) on or off",
+        "Compute current streak, best streak and completion rate per habit",
+        "Render a 53x7 heatmap per habit with CSS grid and a tooltip showing the date",
+        "Persist to localStorage key 'evolve.habits'",
+        "Small confetti or pulse when a streak hits 7, 30 or 100 days"
+      ],
+      "acceptance": [
+        "Ticking today increments the streak and survives reload",
+        "Missing a day resets the current streak but keeps the best streak",
+        "Heatmap shows the last 365 days"
+      ],
+      "risks": ["Use local dates, not UTC, so ticks near midnight land on the right day"]
+    },
+    {
+      "key": "money",
+      "title": "Expense and budget tracker with charts",
+      "category": "feature",
+      "impact": 9, "confidence": 8, "effort": 6, "strategicValue": 8,
+      "summary": "Log income and expenses by category, set monthly budgets, and see where money goes with a donut chart and a monthly trend, all without external libraries.",
+      "spec": [
+        "Create evolving-app/money/index.html using the shared shell",
+        "Add transactions with amount, type (income or expense), category, date and note; edit and delete",
+        "Monthly view with totals, balance and per-category budgets showing progress bars that turn red when exceeded",
+        "Donut chart of spending by category and a 6-month bar chart, drawn with inline SVG",
+        "Filter by month and category; CSV export of the current view",
+        "Persist to localStorage key 'evolve.money'"
+      ],
+      "acceptance": [
+        "Totals and charts update immediately when a transaction is added",
+        "Exceeded budgets are shown in red",
+        "CSV export downloads the visible transactions"
+      ]
+    },
+    {
+      "key": "planner",
+      "title": "Calendar planner that brings todos, cards and habits together",
+      "category": "feature",
+      "impact": 8, "confidence": 7, "effort": 6, "strategicValue": 9,
+      "summary": "A month and week calendar showing todos and kanban cards by due date and habit check-ins per day, so the separate tools become one connected system.",
+      "spec": [
+        "Create evolving-app/planner/index.html using the shared shell",
+        "Month grid and week list views with today highlighted and previous/next navigation",
+        "Read due dates from 'evolve.kanban' and the existing todo storage, and habit ticks from 'evolve.habits'",
+        "Click a day to see its items and add a quick event (stored in 'evolve.planner')",
+        "Show a 'Today' panel on the home page summarising due items and habits left to tick"
+      ],
+      "acceptance": [
+        "A kanban card with a due date appears on the right calendar day",
+        "The home page shows today's summary"
+      ],
+      "risks": ["Other tools may not exist yet: handle missing storage keys gracefully"]
+    },
+    {
+      "key": "backup-settings",
+      "title": "Settings page with full backup, restore and reset",
+      "category": "feature",
+      "impact": 8, "confidence": 9, "effort": 3, "strategicValue": 8,
+      "summary": "Everything lives in the browser, so give users one place to export all their data to a JSON file, import it on another device, and reset individual tools.",
+      "spec": [
+        "Create evolving-app/settings/index.html using the shared shell",
+        "Export every localStorage key starting with 'evolve.' (plus existing todo and notes keys) into one dated JSON file",
+        "Import a backup with a preview of what will be replaced and a confirmation step",
+        "Per-tool reset buttons with confirmation, plus theme and accent colour settings",
+        "Show storage used per tool in KB"
+      ],
+      "acceptance": [
+        "Export then import on a fresh browser restores every tool's data",
+        "Reset clears only the chosen tool"
+      ]
+    },
+    {
+      "key": "pwa",
+      "title": "Installable offline app (PWA)",
+      "category": "performance",
+      "impact": 8, "confidence": 8, "effort": 3, "strategicValue": 8,
+      "summary": "Make the app installable on phones and desktops and fully usable offline, which suits a set of tools that store everything locally.",
+      "spec": [
+        "Add evolving-app/manifest.webmanifest with name, theme colour, display standalone and SVG icons",
+        "Add evolving-app/sw.js that precaches the shell, assets and each tool page, using stale-while-revalidate for pages",
+        "Register the service worker from assets/shell.js and show an 'Install app' button when beforeinstallprompt fires",
+        "Show a small 'Offline' badge in the nav when navigator.onLine is false"
+      ],
+      "acceptance": [
+        "Lighthouse reports the app as installable",
+        "Pages load with the network disabled after one visit"
+      ],
+      "risks": ["The app is served under /app/: scope the service worker and manifest paths to that"]
+    }
+  ]
+}
