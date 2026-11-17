@@ -297,5 +297,20 @@
     <div id="pw-strength" style="margin-top:8px;height:4px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden"><div id="pw-bar" style="height:100%;width:0;transition:all 0.3s;border-radius:2px"></div></div>
   </div>
   <script>window.genPw=function(){let chars="abcdefghijklmnopqrstuvwxyz";if(document.getElementById("pw-upper").checked)chars+="ABCDEFGHIJKLMNOPQRSTUVWXYZ";if(document.getElementById("pw-num").checked)chars+="0123456789";if(document.getElementById("pw-sym").checked)chars+="!@#$%^&*()_+-=[]{}|;:,.<>?";const len=+document.getElementById("pw-len").value;const arr=new Uint32Array(len);crypto.getRandomValues(arr);let pw="";for(let i=0;i<len;i++)pw+=chars[arr[i]%chars.length];document.getElementById("pw-output").value=pw;const strength=Math.min(100,len*2+(document.getElementById("pw-sym").checked?20:0)+(document.getElementById("pw-upper").checked?10:0));const bar=document.getElementById("pw-bar");bar.style.width=strength+"%";bar.style.background=strength>70?"#5ee0c8":strength>40?"#fbbf24":"#f87171"};genPw();</script>
+<<<<<<< HEAD
+=======
+
+  <div id="stopwatch-app" style="margin-top:24px;max-width:520px;width:100%;padding:20px 24px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;text-align:center">
+    <h2 style="font-size:16px;color:#60a5fa;margin-bottom:12px">⏱ Stopwatch</h2>
+    <div id="sw-display" style="font:600 42px/1 ui-monospace,monospace;color:#e0e0e0;margin:16px 0">00:00.000</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="sw-toggle" onclick="swToggle()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:#60a5fa;color:#0a0a0a;font-weight:600;min-width:80px">Start</button>
+      <button onclick="swLap()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:rgba(96,165,250,0.15);color:#60a5fa">Lap</button>
+      <button onclick="swReset()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:rgba(255,255,255,0.08);color:#888">Reset</button>
+    </div>
+    <div id="sw-laps" style="margin-top:12px;max-height:150px;overflow-y:auto;text-align:left"></div>
+  </div>
+  <script>(function(){let ms=0,running=false,iv,laps=[];function fmt(t){const m=Math.floor(t/60000);const s=Math.floor(t%60000/1000);const ml=t%1000;return(m<10?"0":"")+m+":"+(s<10?"0":"")+s+"."+(ml<100?"0":"")+(ml<10?"0":"")+ml}function render(){document.getElementById("sw-display").textContent=fmt(ms)}window.swToggle=function(){const btn=document.getElementById("sw-toggle");if(running){clearInterval(iv);running=false;btn.textContent="Start";btn.style.background="#60a5fa"}else{const start=Date.now()-ms;iv=setInterval(()=>{ms=Date.now()-start;render()},10);running=true;btn.textContent="Stop";btn.style.background="#f87171"}};window.swLap=function(){if(!running)return;laps.push(ms);const el=document.getElementById("sw-laps");el.innerHTML=laps.map((l,i)=>'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px"><span style="color:#888">Lap '+(i+1)+'</span><span style="color:#60a5fa;font-family:ui-monospace,monospace">'+fmt(l)+"</span></div>").reverse().join("")};window.swReset=function(){clearInterval(iv);ms=0;running=false;laps=[];document.getElementById("sw-toggle").textContent="Start";document.getElementById("sw-toggle").style.background="#60a5fa";document.getElementById("sw-laps").innerHTML="";render()};render()})();</script>
+>>>>>>> evolve/exp-vtGSGDel
 </body>
 </html>
