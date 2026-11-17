@@ -73,7 +73,46 @@ async function getRepoInfo(): Promise<{ owner: string; repo: string } | null> {
   return { owner: "jaiparmani", repo: "Project-Evolve" };
 }
 
-export async function backupDb(): Promise<void> {
+// ---------- Backup scheduling ----------
+// The DB lives on Render's ephemeral disk and is restored from git on every
+// boot, so anything not backed up before a restart is lost. Back up shortly
+// after user-visible changes (ideas, settings), not only after cycles, and
+// once more when Render stops the instance.
+let backupChain: Promise<void> = Promise.resolve();
+let backupTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Run a backup, serialised so two uploads never race for the same file SHA. */
+export function backupDb(reason = "after evolution cycle"): Promise<void> {
+  if (backupTimer) { clearTimeout(backupTimer); backupTimer = null; }
+  backupChain = backupChain.then(() => backupDbNow(reason)).catch(() => {});
+  return backupChain;
+}
+
+/** Debounced backup for small changes: many edits within the window become one commit. */
+export function scheduleBackup(delayMs = 15_000, reason = "after idea changes"): void {
+  if (backupTimer) clearTimeout(backupTimer);
+  backupTimer = setTimeout(() => { backupTimer = null; void backupDb(reason); }, delayMs);
+}
+
+let shutdownHooked = false;
+/** Back up once more when the platform stops the process (redeploy, sleep, restart). */
+export function backupOnShutdown(): void {
+  if (shutdownHooked) return;
+  shutdownHooked = true;
+  let stopping = false;
+  const stop = async (signal: string) => {
+    if (stopping) return;
+    stopping = true;
+    log.info({ signal }, "Shutting down — saving DB first");
+    const timeout = new Promise<void>((r) => setTimeout(r, 25_000));
+    await Promise.race([backupDb("before shutdown"), timeout]);
+    process.exit(0);
+  };
+  process.on("SIGTERM", () => { void stop("SIGTERM"); });
+  process.on("SIGINT", () => { void stop("SIGINT"); });
+}
+
+async function backupDbNow(reason: string): Promise<void> {
   const dbFile = resolve(ROOT, DB_PATH);
   if (!existsSync(dbFile)) {
     log.warn("No DB file to back up");
@@ -138,7 +177,7 @@ export async function backupDb(): Promise<void> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: "chore: persist DB after evolution cycle [skip render]",
+        message: `chore: persist DB ${reason} [skip render]`,
         content,
         branch: "main",
         ...(sha ? { sha } : {}),

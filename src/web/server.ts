@@ -49,6 +49,7 @@ app.get("*", (_req, res) => {
 });
 
 app.listen(config.server.port, () => {
+  import("../db/persist.js").then(({ backupOnShutdown }) => backupOnShutdown()).catch(() => {});
   log.info("Control Room running at http://localhost:%d", config.server.port);
   import("../worker/state.js").then(({ startLoop, loadEvolutionModeFromDb }) => {
     loadEvolutionModeFromDb().then(async () => {

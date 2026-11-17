@@ -15,6 +15,7 @@ import { resolve } from "path";
 import { chatForTask } from "../llm/router.js";
 import { childLogger } from "./logger.js";
 import { getEvolutionMode } from "../worker/state.js";
+import { scheduleBackup } from "../db/persist.js";
 
 const log = childLogger("idea-queue");
 
@@ -89,6 +90,7 @@ export async function setAutoplan(next: Partial<AutoplanSettings>) {
   const put = (key: string, value: string) => db.insert(schema.systemConfig).values({ key, value, updatedAt: now })
     .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value, updatedAt: now } });
   if (next.enabled !== undefined) await put("idea_autoplan", next.enabled ? "on" : "off");
+  scheduleBackup();
   if (next.depth !== undefined) await put("idea_autoplan_depth", String(Math.min(10, Math.max(1, Math.round(next.depth)))));
   if (next.enabled === false) {
     // Turning auto-planning off hands those slots back to the strategist.
@@ -119,7 +121,7 @@ export async function autoFill(): Promise<number> {
       }).where(eq(schema.ideas.id, p.id));
       need--;
     }
-    if (picks.length) log.info({ added: picks.map((p) => p.title) }, "Auto-planned upcoming cycles");
+    if (picks.length) { log.info({ added: picks.map((p) => p.title) }, "Auto-planned upcoming cycles"); scheduleBackup(); }
     return picks.length;
   } finally {
     filling = false;
@@ -164,6 +166,7 @@ export async function submitIdea(input: { title: string; description?: string; t
     updatedAt: now,
   });
   setImmediate(() => { analyseIdea(id).catch((e) => log.warn({ id, error: (e as Error).message }, "Idea analysis crashed")); });
+  scheduleBackup();
   const [row] = await db.select().from(schema.ideas).where(eq(schema.ideas.id, id));
   return row;
 }
@@ -234,6 +237,7 @@ Reply with ONLY a JSON object:
       updatedAt: nowIso(),
     }).where(and(eq(schema.ideas.id, id), eq(schema.ideas.status, "evaluating")));
     log.info({ id, title, verdict: analysis.verdict }, "Idea analysed and queued");
+    scheduleBackup();
   } catch (e) {
     // Never lose the user's idea because the model is down: queue it as written.
     const analysis: IdeaAnalysis = {
@@ -246,6 +250,7 @@ Reply with ONLY a JSON object:
     await db.update(schema.ideas).set({ analysis: JSON.stringify(analysis), status: "queued", updatedAt: nowIso() })
       .where(and(eq(schema.ideas.id, id), eq(schema.ideas.status, "evaluating")));
     log.warn({ id, error: (e as Error).message }, "Idea analysis failed — queued as written");
+    scheduleBackup();
   }
 }
 
@@ -254,11 +259,13 @@ export async function queueIdea(id: string, top = false) {
   await db.update(schema.ideas)
     .set({ status: "queued", queueRank: await nextRank(top), updatedAt: nowIso() })
     .where(eq(schema.ideas.id, id));
+  scheduleBackup();
 }
 
 export async function dismissIdea(id: string) {
   await db.update(schema.ideas).set({ status: "dismissed", updatedAt: nowIso() })
     .where(and(eq(schema.ideas.id, id), sql`${schema.ideas.status} != 'building'`));
+  scheduleBackup();
 }
 
 export async function moveIdea(id: string, dir: "up" | "down" | "top") {
@@ -271,12 +278,14 @@ export async function moveIdea(id: string, dir: "up" | "down" | "top") {
   const a = queue[idx], b = queue[swap];
   await db.update(schema.ideas).set({ queueRank: b.queueRank }).where(eq(schema.ideas.id, a.id));
   await db.update(schema.ideas).set({ queueRank: a.queueRank }).where(eq(schema.ideas.id, b.id));
+  scheduleBackup();
 }
 
 export async function editIdea(id: string, title: string, description: string) {
   await db.update(schema.ideas)
     .set({ title: title.trim().slice(0, 200), description: (description || title).trim().slice(0, 4000), analysis: null, status: "evaluating", updatedAt: nowIso() })
     .where(eq(schema.ideas.id, id));
+  scheduleBackup();
   setImmediate(() => { analyseIdea(id).catch(() => {}); });
 }
 
@@ -385,6 +394,7 @@ export async function importRoadmap(file = resolve(process.cwd(), "roadmap", "id
     await db.insert(schema.systemConfig).values({ key: "roadmap_imported", value: JSON.stringify([...done]), updatedAt: now })
       .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value: JSON.stringify([...done]), updatedAt: now } });
     log.info({ added }, "Imported roadmap ideas into the queue");
+    scheduleBackup(5_000, "after roadmap import");
   }
   return added;
 }
