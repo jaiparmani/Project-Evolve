@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overview · Project Evolve</title>
+  <meta name="description" content="Control room for Project Evolve, a self-improving web application.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f9f8f'/%3E%3Cpath d='M10 25c0-8 12-8 12-18M22 25c0-8-12-8-12-18M12 11h8M12 21h8' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <script>try{var t=localStorage.getItem('evolve-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --surface-2: #f3f4f7;
+      --surface-3: #e8ebf0;
+      --border: #e4e7ec;
+      --border-strong: #d0d5dd;
+      --text: #0f1219;
+      --text-2: #4a5263;
+      --text-3: #858c9b;
+      --accent: #0f9f8f;
+      --accent-strong: #0b7c70;
+      --on-accent: #ffffff;
+      --success: #15803d;
+      --warning: #b45309;
+      --danger: #dc2626;
+      --info: #2563eb;
+      --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+      --shadow-lg: 0 24px 48px -12px rgba(16, 24, 40, 0.22);
+      --backdrop: rgba(15, 18, 25, 0.38);
+      --font: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0a0c10;
+        --surface: #11141a;
+        --surface-2: #171b23;
+        --surface-3: #1f242e;
+        --border: #232833;
+        --border-strong: #2f3542;
+        --text: #e8eaef;
+        --text-2: #a3aaba;
+        --text-3: #6c7486;
+        --accent: #2dd4bf;
+        --accent-strong: #5eead4;
+        --on-accent: #042f2a;
+        --success: #4ade80;
+        --warning: #fbbf24;
+        --danger: #fb7185;
+        --info: #60a5fa;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+        --backdrop: rgba(0, 0, 0, 0.55);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0a0c10;
+      --surface: #11141a;
+      --surface-2: #171b23;
+      --surface-3: #1f242e;
+      --border: #232833;
+      --border-strong: #2f3542;
+      --text: #e8eaef;
+      --text-2: #a3aaba;
+      --text-3: #6c7486;
+      --accent: #2dd4bf;
+      --accent-strong: #5eead4;
+      --on-accent: #042f2a;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #fb7185;
+      --info: #60a5fa;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+      --backdrop: rgba(0, 0, 0, 0.55);
+      color-scheme: dark;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 14px/1.5 var(--font); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "cv11", "ss01";
+    }
+    h1, h2, h3, p { margin: 0; }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .i { flex-shrink: 0; display: block; }
+    .mono { font-family: var(--mono); font-size: 0.92em; }
+    .muted { color: var(--text-3); }
+    .nowrap { white-space: nowrap; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ---------- Shell ---------- */
+    .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 20px;
+      padding: 20px 14px; background: var(--surface); border-right: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px; }
+    .brand-mark {
+      width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: #fff;
+      background: linear-gradient(135deg, #14b8a6, #0e7490); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+    }
+    .brand-text { flex: 1; min-width: 0; }
+    .brand-name { font-weight: 650; font-size: 14.5px; letter-spacing: -0.01em; }
+    .brand-sub { font-size: 12px; color: var(--text-3); }
+    .icon-btn {
+      width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px;
+      border: 1px solid transparent; background: transparent; color: var(--text-2);
+    }
+    .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+    .nav { display: flex; flex-direction: column; gap: 2px; }
+    .nav-label { font-size: 11.5px; font-weight: 500; color: var(--text-3); padding: 0 10px 6px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+      color: var(--text-2); font-weight: 500; font-size: 13.5px; transition: background .12s, color .12s;
+    }
+    .nav-item:hover { background: var(--surface-2); color: var(--text); }
+    .nav-item[aria-current="page"] { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-strong); }
+    .sidebar-foot {
+      margin-top: auto; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .foot-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-2); }
+
+    .main { min-width: 0; padding: 28px 36px 56px; }
+    .container { max-width: 1280px; margin: 0 auto; }
+    .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+    .page-head h1 { font-size: 23px; font-weight: 650; letter-spacing: -0.022em; line-height: 1.25; }
+    .page-head p { color: var(--text-2); margin-top: 4px; font-size: 13.5px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ---------- Controls ---------- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 14px;
+      border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+      font-weight: 500; font-size: 13.5px; white-space: nowrap; box-shadow: var(--shadow-sm);
+      transition: background .12s, border-color .12s, opacity .12s;
+    }
+    .btn:hover { background: var(--surface-2); }
+    .btn.primary { background: var(--accent); border-color: transparent; color: var(--on-accent); }
+    .btn.primary:hover { background: var(--accent-strong); }
+    .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--text-2); }
+    .btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+    .btn.sm { height: 30px; padding: 0 10px; font-size: 12.5px; gap: 6px; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .spinner {
+      width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
+      animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .input, .select {
+      height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong);
+      background: var(--surface); color: var(--text); font-size: 13.5px; min-width: 0;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    .input::placeholder { color: var(--text-3); }
+    .input:focus, .select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+    .select { height: 30px; padding: 0 28px 0 10px; font-size: 12.5px; appearance: none; max-width: 220px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23858c9b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 9px center; }
+
+    /* ---------- Cards & layout ---------- */
+    .stack { display: flex; flex-direction: column; gap: 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow-sm); min-width: 0; }
+    .card.flush { padding: 0; overflow: hidden; }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .card.flush > .card-head { padding: 18px 20px 14px; margin: 0; border-bottom: 1px solid var(--border); }
+    .card-head h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    .card-head p { color: var(--text-2); font-size: 13px; margin-top: 2px; }
+    .card-head .row { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .link { color: var(--accent-strong); font-size: 13px; font-weight: 500; white-space: nowrap; }
+    .link:hover { text-decoration: underline; }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .kpi { display: flex; flex-direction: column; }
+    .kpi-label { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; font-weight: 500; }
+    .kpi-label .i { color: var(--text-3); }
+    .kpi-value { font-size: 27px; font-weight: 650; letter-spacing: -0.025em; margin: 10px 0 4px; font-variant-numeric: tabular-nums; line-height: 1.15; }
+    .kpi-value small { font-size: 14px; font-weight: 500; color: var(--text-3); letter-spacing: 0; margin-left: 2px; }
+    .kpi-sub { color: var(--text-3); font-size: 12.5px; }
+    .kpi .bar { margin-top: 12px; }
+    .bar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+    .bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .4s ease; }
+    .cols { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+
+    /* ---------- Badges & tags ---------- */
+    .badge {
+      --c: var(--text-3);
+      display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px;
+      font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--c);
+      background: color-mix(in srgb, var(--c) 12%, transparent);
+    }
+    .badge.success { --c: var(--success); }
+    .badge.warning { --c: var(--warning); }
+    .badge.danger { --c: var(--danger); }
+    .badge.info { --c: var(--info); }
+    .badge.accent { --c: var(--accent-strong); }
+    .badge.neutral { --c: var(--text-2); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; } 50% { opacity: .55; box-shadow: 0 0 0 3px transparent; } }
+    .tag {
+      display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .tag.ok { color: var(--success); }
+    .q { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .delta { font-size: 12px; font-weight: 500; margin-left: 6px; font-variant-numeric: tabular-nums; }
+    .delta.up { color: var(--success); }
+    .delta.down { color: var(--danger); }
+
+    /* ---------- Tables ---------- */
+    .table-wrap { overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .table th {
+      font-weight: 500; font-size: 12px; color: var(--text-3); text-align: left; padding: 10px 16px;
+      border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--surface-2);
+    }
+    .table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .table tr:last-child td { border-bottom: 0; }
+    .table th:first-child, .table td:first-child { padding-left: 20px; }
+    .table th:last-child, .table td:last-child { padding-right: 20px; }
+    .cell-main { max-width: 0; width: 100%; min-width: 160px; }
+    .cell-main .sub { color: var(--text-3); font-size: 12.5px; margin-top: 2px; }
+    .row-link { cursor: pointer; transition: background .12s; }
+    .row-link:hover, .row-link:focus-visible { background: var(--surface-2); outline: none; }
+    .table-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: center; }
+
+    /* ---------- Lists ---------- */
+    .list { display: flex; flex-direction: column; }
+    .list.scroll { max-height: 380px; overflow-y: auto; margin: 0 -20px -20px; padding: 0 20px; }
+    .list-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .list-item:last-child { border-bottom: 0; }
+    .list-main { flex: 1; min-width: 0; }
+    .list-title { font-weight: 500; font-size: 13.5px; }
+    .list-desc { color: var(--text-2); font-size: 12.5px; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .list-side { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+    /* ---------- Mode picker / steer ---------- */
+    .modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .mode {
+      text-align: left; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); display: flex; flex-direction: column; gap: 2px; transition: border-color .12s, background .12s;
+    }
+    .mode:hover { border-color: var(--border-strong); background: var(--surface-2); }
+    .mode.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .mode-name { font-weight: 600; font-size: 13px; }
+    .mode.active .mode-name { color: var(--accent-strong); }
+    .mode-desc { font-size: 12px; color: var(--text-3); line-height: 1.4; }
+    .steer { display: flex; gap: 8px; }
+    .steer .input { flex: 1; }
+
+    /* ---------- Live activity ---------- */
+    .live { border-color: color-mix(in srgb, var(--info) 35%, var(--border)); }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--info); font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+    .steps { display: grid; grid-template-columns: repeat(8, minmax(72px, 1fr)); gap: 6px; overflow-x: auto; }
+    .step { display: flex; flex-direction: column; gap: 8px; }
+    .step-bar { height: 4px; border-radius: 999px; background: var(--surface-3); }
+    .step.done .step-bar { background: var(--accent); }
+    .step.active .step-bar { background: var(--info); animation: pulseBar 1.4s ease-in-out infinite; }
+    @keyframes pulseBar { 50% { opacity: .45; } }
+    .step-label { font-size: 12px; color: var(--text-3); }
+    .step.done .step-label { color: var(--text-2); }
+    .step.active .step-label { color: var(--info); font-weight: 600; }
+
+    /* ---------- Chart ---------- */
+    .chart { position: relative; min-height: 240px; }
+    .chart svg { display: block; max-width: 100%; overflow: visible; }
+    .chart .axis { fill: var(--text-3); font-size: 11px; font-family: var(--font); }
+    .chart .grid-line { stroke: var(--border); stroke-dasharray: 3 4; }
+    .chart .pt { cursor: pointer; }
+    .chart .pt:hover .pt-dot { r: 6; }
+    .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .tip {
+      position: absolute; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .12s, transform .12s;
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; padding: 10px 12px;
+      box-shadow: var(--shadow-lg); font-size: 12.5px; width: max-content; max-width: 280px; z-index: 5;
+    }
+    .tip.show { opacity: 1; transform: none; }
+    .tip-title { font-weight: 600; margin-bottom: 6px; }
+    .tip-row { display: flex; align-items: center; gap: 10px; color: var(--text-2); }
+    .tip-meta { color: var(--text-3); font-size: 12px; margin-top: 6px; }
+
+    /* ---------- Roadmap ---------- */
+    .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .stage { padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); }
+    .stage.current { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+    .stage-top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .stage-num {
+      width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 600;
+      background: var(--surface-3); color: var(--text-2); flex-shrink: 0;
+    }
+    .stage.complete .stage-num { background: var(--success); color: #fff; }
+    .stage.current .stage-num { background: var(--accent); color: var(--on-accent); }
+    .stage-name { font-weight: 600; font-size: 13.5px; flex: 1; }
+    .stage-pct { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .stage.complete .bar > span { background: var(--success); }
+    .gates { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+    .gates-title { font-weight: 600; font-size: 13.5px; }
+    .gates p { color: var(--text-2); font-size: 13px; margin: 2px 0 10px; }
+    .gate { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13.5px; color: var(--text-2); }
+    .gate .i { color: var(--text-3); }
+    .gate.pass { color: var(--text); }
+    .gate.pass .i { color: var(--success); }
+
+    /* ---------- Browser preview ---------- */
+    .browser { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+    .browser-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .traffic { display: flex; gap: 6px; flex-shrink: 0; }
+    .traffic span { width: 10px; height: 10px; border-radius: 50%; }
+    .traffic span:nth-child(1) { background: #ff5f57; }
+    .traffic span:nth-child(2) { background: #febc2e; }
+    .traffic span:nth-child(3) { background: #28c840; }
+    .url {
+      flex: 1; min-width: 0; height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 6px;
+      background: var(--surface); border: 1px solid var(--border); font-family: var(--mono); font-size: 12px; color: var(--text-2);
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    }
+    .browser iframe { display: block; width: 100%; height: 600px; border: 0; background: #fff; }
+
+    /* ---------- Versions ---------- */
+    .split { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+    .version-list { max-height: 640px; overflow-y: auto; }
+    .version {
+      display: block; width: 100%; text-align: left; padding: 12px 20px; border: 0; border-bottom: 1px solid var(--border);
+      background: transparent; border-left: 3px solid transparent; transition: background .12s;
+    }
+    .version:hover { background: var(--surface-2); }
+    .version.active { background: color-mix(in srgb, var(--accent) 8%, transparent); border-left-color: var(--accent); }
+    .version-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .version-label { font-family: var(--mono); font-weight: 600; font-size: 13px; }
+    .version-title { font-size: 13px; color: var(--text-2); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .version-meta { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .code-viewer { display: grid; grid-template-columns: 240px minmax(0, 1fr); border-top: 1px solid var(--border); }
+    .file-list { border-right: 1px solid var(--border); max-height: 560px; overflow-y: auto; padding: 6px; }
+    .file {
+      display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px;
+      border: 0; background: transparent; color: var(--text-2); font-family: var(--mono); font-size: 12px;
+    }
+    .file:hover { background: var(--surface-2); color: var(--text); }
+    .file.active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-strong); }
+    .code { min-width: 0; display: flex; flex-direction: column; }
+    .code-head { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+    .code-body {
+      margin: 0; padding: 14px 16px; overflow: auto; max-height: 520px; background: var(--surface-2);
+      font-family: var(--mono); font-size: 12.5px; line-height: 1.65; tab-size: 2; color: var(--text);
+    }
+    .ln { display: inline-block; width: 3.2em; margin-right: 16px; text-align: right; color: var(--text-3); user-select: none; }
+
+    /* ---------- Changelog ---------- */
+    .release { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 20px; cursor: pointer; border-radius: 10px; }
+    .release:focus-visible { outline-offset: 4px; }
+    .release-side { padding-top: 2px; text-align: right; }
+    .release-ver { font-weight: 600; font-size: 13px; }
+    .release-date { color: var(--text-3); font-size: 12px; margin-top: 2px; }
+    .release-body { position: relative; padding: 0 0 28px 24px; border-left: 2px solid var(--border); }
+    .release:last-child .release-body { padding-bottom: 4px; }
+    .release-body::before {
+      content: ""; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%;
+      background: var(--surface); border: 2px solid var(--accent);
+    }
+    .release:hover .release-title { color: var(--accent-strong); }
+    .release-title { font-weight: 600; font-size: 14.5px; letter-spacing: -0.005em; transition: color .12s; }
+    .release-note { color: var(--text-2); font-size: 13px; margin-top: 4px; }
+    .release-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+    /* ---------- Segmented filter ---------- */
+    .seg { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); gap: 2px; }
+    .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font-size: 12.5px; font-weight: 500; }
+    .seg button:hover { color: var(--text); }
+    .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm), 0 0 0 1px var(--border); }
+
+    /* ---------- Key/value ---------- */
+    .kv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .kv { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+    .kv:last-child { border-bottom: 0; }
+    .kv-k { color: var(--text-2); }
+    .kv-v { text-align: right; word-break: break-all; }
+
+    /* ---------- Empty / skeleton / banner ---------- */
+    .empty { text-align: center; padding: 36px 16px; color: var(--text-3); }
+    .empty-icon { width: 40px; height: 40px; margin: 0 auto 12px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); }
+    .empty-title { color: var(--text); font-weight: 500; font-size: 13.5px; }
+    .empty p { font-size: 13px; margin-top: 4px; }
+    .skel { border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    .skel-line { height: 12px; margin: 8px 0; }
+    .pad { padding: 20px; }
+    .banner {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 20px; border-radius: 10px;
+      border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent); background: color-mix(in srgb, var(--warning) 9%, var(--surface));
+      font-size: 13.5px;
+    }
+    .banner .i { color: var(--warning); }
+    .banner span { flex: 1; }
+
+    /* ---------- Drawer ---------- */
+    .drawer-bg { position: fixed; inset: 0; background: var(--backdrop); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 60; }
+    .drawer-bg.open { opacity: 1; pointer-events: auto; }
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; width: min(680px, 100vw); z-index: 61; background: var(--surface);
+      border-left: 1px solid var(--border); box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform .25s cubic-bezier(.2,.8,.2,1); visibility: hidden;
+    }
+    .drawer.open { transform: none; visibility: visible; }
+    .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .drawer-head > div { flex: 1; min-width: 0; }
+    .drawer-eyebrow { font-size: 12px; color: var(--text-3); font-weight: 500; }
+    .drawer-title { font-size: 17px; font-weight: 650; letter-spacing: -0.015em; margin-top: 2px; }
+    .drawer-body { padding: 20px 24px 40px; overflow-y: auto; flex: 1; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+    .meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .meta { padding: 12px 14px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-width: 0; }
+    .meta:nth-child(3n) { border-right: 0; }
+    .meta:nth-last-child(-n+3) { border-bottom: 0; }
+    .meta-k { font-size: 12px; color: var(--text-3); }
+    .meta-v { font-size: 13.5px; font-weight: 500; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .section { margin-top: 26px; }
+    .section h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 10px; }
+    .section .lead { color: var(--text-2); font-size: 13.5px; margin-bottom: 10px; }
+    .prose { font-size: 13.5px; line-height: 1.65; color: var(--text); }
+    .callout { padding: 12px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13.5px; line-height: 1.6; }
+    .callout.danger { background: color-mix(in srgb, var(--danger) 8%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 30%, transparent); color: var(--danger); }
+    .obs { padding: 12px 14px; border: 1px solid var(--border); border-left: 3px solid var(--text-3); border-radius: 8px; margin-bottom: 8px; }
+    .obs.sev-critical, .obs.sev-high { border-left-color: var(--danger); }
+    .obs.sev-medium { border-left-color: var(--warning); }
+    .obs.sev-low { border-left-color: var(--info); }
+    .obs-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .obs-cat { font-weight: 600; font-size: 13px; }
+    .obs p { font-size: 13px; color: var(--text-2); }
+    .obs-file { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: var(--accent-strong); }
+    .plan-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+    .plan-steps li::marker { color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .step-files, .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .pre { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-family: var(--mono); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
+    .compare { display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+    .compare-item { display: flex; flex-direction: column; }
+    .compare-item .meta-k { margin-bottom: 2px; }
+    .compare-item b { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .compare .arrow { color: var(--text-3); }
+
+    /* ---------- Toasts ---------- */
+    .toasts { position: fixed; right: 20px; bottom: 20px; z-index: 80; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 32px); }
+    .toast {
+      display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; min-width: 260px; max-width: 420px;
+      background: var(--surface); border: 1px solid var(--border-strong); box-shadow: var(--shadow-lg); font-size: 13.5px;
+      animation: toastIn .2s ease-out;
+    }
+    .toast .i { color: var(--info); }
+    .toast.success .i { color: var(--success); }
+    .toast.error .i { color: var(--danger); }
+    .toast.out { opacity: 0; transform: translateY(6px); transition: all .2s; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1180px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .cols, .split { grid-template-columns: minmax(0, 1fr); }
+      .version-list { max-height: 320px; }
+    }
+    @media (max-width: 880px) {
+      .shell { grid-template-columns: minmax(0, 1fr); }
+      .sidebar {
+        position: sticky; top: 0; z-index: 40; height: auto; gap: 8px; padding: 10px 16px 0;
+        border-right: 0; border-bottom: 1px solid var(--border);
+      }
+      .nav { flex-direction: row; overflow-x: auto; margin: 0 -16px; padding: 0 16px 8px; scrollbar-width: none; }
+      .nav::-webkit-scrollbar { display: none; }
+      .nav-label, .sidebar-foot { display: none; }
+      .nav-item { flex: 0 0 auto; padding: 7px 10px; font-size: 13px; }
+      .main { padding: 20px 16px 48px; }
+      .browser iframe { height: 480px; }
+      .code-viewer { grid-template-columns: minmax(0, 1fr); }
+      .file-list { border-right: 0; border-bottom: 1px solid var(--border); max-height: 160px; }
+      .release { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+      .release-side { text-align: left; display: flex; gap: 10px; align-items: baseline; padding-left: 26px; }
+      .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .meta:nth-child(3n) { border-right: 1px solid var(--border); }
+      .meta:nth-child(2n) { border-right: 0; }
+      .meta:nth-last-child(-n+3) { border-bottom: 1px solid var(--border); }
+      .meta:nth-last-child(-n+2) { border-bottom: 0; }
+    }
+    @media (max-width: 560px) {
+      .page-head h1 { font-size: 20px; }
+      .actions { width: 100%; }
+      .actions .btn { flex: 1; }
+      .kpis { gap: 12px; }
+      .kpi { padding: 16px; }
+      .kpi-value { font-size: 22px; }
+      .hide-sm { display: none; }
+      .card { padding: 16px; }
+      .list.scroll { margin: 0 -16px -16px; padding: 0 16px; }
+      .card.flush > .card-head { padding: 14px 16px 12px; flex-wrap: wrap; }
+      .table th:first-child, .table td:first-child { padding-left: 16px; }
+      .table th:last-child, .table td:last-child { padding-right: 16px; }
+      .table th, .table td { padding-left: 10px; padding-right: 10px; }
+      .steer { flex-direction: column; }
+      .steer .input { flex: none; }
+      .modes { grid-template-columns: minmax(0, 1fr); }
+      .drawer-head, .drawer-body { padding-left: 16px; padding-right: 16px; }
+      .toasts { right: 16px; left: 16px; bottom: 16px; }
+      .toast { min-width: 0; max-width: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" data-icon="logo" data-size="18"></div>
+        <div class="brand-text">
+          <div class="brand-name">Project Evolve</div>
+          <div class="brand-sub">Control room</div>
+        </div>
+        <button class="icon-btn" type="button" data-action="theme" id="themeBtn" aria-label="Toggle color theme" title="Toggle theme"></button>
+      </div>
+      <nav class="nav" aria-label="Sections">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="#overview" data-nav="overview" data-icon="overview">Overview</a>
+        <a class="nav-item" href="#versions" data-nav="versions" data-icon="layers">Versions</a>
+        <a class="nav-item" href="#changelog" data-nav="changelog" data-icon="scroll">Changelog</a>
+        <a class="nav-item" href="#history" data-nav="history" data-icon="history">Cycle history</a>
+        <a class="nav-item" href="#ideas" data-nav="ideas" data-icon="bulb">Ideas</a>
+        <a class="nav-item" href="#usage" data-nav="usage" data-icon="chart">Model usage</a>
+        <a class="nav-item" href="#config" data-nav="config" data-icon="sliders">Configuration</a>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="foot-row"><span>Engine</span><span id="engineChip"><span class="skel" style="display:inline-block;width:80px;height:20px"></span></span></div>
+        <div class="foot-row"><span>Live version</span><span class="mono" id="appVersion">—</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="container">
+        <header class="page-head">
+          <div>
+            <h1 id="pageTitle">Overview</h1>
+            <p id="pageSub">Live status of the self-evolving application</p>
+          </div>
+          <div class="actions">
+            <button class="btn" type="button" id="loopBtn" data-action="loop"><span class="spinner"></span><span>Loading</span></button>
+            <button class="btn primary" type="button" id="evolveBtn" data-action="evolve"><span>Evolve now</span></button>
+          </div>
+        </header>
+
+        <div class="banner" id="banner" role="status" hidden>
+          <span data-icon="alert"></span>
+          <span>Can't reach the server. It may be waking up from sleep; retrying automatically.</span>
+          <button class="btn sm" type="button" data-action="retry">Retry now</button>
+        </div>
+
+        <!-- Overview -->
+        <section class="view stack" id="view-overview">
+          <div class="kpis" id="ovKpis">
+            <div class="card kpi"><div class="skel skel-line" style="width:40%"></div><div class="skel" style="height:28px;width:55%;margin:12px 0 8px"></div><div class="skel skel-line" style="width:70%"></div></div>
+            <div class="card kpi"><div class="skel skel-line" style="width:40%"></div><div class="skel" style="height:28px;width:55%;margin:12px 0 8px"></div><div class="skel skel-line" style="width:70%"></div></div>
+            <div class="card kpi"><div class="skel skel-line" style="width:40%"></div><div class="skel" style="height:28px;width:55%;margin:12px 0 8px"></div><div class="skel skel-line" style="width:70%"></div></div>
+            <div class="card kpi"><div class="skel skel-line" style="width:40%"></div><div class="skel" style="height:28px;width:55%;margin:12px 0 8px"></div><div class="skel skel-line" style="width:70%"></div></div>
+          </div>
+
+          <div id="ovLive" hidden></div>
+
+          <div class="cols">
+            <div class="stack">
+              <div class="card">
+                <div class="card-head">
+                  <div><h2>Quality over time</h2><p>Score after each of the last 20 cycles</p></div>
+                  <div class="legend">
+                    <span><i style="background:var(--success)"></i>Completed</span>
+                    <span><i style="background:var(--danger)"></i>Failed</span>
+                    <span><i style="background:var(--warning)"></i>Rejected</span>
+                  </div>
+                </div>
+                <div class="chart" id="ovChart"><div class="skel" style="height:220px"></div></div>
+              </div>
+              <div class="card flush">
+                <div class="card-head">
+                  <div><h2>Recent cycles</h2><p>Select a cycle to see what it changed and why</p></div>
+                  <a class="link" href="#history">View all</a>
+                </div>
+                <div class="table-wrap" id="ovRecent"><div class="pad"><div class="skel skel-line"></div><div class="skel skel-line"></div><div class="skel skel-line" style="width:70%"></div></div></div>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="card">
+                <div class="card-head"><div><h2>Evolution mode</h2><p>Sets what the engine prioritizes next</p></div></div>
+                <div class="modes" data-mode-group></div>
+              </div>
+              <div class="card">
+                <div class="card-head"><div><h2>Steer evolution</h2><p>Describe a feature and the next cycle builds it</p></div></div>
+                <form class="steer" data-steer>
+                  <input class="input" name="title" type="text" autocomplete="off" placeholder="e.g. Add a dark mode toggle" aria-label="Feature to build" maxlength="200">
+                  <button class="btn primary" type="submit"><span data-icon="zap" data-size="15"></span><span>Build it</span></button>
+                </form>
+              </div>
+              <div class="card">
+                <div class="card-head">
+                  <div><h2>Idea bank</h2><p>Ready-to-build feature suggestions</p></div>
+                  <button class="btn sm" type="button" data-action="generate"><span data-icon="plus" data-size="14"></span>Generate</button>
+                </div>
+                <div class="list scroll" id="ovIdeaBank"><div class="skel skel-line"></div><div class="skel skel-line" style="width:80%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="ovRoadmapCard" hidden>
+            <div class="card-head">
+              <div><h2>Evolution roadmap</h2><p>Stages unlock as the app passes each set of automated gates</p></div>
+              <span id="rmProgress"></span>
+            </div>
+            <div id="ovRoadmap"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div><h2>Live preview</h2><p>The evolving app, or any earlier snapshot of it</p></div>
+              <div class="row">
+                <select class="select" id="ovVersion" aria-label="Version to preview"><option value="live">Live (current)</option></select>
+                <a class="btn sm" id="ovOpen" href="/app/" target="_blank" rel="noopener"><span data-icon="external" data-size="14"></span><span class="hide-sm">Open</span></a>
+              </div>
+            </div>
+            <div class="browser">
+              <div class="browser-bar"><div class="traffic"><span></span><span></span><span></span></div><div class="url" id="ovUrl">/app/</div></div>
+              <iframe id="ovFrame" title="Evolving app preview" sandbox="allow-scripts allow-same-origin allow-forms" loading="lazy"></iframe>
+            </div>
+          </div>
+        </section>
+
+        <!-- Versions -->
+        <section class="view stack" id="view-versions" hidden>
+          <div class="split">
+            <div class="card flush">
+              <div class="card-head"><div><h2>Snapshots</h2><p id="tlCount">Loading…</p></div></div>
+              <div class="version-list" id="tlList"></div>
+            </div>
+            <div class="card flush">
+              <div class="browser" style="border:0;border-radius:0">
+                <div class="browser-bar">
+                  <div class="traffic"><span></span><span></span><span></span></div>
+                  <div class="url" id="tlUrl">/app/</div>
+                  <a class="btn sm ghost" id="tlOpen" href="/app/" target="_blank" rel="noopener"><span data-icon="external" data-size="14"></span>Open</a>
+                </div>
+                <iframe id="tlFrame" title="Version preview" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+              </div>
+            </div>
+          </div>
+          <div class="card flush" id="tlFilesCard" hidden>
+            <div class="card-head"><div><h2>Source files</h2><p id="tlFilesMeta"></p></div></div>
+            <div class="code-viewer">
+              <div class="file-list" id="tlFileList"></div>
+              <div class="code" id="tlCode"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Changelog -->
+        <section class="view" id="view-changelog" hidden>
+          <div class="card">
+            <div class="card-head"><div><h2>Releases</h2><p>Every successful evolution cycle, newest first</p></div></div>
+            <div id="clList"></div>
+          </div>
+        </section>
+
+        <!-- History -->
+        <section class="view" id="view-history" hidden>
+          <div class="card flush">
+            <div class="card-head">
+              <div class="seg" role="group" aria-label="Filter by status" id="histFilter">
+                <button type="button" data-action="hist-filter" data-f="all" aria-pressed="true">All</button>
+                <button type="button" data-action="hist-filter" data-f="completed" aria-pressed="false">Completed</button>
+                <button type="button" data-action="hist-filter" data-f="failed" aria-pressed="false">Failed</button>
+                <button type="button" data-action="hist-filter" data-f="rejected" aria-pressed="false">Rejected</button>
+              </div>
+              <span class="muted" id="histCount" style="font-size:13px;align-self:center"></span>
+            </div>
+            <div class="table-wrap" id="histTable"></div>
+            <div class="table-foot" id="histMore" hidden><button class="btn sm" type="button" data-action="hist-more">Load more</button></div>
+          </div>
+        </section>
+
+        <!-- Ideas -->
+        <section class="view stack" id="view-ideas" hidden>
+          <div class="cols">
+            <div class="card">
+              <div class="card-head"><div><h2>Steer evolution</h2><p>The next cycle implements whatever you describe here</p></div></div>
+              <form class="steer" data-steer>
+                <input class="input" name="title" type="text" autocomplete="off" placeholder="e.g. Add keyboard shortcuts to the todo list" aria-label="Feature to build" maxlength="200">
+                <button class="btn primary" type="submit"><span data-icon="zap" data-size="15"></span><span>Build it</span></button>
+              </form>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h2>Evolution mode</h2></div></div>
+              <div class="modes" data-mode-group></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div><h2>Idea bank</h2><p>Curated feature ideas waiting to be built</p></div>
+              <button class="btn sm" type="button" data-action="generate"><span data-icon="plus" data-size="14"></span>Generate more</button>
+            </div>
+            <div class="list" id="ideasBank"></div>
+          </div>
+          <div class="card flush">
+            <div class="card-head"><div><h2>All ideas</h2><p>Proposals from the strategist and planner, ranked by priority</p></div></div>
+            <div class="table-wrap" id="ideasTable"></div>
+          </div>
+        </section>
+
+        <!-- Usage -->
+        <section class="view stack" id="view-usage" hidden>
+          <div class="kpis" id="usageKpis"></div>
+          <div class="card flush">
+            <div class="card-head"><div><h2>Recent requests</h2><p>The last 100 model calls</p></div></div>
+            <div class="table-wrap" id="usageTable"></div>
+          </div>
+        </section>
+
+        <!-- Config -->
+        <section class="view stack" id="view-config" hidden>
+          <div class="kv-grid">
+            <div class="card"><div class="card-head"><div><h2>Engine</h2><p>Scheduler and cycle limits</p></div></div><div id="cfgEngine"></div></div>
+            <div class="card"><div class="card-head"><div><h2>Deployment</h2><p>Child app process status</p></div></div><div id="cfgDeploy"></div></div>
+            <div class="card"><div class="card-head"><div><h2>LLM client</h2><p>Provider statistics since boot</p></div></div><div id="cfgLlm"></div></div>
+          </div>
+          <div class="card flush">
+            <div class="card-head"><div><h2>Stored settings</h2><p>Values persisted in the system_config table</p></div></div>
+            <div class="table-wrap" id="cfgStored"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="drawer-bg" id="drawerBg" data-action="close-drawer"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-eyebrow" id="drawerEyebrow">Cycle</div>
+        <h2 class="drawer-title" id="drawerTitle">Loading…</h2>
+      </div>
+      <button class="icon-btn" type="button" id="drawerClose" data-action="close-drawer" aria-label="Close details"><span data-icon="x" data-size="18"></span></button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // ---------- Helpers ----------
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+    const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
+    const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : '');
+    const fmtNum = (n) => (Number(n) || 0).toLocaleString();
+
+    const ICONS = {
+      logo: '<path d="M7 21c0-7 10-7 10-14M17 21c0-7-10-7-10-14M8.5 10h7M8.5 18h7"/>',
+      overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+      layers: '<path d="m12 3 9 4.5-9 4.5-9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>',
+      scroll: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
+      history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+      bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1.1 1.3 1.1 2.2h5c0-.9.5-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>',
+      chart: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+      sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+      zap: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+      play: '<path d="M7 4.5v15l12-7.5z"/>',
+      pause: '<rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/>',
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+      x: '<path d="M18 6 6 18M6 6l12 12"/>',
+      file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+      check: '<path d="M20 6 9 17l-5-5"/>',
+      checkCircle: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+      circle: '<circle cx="12" cy="12" r="9"/>',
+      alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/>',
+      info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5M12 8h.01"/>',
+      gauge: '<path d="M12 14l4-4"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/>',
+      tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+      repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+      cpu: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+      activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+      down: '<path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/>',
+      up: '<path d="M12 20V8"/><path d="m7 13 5-5 5 5"/><path d="M5 4h14"/>',
+      dollar: '<path d="M12 2v20M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+      sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+      moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>',
+    };
+    const icon = (n, s = 16) => `<svg class="i" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+
+    function toSnake(str) { return str.replace(/([A-Z])/g, '_$1').toLowerCase(); }
+    function snakeKeys(obj) {
+      if (Array.isArray(obj)) return obj.map(snakeKeys);
+      if (obj && typeof obj === 'object') {
+        const out = {};
+        for (const [k, v] of Object.entries(obj)) out[toSnake(k)] = snakeKeys(v);
+        return out;
+      }
+      return obj;
+    }
+    const parseJson = (v) => {
+      if (v == null || v === '') return null;
+      if (typeof v !== 'string') return v;
+      try { return JSON.parse(v); } catch { return null; }
+    };
+    function fileList(v) {
+      const p = parseJson(v);
+      if (Array.isArray(p)) return p.map(String);
+      if (typeof v === 'string') return v.split(',').map((s) => s.trim()).filter(Boolean);
+      return [];
+    }
+    function ago(iso) {
+      if (!iso) return '—';
+      const t = new Date(iso).getTime();
+      if (Number.isNaN(t)) return '—';
+      const s = Math.round((Date.now() - t) / 1000);
+      if (s < 45) return 'just now';
+      const m = Math.round(s / 60); if (m < 60) return m + 'm ago';
+      const h = Math.round(m / 60); if (h < 24) return h + 'h ago';
+      const d = Math.round(h / 24); if (d < 7) return d + 'd ago';
+      return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+    const fullDate = (iso) => iso ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+    function duration(a, b) {
+      if (!a || !b) return '—';
+      const s = Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000));
+      const m = Math.floor(s / 60);
+      return m ? `${m}m ${s % 60}s` : `${s}s`;
+    }
+
+    const STATUS = {
+      completed: ['success', 'Completed'], failed: ['danger', 'Failed'], rejected: ['warning', 'Rejected'],
+      running: ['info', 'Running'], pending: ['neutral', 'Pending'], proposed: ['info', 'Proposed'],
+      selected: ['accent', 'Selected'], implemented: ['success', 'Implemented'],
+    };
+    function badge(status) {
+      const [k, l] = STATUS[status] || ['neutral', cap(status || 'unknown')];
+      return `<span class="badge ${k}">${status === 'running' ? '<span class="dot pulse"></span>' : ''}${esc(l)}</span>`;
+    }
+    function quality(before, after) {
+      if (after == null) return '<span class="muted">—</span>';
+      const d = before == null ? 0 : Math.round(after - before);
+      return `<span class="q">${Math.round(after)}</span>${d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span>` : ''}`;
+    }
+    const empty = (title, text, ic = 'circle') =>
+      `<div class="empty"><div class="empty-icon">${icon(ic, 18)}</div><div class="empty-title">${esc(title)}</div>${text ? `<p>${esc(text)}</p>` : ''}</div>`;
+    const skelRows = (n = 3) => `<div class="pad">${Array.from({ length: n }, (_, i) => `<div class="skel skel-line" style="width:${90 - i * 12}%"></div>`).join('')}</div>`;
+
+    function toast(msg, kind = 'info') {
+      const el = document.createElement('div');
+      el.className = 'toast ' + kind;
+      el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+      el.innerHTML = `${icon(kind === 'error' ? 'alert' : kind === 'success' ? 'checkCircle' : 'info', 17)}<span>${esc(msg)}</span>`;
+      $('#toasts').append(el);
+      setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 250); }, 4200);
+    }
+    function setBusy(btn, on, label) {
+      if (!btn) return;
+      if (on) {
+        btn.dataset.html = btn.innerHTML; btn.dataset.busy = '1'; btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span><span>${esc(label || 'Working…')}</span>`;
+      } else {
+        btn.disabled = false; delete btn.dataset.busy;
+        if (btn.dataset.html != null) { btn.innerHTML = btn.dataset.html; delete btn.dataset.html; }
+      }
+    }
+
+    // ---------- API ----------
+    async function api(path, opts) {
+      const res = await fetch('/api' + path, opts);
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch { /* non-JSON */ }
+      if (!res.ok) {
+        const err = new Error((data && data.error) || `Request failed (${res.status})`);
+        err.status = res.status; throw err;
+      }
+      return snakeKeys(data);
+    }
+    async function get(path, fallback = null) { try { return (await api(path)) ?? fallback; } catch { return fallback; } }
+    const post = (path, body) => api(path, {
+      method: 'POST',
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    // ---------- State ----------
+    const state = {
+      status: null, cycles: [], loop: null, roadmap: null, snapshots: [], ideaBank: [], ideas: null,
+      usage: null, configs: null, mode: 'foundation', offline: false,
+      history: { items: [], filter: 'all', loaded: false, loading: false, more: false },
+      changelog: null, previewVersion: 'live', files: { cycleId: null, list: [], idx: 0 },
+    };
+    const VIEWS = {
+      overview: ['Overview', 'Live status of the self-evolving application'],
+      versions: ['Versions', 'Preview any snapshot of the app and browse its source'],
+      changelog: ['Changelog', 'What each successful cycle shipped'],
+      history: ['Cycle history', 'Every evolution cycle and how it ended'],
+      ideas: ['Ideas', 'Steer evolution and manage the idea backlog'],
+      usage: ['Model usage', 'LLM requests, tokens and estimated cost'],
+      config: ['Configuration', 'Engine settings and stored system config'],
+    };
+    const PHASES = ['observing', 'strategizing', 'planning', 'building', 'evaluating', 'committing', 'deploying', 'learning'];
+    const MODES = {
+      foundation: ['Foundation', 'Types, tests and error handling'],
+      features: ['Features', 'Visible, user-facing functionality'],
+      quality: ['Quality', 'Accessibility, security, coverage'],
+      polish: ['Polish', 'Visual design, motion and docs'],
+    };
+    let view = 'overview';
+    let loading = false;
+    let refreshTimer = null;
+
+    const isRunning = () => !!state.status?.worker?.is_running || state.cycles.some((c) => c.status === 'running');
+    function engineState() {
+      if (isRunning()) return ['info', 'Cycle running'];
+      if (state.loop?.active) return ['success', 'Loop active'];
+      return ['neutral', 'Paused'];
+    }
+
+    // ---------- Data loading ----------
+    async function loadCore() {
+      if (loading) return;
+      loading = true;
+      try {
+        const [status, cycles, loop] = await Promise.all([get('/status'), get('/cycles?limit=20'), get('/loop/status')]);
+        state.offline = !status;
+        $('#banner').hidden = !state.offline;
+        if (!status) return;
+        state.status = status;
+        state.cycles = (cycles && cycles.cycles) || [];
+        state.loop = loop;
+        renderChrome();
+        renderView();
+        const [roadmap, snapshots, ideaBank] = await Promise.all([get('/roadmap'), get('/snapshots', []), get('/idea-bank', [])]);
+        state.roadmap = roadmap;
+        state.snapshots = Array.isArray(snapshots) ? snapshots : [];
+        state.ideaBank = Array.isArray(ideaBank) ? ideaBank : [];
+        renderView();
+      } finally {
+        loading = false;
+        scheduleRefresh();
+      }
+    }
+    function scheduleRefresh() {
+      clearTimeout(refreshTimer);
+      const delay = state.offline ? 5000 : isRunning() ? 10000 : 45000;
+      refreshTimer = setTimeout(() => { if (document.hidden) scheduleRefresh(); else loadCore(); }, delay);
+    }
+    async function loadHistory(reset) {
+      const h = state.history;
+      if (h.loading) return;
+      h.loading = true;
+      if (reset) { h.items = []; renderHistory(); }
+      const q = `/cycles?limit=50&offset=${h.items.length}${h.filter !== 'all' ? '&status=' + h.filter : ''}`;
+      const res = await get(q, { cycles: [] });
+      const rows = res.cycles || [];
+      h.items = h.items.concat(rows);
+      h.more = rows.length === 50;
+      h.loaded = true; h.loading = false;
+      renderHistory();
+    }
+    async function loadChangelog() {
+      const res = await get('/cycles?status=completed&limit=60', { cycles: [] });
+      state.changelog = res.cycles || [];
+      renderChangelog();
+    }
+    async function loadIdeas() { state.ideas = (await get('/ideas', [])) || []; renderIdeas(); }
+    async function loadUsage() { state.usage = await get('/usage', { usage: [], totals: {} }); renderUsage(); }
+    async function loadConfigs() { state.configs = (await get('/config', [])) || []; renderConfig(); }
+    async function loadIdeaBank() { state.ideaBank = (await get('/idea-bank', [])) || []; renderView(); }
+
+    // ---------- Chrome ----------
+    function renderChrome() {
+      const [k, l] = engineState();
+      $('#engineChip').innerHTML = `<span class="badge ${k}"><span class="dot ${k === 'info' ? 'pulse' : ''}"></span>${l}</span>`;
+      $('#appVersion').textContent = 'v' + (state.status?.project?.current_version || '0.0.0');
+      const lb = $('#loopBtn');
+      if (!lb.dataset.busy) {
+        const on = !!state.loop?.active;
+        lb.innerHTML = `${icon(on ? 'pause' : 'play', 14)}<span>${on ? 'Pause loop' : 'Start loop'}</span>`;
+        lb.title = on ? 'Stop running cycles back-to-back' : 'Run cycles back-to-back automatically';
+      }
+      const eb = $('#evolveBtn');
+      if (!eb.dataset.busy) {
+        const running = isRunning();
+        eb.disabled = running;
+        eb.innerHTML = running ? '<span class="spinner"></span><span>Cycle running</span>' : `${icon('zap', 15)}<span>Evolve now</span>`;
+      }
+    }
+    function renderModes() {
+      $$('[data-mode-group]').forEach((g) => {
+        g.innerHTML = Object.entries(MODES).map(([k, [n, d]]) =>
+          `<button type="button" class="mode ${state.mode === k ? 'active' : ''}" data-action="mode" data-mode="${k}" aria-pressed="${state.mode === k}"><span class="mode-name">${n}</span><span class="mode-desc">${d}</span></button>`
+        ).join('');
+      });
+    }
+    function setThemeIcon() {
+      const dark = (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+      $('#themeBtn').innerHTML = icon(dark ? 'sun' : 'moon', 17);
+    }
+
+    // ---------- Views ----------
+    function setView(v) {
+      if (!VIEWS[v]) v = 'overview';
+      if (v !== view) window.scrollTo(0, 0);
+      view = v;
+      $$('.nav-item').forEach((a) => a.setAttribute('aria-current', a.dataset.nav === v ? 'page' : 'false'));
+      $$('.view').forEach((s) => { s.hidden = s.id !== 'view-' + v; });
+      $('#pageTitle').textContent = VIEWS[v][0];
+      $('#pageSub').textContent = VIEWS[v][1];
+      document.title = VIEWS[v][0] + ' · Project Evolve';
+      closeDrawer();
+      if (v === 'versions') { const f = $('#tlFrame'); f.dataset.armed = '1'; loadFrame(f); }
+      if (v === 'history' && !state.history.loaded) loadHistory(true);
+      if (v === 'changelog' && !state.changelog) loadChangelog();
+      if (v === 'ideas' && !state.ideas) loadIdeas();
+      if (v === 'usage' && !state.usage) loadUsage();
+      if (v === 'config' && !state.configs) loadConfigs();
+      renderView();
+    }
+    function renderView() {
+      switch (view) {
+        case 'overview': renderOverview(); break;
+        case 'versions': renderVersions(); break;
+        case 'changelog': renderChangelog(); break;
+        case 'history': renderHistory(); break;
+        case 'ideas': renderIdeas(); break;
+        case 'usage': renderUsage(); break;
+        case 'config': renderConfig(); break;
+      }
+    }
+
+    // ---------- Overview ----------
+    const kpi = (label, ic, value, sub, extra = '') =>
+      `<div class="card kpi"><div class="kpi-label">${icon(ic, 15)}<span>${label}</span></div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub}</div>${extra}</div>`;
+
+    function renderOverview() {
+      const s = state.status;
+      if (!s) return;
+      const p = s.project || {};
+      const w = s.worker || {};
+      const q = Math.round(p.quality_score || 0);
+      const total = p.total_cycles || 0;
+      const ok = p.successful_cycles || 0;
+      const rate = total ? Math.round((ok / total) * 100) : 0;
+      const today = Math.max(Number(s.today_cycles) || 0, Number(w.cycles_ran_today) || 0);
+      const [ek, el] = engineState();
+      $('#ovKpis').innerHTML =
+        kpi('Quality score', 'gauge', `${q}<small>/100</small>`, `${esc(p.name || 'Evolving App')}`, `<div class="bar"><span style="width:${Math.min(100, q)}%"></span></div>`) +
+        kpi('Live version', 'tag', `<span class="mono" style="font-size:.85em">v${esc(p.current_version || '0.0.0')}</span>`, `Updated ${ago(p.updated_at)}`) +
+        kpi('Evolution cycles', 'repeat', fmtNum(total), `${rate}% successful · ${fmtNum(p.failed_cycles || 0)} failed`) +
+        kpi('Engine', 'cpu', `<span class="badge ${ek}" style="font-size:13px;height:26px;padding:0 10px"><span class="dot ${ek === 'info' ? 'pulse' : ''}"></span>${el}</span>`,
+          `${today} of ${w.max_cycles_per_day ?? '—'} cycles today · ${state.loop?.active ? 'continuous' : 'manual'}`);
+
+      renderLive();
+      renderChart();
+      $('#ovRecent').innerHTML = cycleTable(state.cycles.slice(0, 6), false) || empty('No cycles yet', 'Click "Evolve now" to run the first one.', 'repeat');
+      $('#ovIdeaBank').innerHTML = ideaItems(state.ideaBank, 8);
+      renderRoadmap();
+      renderVersionSelect();
+    }
+
+    function renderLive() {
+      const c = state.cycles.find((x) => x.status === 'running');
+      const el = $('#ovLive');
+      if (!c) { el.hidden = true; el.innerHTML = ''; return; }
+      el.hidden = false;
+      const idx = PHASES.indexOf(c.phase);
+      el.innerHTML = `<div class="card live">
+        <div class="card-head">
+          <div><div class="eyebrow"><span class="dot pulse"></span>Live · Cycle #${esc(c.cycle_number)}</div><h2>${esc(c.selected_improvement || 'Analyzing the app…')}</h2></div>
+          <span class="muted nowrap" style="font-size:13px">Started ${ago(c.started_at || c.created_at)}</span>
+        </div>
+        <div class="steps">${PHASES.map((ph, i) => `<div class="step ${i < idx ? 'done' : i === idx ? 'active' : ''}"><span class="step-bar"></span><span class="step-label">${cap(ph)}</span></div>`).join('')}</div>
+      </div>`;
+    }
+
+    function cycleTable(list, withLessons) {
+      if (!list.length) return '';
+      return `<table class="table"><thead><tr><th>Cycle</th><th>Improvement</th><th>Status</th><th>Quality</th><th class="hide-sm">Commit</th><th class="hide-sm">When</th></tr></thead><tbody>${
+        list.map((c) => `<tr class="row-link" data-cycle="${esc(c.id)}" tabindex="0">
+          <td class="mono muted nowrap">#${esc(c.cycle_number)}</td>
+          <td class="cell-main"><div class="truncate">${esc(c.selected_improvement || cap(c.status))}</div>${withLessons && (c.lessons_learned || c.error_message) ? `<div class="sub truncate">${esc(c.error_message || c.lessons_learned)}</div>` : ''}</td>
+          <td>${badge(c.status)}</td>
+          <td class="nowrap">${quality(c.quality_before, c.quality_after)}</td>
+          <td class="mono muted nowrap hide-sm">${c.commit_sha ? esc(c.commit_sha.slice(0, 7)) : '—'}</td>
+          <td class="muted nowrap hide-sm" title="${esc(fullDate(c.created_at))}">${ago(c.created_at)}</td>
+        </tr>`).join('')
+      }</tbody></table>`;
+    }
+
+    function renderChart() {
+      const el = $('#ovChart');
+      const cycles = state.cycles.slice().reverse().filter((c) => c.quality_after != null || c.quality_before != null);
+      if (cycles.length < 2) { el.innerHTML = empty('Not enough data yet', 'The chart appears once two cycles have been scored.', 'chart'); return; }
+      const W = Math.max(300, Math.floor(el.clientWidth || 640));
+      const H = 240;
+      const pad = { t: 14, r: 12, b: 28, l: 34 };
+      const pw = W - pad.l - pad.r;
+      const ph = H - pad.t - pad.b;
+      const pts = cycles.map((c, i) => {
+        const q = c.quality_after ?? c.quality_before ?? 0;
+        return { x: pad.l + (i / (cycles.length - 1)) * pw, y: pad.t + ph - (Math.max(0, Math.min(100, q)) / 100) * ph, q, c };
+      });
+      const line = pts.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ');
+      const base = pad.t + ph;
+      const area = `${line} L${pts[pts.length - 1].x.toFixed(1)} ${base} L${pts[0].x.toFixed(1)} ${base} Z`;
+      const grid = [0, 25, 50, 75, 100].map((v) => {
+        const y = (pad.t + ph - (v / 100) * ph).toFixed(1);
+        return `<line class="grid-line" x1="${pad.l}" x2="${W - pad.r}" y1="${y}" y2="${y}"/><text class="axis" x="${pad.l - 8}" y="${+y + 4}" text-anchor="end">${v}</text>`;
+      }).join('');
+      const step = Math.max(1, Math.ceil(pts.length / Math.max(2, Math.floor(pw / 70))));
+      const xl = pts.map((p, i) => (i % step === 0 || i === pts.length - 1) && !(i !== pts.length - 1 && pts.length - 1 - i < step / 2)
+        ? `<text class="axis" x="${p.x.toFixed(1)}" y="${H - 6}" text-anchor="middle">#${esc(p.c.cycle_number)}</text>` : '').join('');
+      const color = (st) => st === 'completed' ? 'var(--success)' : st === 'failed' ? 'var(--danger)' : st === 'rejected' ? 'var(--warning)' : 'var(--info)';
+      const dots = pts.map((p, i) => `<g class="pt" data-i="${i}" data-cycle="${esc(p.c.id)}"><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="12" style="fill:transparent"/><circle class="pt-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" style="fill:${color(p.c.status)};stroke:var(--surface);stroke-width:2"/></g>`).join('');
+      el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Quality score for the last ${pts.length} cycles">
+        <defs><linearGradient id="qg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.22"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient></defs>
+        ${grid}${xl}<path d="${area}" style="fill:url(#qg)"/><path d="${line}" style="fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round"/>${dots}
+      </svg><div class="tip" id="chartTip"></div>`;
+      const tip = $('#chartTip', el);
+      $$('.pt', el).forEach((g) => {
+        g.addEventListener('mouseenter', () => {
+          const p = pts[+g.dataset.i];
+          tip.innerHTML = `<div class="tip-title">#${esc(p.c.cycle_number)} · ${esc((p.c.selected_improvement || cap(p.c.status)).slice(0, 70))}</div><div class="tip-row">${badge(p.c.status)}<span>Quality <b>${Math.round(p.q)}</b></span></div><div class="tip-meta">${fullDate(p.c.created_at)}</div>`;
+          tip.classList.add('show');
+          const tw = tip.offsetWidth;
+          tip.style.left = Math.max(0, Math.min(W - tw, p.x - tw / 2)) + 'px';
+          tip.style.top = Math.max(0, p.y - tip.offsetHeight - 14) + 'px';
+        });
+        g.addEventListener('mouseleave', () => tip.classList.remove('show'));
+      });
+    }
+
+    function ideaItems(list, limit) {
+      const items = (list || []).filter((i) => i.status === 'proposed').slice(0, limit || 500);
+      if (!items.length) return empty('The idea bank is empty', 'Generate a batch to get feature suggestions.', 'bulb');
+      return items.map((i) => `<div class="list-item">
+        <div class="list-main"><div class="list-title">${esc(i.title)}</div><div class="list-desc">${esc(i.description || '')}</div></div>
+        <div class="list-side"><span class="tag hide-sm">${esc(i.category || 'feature')}</span><button class="btn sm" type="button" data-action="steer-idea" data-id="${esc(i.id)}">${icon('zap', 13)}Build</button></div>
+      </div>`).join('');
+    }
+
+    function renderRoadmap() {
+      const r = state.roadmap;
+      const card = $('#ovRoadmapCard');
+      if (!r || !Array.isArray(r.stages) || !r.stages.length) { card.hidden = true; return; }
+      card.hidden = false;
+      const cur = r.current_stage || {};
+      $('#rmProgress').innerHTML = `<span class="badge accent">${esc(r.overall_progress || 0)}% complete</span>`;
+      const stage = r.stages.find((s) => s.id === cur.id);
+      $('#ovRoadmap').innerHTML = `<div class="stages">${r.stages.map((s, i) => `
+        <div class="stage ${s.is_complete ? 'complete' : s.id === cur.id ? 'current' : ''}">
+          <div class="stage-top"><span class="stage-num">${s.is_complete ? icon('check', 12) : i + 1}</span><span class="stage-name">${esc(s.name)}</span><span class="stage-pct">${esc(s.percent_complete)}%</span></div>
+          <div class="bar"><span style="width:${Number(s.percent_complete) || 0}%"></span></div>
+        </div>`).join('')}</div>
+        ${stage ? `<div class="gates"><div class="gates-title">Current stage: ${esc(stage.name)}</div><p>${esc(cur.description || stage.description || '')}</p>
+          ${(stage.gates || []).map((g) => `<div class="gate ${g.passed ? 'pass' : ''}">${icon(g.passed ? 'checkCircle' : 'circle', 17)}<span>${esc(g.description)}</span></div>`).join('')}</div>` : ''}`;
+    }
+
+    // ---------- Versions / preview ----------
+    function versions() {
+      const map = {};
+      [].concat(state.cycles, state.history.items, state.changelog || []).forEach((c) => { if (c && c.id) map[c.id] = c; });
+      const out = [{ id: 'live', label: 'Live', title: 'Currently served build', date: null }];
+      const seen = new Set();
+      for (const s of state.snapshots) {
+        const id = s.cycle_id;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const c = map[id];
+        out.push({
+          id, label: 'v' + s.version, num: c?.cycle_number, date: s.created_at,
+          title: c?.selected_improvement || (String(id).startsWith('baseline') ? 'Baseline snapshot' : 'Snapshot'),
+        });
+      }
+      return out;
+    }
+    const previewUrl = (id) => id === 'live' ? '/app/' : '/api/snapshots/' + encodeURIComponent(id) + '/preview';
+    function loadFrame(f) {
+      if (!f.dataset.armed) return;
+      const url = previewUrl(state.previewVersion);
+      if (f.getAttribute('src') !== url) f.setAttribute('src', url);
+    }
+    function setPreview(id) {
+      state.previewVersion = id;
+      const url = previewUrl(id);
+      ['ov', 'tl'].forEach((p) => {
+        loadFrame($('#' + p + 'Frame'));
+        $('#' + p + 'Url').textContent = id === 'live' ? location.host + '/app/' : location.host + url;
+        $('#' + p + 'Open').href = url;
+      });
+      $('#ovVersion').value = id;
+      if (view === 'versions') {
+        renderVersions();
+        if (id === 'live') $('#tlFilesCard').hidden = true; else loadFiles(id);
+      }
+    }
+    function renderVersionSelect() {
+      const sel = $('#ovVersion');
+      const html = versions().map((v) => `<option value="${esc(v.id)}">${esc(v.label)}${v.num ? ` · cycle #${esc(v.num)}` : ''}${v.id === 'live' ? ' (current)' : ''}</option>`).join('');
+      if (sel.dataset.sig !== html) { sel.innerHTML = html; sel.dataset.sig = html; }
+      sel.value = state.previewVersion;
+    }
+    function renderVersions() {
+      const vs = versions();
+      $('#tlCount').textContent = `${vs.length - 1} saved snapshot${vs.length === 2 ? '' : 's'} plus the live build`;
+      $('#tlList').innerHTML = vs.map((v) => `<button type="button" class="version ${state.previewVersion === v.id ? 'active' : ''}" data-action="preview" data-id="${esc(v.id)}">
+        <div class="version-top"><span class="version-label">${esc(v.label)}</span>${v.id === 'live' ? '<span class="badge success"><span class="dot"></span>Live</span>' : v.num ? `<span class="muted mono">#${esc(v.num)}</span>` : ''}</div>
+        <div class="version-title">${esc(v.title)}</div>${v.date ? `<div class="version-meta">${fullDate(v.date)}</div>` : ''}
+      </button>`).join('');
+      const urlText = state.previewVersion === 'live' ? location.host + '/app/' : location.host + previewUrl(state.previewVersion);
+      $('#tlUrl').textContent = urlText;
+    }
+    async function loadFiles(id) {
+      state.files = { cycleId: id, list: [], idx: 0 };
+      $('#tlFilesCard').hidden = false;
+      $('#tlFilesMeta').textContent = 'Loading…';
+      $('#tlFileList').innerHTML = '';
+      $('#tlCode').innerHTML = skelRows(6);
+      const list = await get('/snapshots/' + encodeURIComponent(id), []);
+      if (state.files.cycleId !== id) return;
+      state.files.list = Array.isArray(list) ? list : [];
+      if (!state.files.list.length) { $('#tlFilesCard').hidden = true; return; }
+      const idx = state.files.list.findIndex((f) => f.file_path === 'index.html');
+      state.files.idx = idx >= 0 ? idx : 0;
+      renderFiles();
+    }
+    function renderFiles() {
+      const { list, idx } = state.files;
+      const f = list[idx];
+      if (!f) return;
+      const lines = String(f.content || '').split('\n');
+      $('#tlFilesMeta').textContent = `${list.length} file${list.length === 1 ? '' : 's'} in this snapshot`;
+      $('#tlFileList').innerHTML = list.map((x, i) => `<button type="button" class="file ${i === idx ? 'active' : ''}" data-action="file" data-i="${i}">${icon('file', 14)}<span class="truncate">${esc(x.file_path)}</span></button>`).join('');
+      $('#tlCode').innerHTML = `<div class="code-head"><span class="mono truncate">${esc(f.file_path)}</span><span class="muted nowrap">${lines.length} lines</span></div><pre class="code-body">${lines.map((l, i) => `<span class="ln">${i + 1}</span>${esc(l)}`).join('\n')}</pre>`;
+    }
+
+    // ---------- Changelog ----------
+    function renderChangelog() {
+      const items = state.changelog;
+      const el = $('#clList');
+      if (!items) { el.innerHTML = skelRows(5); return; }
+      if (!items.length) { el.innerHTML = empty('No releases yet', 'Completed cycles will appear here.', 'scroll'); return; }
+      el.innerHTML = items.map((c) => {
+        const files = fileList(c.files_modified);
+        const note = c.lessons_learned || '';
+        return `<article class="release" data-cycle="${esc(c.id)}" tabindex="0">
+          <div class="release-side"><div class="release-ver mono">${esc(c.new_version ? 'v' + c.new_version : '#' + c.cycle_number)}</div><div class="release-date">${fullDate(c.completed_at || c.created_at)}</div></div>
+          <div class="release-body">
+            <div class="release-title">${esc(c.selected_improvement || 'Improvement cycle')}</div>
+            ${note ? `<p class="release-note">${esc(note.slice(0, 220))}${note.length > 220 ? '…' : ''}</p>` : ''}
+            <div class="release-tags">
+              <span class="tag mono">#${esc(c.cycle_number)}</span>
+              ${c.quality_after != null ? `<span class="tag">Quality ${Math.round(c.quality_after)}</span>` : ''}
+              ${files.slice(0, 4).map((f) => `<span class="tag mono">${esc(f)}</span>`).join('')}
+              ${files.length > 4 ? `<span class="tag">+${files.length - 4} more</span>` : ''}
+              ${/push/i.test(c.push_status || '') ? '<span class="tag ok">Pushed</span>' : ''}
+              ${c.deploy_status === 'deployed' ? '<span class="tag ok">Deployed</span>' : ''}
+            </div>
+          </div>
+        </article>`;
+      }).join('');
+    }
+
+    // ---------- History ----------
+    function renderHistory() {
+      const h = state.history;
+      $$('#histFilter button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.f === h.filter)));
+      $('#histCount').textContent = h.loaded ? `${h.items.length}${h.more ? '+' : ''} cycle${h.items.length === 1 ? '' : 's'}` : '';
+      if (!h.items.length) {
+        $('#histTable').innerHTML = h.loading || !h.loaded ? skelRows(6) : empty('No cycles match this filter', '', 'history');
+      } else {
+        $('#histTable').innerHTML = cycleTable(h.items, true);
+      }
+      $('#histMore').hidden = !h.more;
+    }
+
+    // ---------- Ideas ----------
+    function renderIdeas() {
+      $('#ideasBank').innerHTML = ideaItems(state.ideaBank);
+      const t = $('#ideasTable');
+      if (!state.ideas) { t.innerHTML = skelRows(5); return; }
+      if (!state.ideas.length) { t.innerHTML = empty('No ideas yet', 'The strategist records proposals during each cycle.', 'bulb'); return; }
+      const maxPr = Math.max(1, ...state.ideas.map((i) => Number(i.priority_score) || 0));
+      t.innerHTML = `<table class="table"><thead><tr><th>Idea</th><th class="hide-sm">Category</th><th class="hide-sm">Impact · Conf · Effort</th><th>Priority</th><th>Status</th><th></th></tr></thead><tbody>${
+        state.ideas.map((i) => {
+          const pr = Math.round(Number(i.priority_score) || 0);
+          return `<tr>
+            <td class="cell-main"><div class="truncate" style="font-weight:500">${esc(i.title)}</div><div class="sub truncate">${esc(i.description || '')}</div></td>
+            <td class="hide-sm"><span class="tag">${esc(i.category || '—')}</span></td>
+            <td class="mono muted nowrap hide-sm">${esc(i.impact ?? '—')} · ${esc(i.confidence ?? '—')} · ${esc(i.effort ?? '—')}</td>
+            <td class="nowrap"><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:56px"><span style="width:${Math.round((pr / maxPr) * 100)}%"></span></div><span class="mono muted">${pr}</span></div></td>
+            <td>${badge(i.status)}</td>
+            <td>${i.status === 'proposed' ? `<button class="btn sm ghost" type="button" data-action="steer-idea" data-id="${esc(i.id)}">${icon('zap', 13)}Build</button>` : ''}</td>
+          </tr>`;
+        }).join('')
+      }</tbody></table>`;
+    }
+
+    // ---------- Usage ----------
+    function renderUsage() {
+      const u = state.usage;
+      if (!u) { $('#usageKpis').innerHTML = ''; $('#usageTable').innerHTML = skelRows(4); return; }
+      const t = u.totals || {};
+      $('#usageKpis').innerHTML =
+        kpi('Requests', 'activity', fmtNum(t.total_requests), 'All-time model calls') +
+        kpi('Input tokens', 'down', fmtNum(t.total_input_tokens), 'Prompt tokens sent') +
+        kpi('Output tokens', 'up', fmtNum(t.total_output_tokens), 'Completion tokens received') +
+        kpi('Estimated cost', 'dollar', '$' + (Number(t.total_cost) || 0).toFixed(4), 'Across all providers');
+      const rows = u.usage || [];
+      $('#usageTable').innerHTML = !rows.length ? empty('No model usage recorded yet', 'Requests appear here once cycles call the LLM.', 'activity') :
+        `<table class="table"><thead><tr><th>Agent</th><th class="cell-main">Model</th><th>Tokens in / out</th><th class="hide-sm">Cost</th><th class="hide-sm">Duration</th><th>When</th></tr></thead><tbody>${
+          rows.map((r) => `<tr>
+            <td class="nowrap" style="font-weight:500">${esc(cap(r.agent))}</td>
+            <td class="cell-main mono"><div class="truncate">${esc(r.model)}</div></td>
+            <td class="mono nowrap">${fmtNum(r.input_tokens)} / ${fmtNum(r.output_tokens)}</td>
+            <td class="mono muted nowrap hide-sm">$${(Number(r.estimated_cost) || 0).toFixed(4)}</td>
+            <td class="mono muted nowrap hide-sm">${r.duration_ms != null ? (r.duration_ms / 1000).toFixed(1) + 's' : '—'}</td>
+            <td class="muted nowrap" title="${esc(fullDate(r.created_at))}">${ago(r.created_at)}</td>
+          </tr>`).join('')
+        }</tbody></table>`;
+    }
+
+    // ---------- Config ----------
+    function kvRows(obj) {
+      const rows = Object.entries(obj || {}).filter(([, v]) => v == null || typeof v !== 'object');
+      if (!rows.length) return '<div class="muted" style="font-size:13px">Nothing reported</div>';
+      return rows.map(([k, v]) => `<div class="kv"><span class="kv-k">${esc(cap(k.replace(/_/g, ' ')))}</span><span class="kv-v mono">${esc(v == null ? '—' : String(v))}</span></div>`).join('');
+    }
+    function renderConfig() {
+      const s = state.status || {};
+      $('#cfgEngine').innerHTML = kvRows(Object.assign({ evolution_mode: state.mode, loop_active: !!state.loop?.active }, s.worker || {}));
+      $('#cfgDeploy').innerHTML = kvRows(s.deploy);
+      $('#cfgLlm').innerHTML = kvRows(s.llm);
+      const c = state.configs;
+      $('#cfgStored').innerHTML = !c ? skelRows(2) : !c.length ? empty('No stored settings', '', 'sliders') :
+        `<table class="table"><thead><tr><th>Key</th><th class="cell-main">Value</th><th class="hide-sm">Updated</th></tr></thead><tbody>${
+          c.map((r) => `<tr><td class="mono nowrap">${esc(r.key)}</td><td class="cell-main mono"><div class="truncate">${esc(r.value)}</div></td><td class="muted nowrap hide-sm">${fullDate(r.updated_at)}</td></tr>`).join('')
+        }</tbody></table>`;
+    }
+
+    // ---------- Cycle drawer ----------
+    let lastFocus = null;
+    const SEV = { critical: 'danger', high: 'danger', medium: 'warning', low: 'info' };
+    function obsHtml(list) {
+      return list.map((o) => {
+        const sev = String(o.severity || 'low').toLowerCase();
+        const fp = o.file_path || o.filePath;
+        return `<div class="obs sev-${esc(sev)}"><div class="obs-head"><span class="obs-cat">${esc(cap(o.category || 'general'))}</span><span class="badge ${SEV[sev] || 'neutral'}">${esc(cap(sev))}</span></div>
+          <p>${esc(o.description || '')}</p>${fp ? `<div class="obs-file mono">${icon('file', 12)}${esc(fp)}</div>` : ''}</div>`;
+      }).join('');
+    }
+    function planHtml(raw) {
+      const p = parseJson(raw);
+      if (!p || typeof p !== 'object') return typeof raw === 'string' && raw ? `<p class="prose">${esc(raw)}</p>` : '';
+      let h = '';
+      const stepText = Array.isArray(p.steps) ? p.steps.map((s) => (typeof s === 'string' ? s : s && s.description)) : [];
+      if (p.approach && p.approach !== p.title && !stepText.includes(p.approach)) h +=`<p class="lead">${esc(p.approach)}</p>`;
+      if (Array.isArray(p.steps) && p.steps.length) {
+        h += `<ol class="plan-steps">${p.steps.map((s) => {
+          const t = typeof s === 'string' ? s : (s.description || s.action || JSON.stringify(s));
+          const files = s && Array.isArray(s.files) ? s.files : [];
+          return `<li><span>${esc(t)}</span>${files.length ? `<div class="step-files">${files.map((f) => `<span class="tag mono">${esc(typeof f === 'string' ? f : f.path)}</span>`).join('')}</div>` : ''}</li>`;
+        }).join('')}</ol>`;
+      }
+      return h || `<pre class="pre">${esc(JSON.stringify(p, null, 2).slice(0, 3000))}</pre>`;
+    }
+    async function openCycle(id) {
+      lastFocus = document.activeElement;
+      $('#drawerEyebrow').textContent = 'Cycle';
+      $('#drawerTitle').textContent = 'Loading…';
+      $('#drawerBody').innerHTML = skelRows(8);
+      $('#drawer').classList.add('open');
+      $('#drawer').setAttribute('aria-hidden', 'false');
+      $('#drawerBg').classList.add('open');
+      $('#drawerClose').focus();
+      const c = await get('/cycles/' + encodeURIComponent(id));
+      if (!$('#drawer').classList.contains('open')) return;
+      if (!c) { $('#drawerTitle').textContent = 'Unavailable'; $('#drawerBody').innerHTML = empty("Couldn't load this cycle", 'Try again in a moment.', 'alert'); return; }
+      const obsRaw = parseJson(c.observation);
+      const obs = Array.isArray(obsRaw) && obsRaw.length ? obsRaw : (Array.isArray(c.observations) ? c.observations : []);
+      const files = fileList(c.files_modified);
+      const delta = c.quality_before != null && c.quality_after != null ? Math.round(c.quality_after - c.quality_before) : null;
+      $('#drawerEyebrow').textContent = `Cycle #${c.cycle_number}${c.new_version ? ' · v' + c.new_version : ''}`;
+      $('#drawerTitle').textContent = c.selected_improvement || cap(c.status);
+      $('#drawerBody').innerHTML = `
+        <div class="badges">${badge(c.status)}${c.phase && c.phase !== c.status ? `<span class="badge neutral">Phase: ${esc(cap(c.phase))}</span>` : ''}</div>
+        <div class="meta-grid">
+          <div class="meta"><div class="meta-k">Started</div><div class="meta-v">${fullDate(c.started_at || c.created_at)}</div></div>
+          <div class="meta"><div class="meta-k">Duration</div><div class="meta-v">${duration(c.started_at || c.created_at, c.completed_at)}</div></div>
+          <div class="meta"><div class="meta-k">Commit</div><div class="meta-v mono">${c.commit_sha ? esc(c.commit_sha.slice(0, 10)) : '—'}</div></div>
+          <div class="meta"><div class="meta-k">Push</div><div class="meta-v">${esc(c.push_status || '—')}</div></div>
+          <div class="meta"><div class="meta-k">Deploy</div><div class="meta-v">${esc(c.deploy_status || '—')}</div></div>
+          <div class="meta"><div class="meta-k">Model</div><div class="meta-v mono" title="${esc(c.model_used || '')}">${esc(c.model_used || '—')}</div></div>
+        </div>
+        <div class="compare">
+          <div class="compare-item"><span class="meta-k">Quality before</span><b>${c.quality_before != null ? Math.round(c.quality_before) : '—'}</b></div>
+          <span class="arrow">→</span>
+          <div class="compare-item"><span class="meta-k">Quality after</span><b>${c.quality_after != null ? Math.round(c.quality_after) : '—'}</b></div>
+          ${delta ? `<span class="badge ${delta > 0 ? 'success' : 'danger'}" style="margin-left:auto">${delta > 0 ? '+' : ''}${delta} points</span>` : ''}
+        </div>
+        ${c.error_message ? `<div class="section"><h3>Error</h3><div class="callout danger">${esc(c.error_message)}</div></div>` : ''}
+        ${c.selection_reason ? `<div class="section"><h3>Why this was chosen</h3><p class="prose">${esc(c.selection_reason)}</p></div>` : ''}
+        ${c.implementation_plan ? `<div class="section"><h3>Implementation plan</h3>${planHtml(c.implementation_plan)}</div>` : ''}
+        ${files.length ? `<div class="section"><h3>Files modified</h3><div class="chips">${files.map((f) => `<span class="tag mono">${esc(f)}</span>`).join('')}</div></div>` : ''}
+        ${c.lessons_learned ? `<div class="section"><h3>Lessons learned</h3><div class="callout">${esc(c.lessons_learned)}</div></div>` : ''}
+        ${obs.length ? `<div class="section"><h3>Observations · ${obs.length}</h3>${obsHtml(obs)}</div>` : ''}
+        ${c.test_results ? `<div class="section"><h3>Test results</h3><pre class="pre">${esc(String(c.test_results).slice(0, 4000))}</pre></div>` : ''}
+      `;
+    }
+    function closeDrawer() {
+      const d = $('#drawer');
+      if (!d.classList.contains('open')) return;
+      d.classList.remove('open');
+      d.setAttribute('aria-hidden', 'true');
+      $('#drawerBg').classList.remove('open');
+      if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+    }
+
+    // ---------- Actions ----------
+    async function steer(title, description, btn) {
+      title = (title || '').trim();
+      if (!title) { toast('Describe what to build first.', 'error'); return false; }
+      setBusy(btn, true, 'Starting…');
+      try {
+        const r = await post('/evolve/steer', { title, description: description || title });
+        toast((r && r.message) || 'Steered evolution started', 'success');
+        return true;
+      } catch (err) {
+        toast(err.message, 'error');
+        return false;
+      } finally {
+        setBusy(btn, false);
+        setTimeout(loadCore, 1200);
+      }
+    }
+    function findIdea(id) {
+      return (state.ideaBank || []).concat(state.ideas || []).find((i) => i.id === id);
+    }
+
+    document.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-action]');
+      if (a) {
+        const act = a.dataset.action;
+        if (act === 'close-drawer') { closeDrawer(); return; }
+        if (act === 'theme') {
+          const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          const next = cur === 'dark' ? 'light' : 'dark';
+          document.documentElement.dataset.theme = next;
+          try { localStorage.setItem('evolve-theme', next); } catch { /* storage unavailable */ }
+          setThemeIcon(); if (view === 'overview') renderChart();
+          return;
+        }
+        if (act === 'retry') { loadCore(); return; }
+        if (act === 'evolve') {
+          setBusy(a, true, 'Starting…');
+          try { await post('/evolve'); toast('Evolution cycle started', 'success'); }
+          catch (err) { toast(err.status === 409 ? 'A cycle is already running.' : err.status === 429 ? 'Daily cycle limit reached.' : err.message, 'error'); }
+          finally { setBusy(a, false); renderChrome(); setTimeout(loadCore, 1200); }
+          return;
+        }
+        if (act === 'loop') {
+          const on = !!state.loop?.active;
+          setBusy(a, true, on ? 'Pausing…' : 'Starting…');
+          try { const r = await post('/loop/' + (on ? 'stop' : 'start')); toast(on ? 'Evolution loop paused' : 'Evolution loop started', 'success'); void r; }
+          catch (err) { toast(err.message, 'error'); }
+          finally { setBusy(a, false); await loadCore(); renderChrome(); }
+          return;
+        }
+        if (act === 'mode') {
+          const mode = a.dataset.mode;
+          if (mode === state.mode) return;
+          const prev = state.mode;
+          state.mode = mode; renderModes();
+          try { await post('/evolution-mode', { mode }); toast(`Mode set to ${MODES[mode][0]}`, 'success'); }
+          catch (err) { state.mode = prev; renderModes(); toast(err.message, 'error'); }
+          if (view === 'config') renderConfig();
+          return;
+        }
+        if (act === 'generate') {
+          setBusy(a, true, 'Generating…');
+          try {
+            const r = await post('/idea-bank/generate');
+            toast(r && r.generated ? `Added ${r.generated} new idea${r.generated === 1 ? '' : 's'}` : (r && r.message) || 'No new ideas to add', r && r.generated ? 'success' : 'info');
+            await loadIdeaBank();
+            if (state.ideas) loadIdeas();
+          } catch (err) { toast(err.message, 'error'); }
+          finally { setBusy(a, false); }
+          return;
+        }
+        if (act === 'steer-idea') {
+          const idea = findIdea(a.dataset.id);
+          if (idea) steer(idea.title, idea.description, a);
+          return;
+        }
+        if (act === 'preview') { setPreview(a.dataset.id); return; }
+        if (act === 'file') { state.files.idx = +a.dataset.i; renderFiles(); return; }
+        if (act === 'hist-filter') { if (state.history.filter !== a.dataset.f) { state.history.filter = a.dataset.f; loadHistory(true); } return; }
+        if (act === 'hist-more') { loadHistory(false); return; }
+      }
+      const row = e.target.closest('[data-cycle]');
+      if (row) openCycle(row.dataset.cycle);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-cycle][tabindex]')) {
+        e.preventDefault(); openCycle(e.target.dataset.cycle);
+      }
+    });
+
+    document.addEventListener('submit', async (e) => {
+      const form = e.target.closest('[data-steer]');
+      if (!form) return;
+      e.preventDefault();
+      const input = form.elements.title;
+      const ok = await steer(input.value, '', form.querySelector('button[type="submit"]'));
+      if (ok) input.value = '';
+    });
+
+    $('#ovVersion').addEventListener('change', (e) => setPreview(e.target.value));
+    window.addEventListener('hashchange', () => setView(location.hash.slice(1)));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadCore(); });
+    let resizeT;
+    window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (view === 'overview') renderChart(); }, 150); });
+    try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setThemeIcon); } catch { /* old browsers */ }
+
+    // ---------- Init ----------
+    $$('[data-icon]').forEach((el) => el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon, +el.dataset.size || 16)));
+    setThemeIcon();
+    renderModes();
+    setView(location.hash.slice(1) || 'overview');
+    if ('IntersectionObserver' in window) {
+      const f = $('#ovFrame');
+      const io = new IntersectionObserver((entries) => {
+        if (entries.some((en) => en.isIntersecting)) { f.dataset.armed = '1'; loadFrame(f); io.disconnect(); }
+      }, { rootMargin: '300px' });
+      io.observe(f);
+    } else { $('#ovFrame').dataset.armed = '1'; loadFrame($('#ovFrame')); }
+    get('/evolution-mode').then((m) => { if (m && MODES[m.mode]) { state.mode = m.mode; renderModes(); if (view === 'config') renderConfig(); } });
+    loadCore();
+  })();
+  </script>
+</body>
+</html>

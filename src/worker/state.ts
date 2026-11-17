@@ -72,7 +72,7 @@ export function canRunCycle(): boolean {
 
 export function isLoopActive() { return loopActive; }
 
-const DELAY_BETWEEN_CYCLES_MS = 90_000;
+const DELAY_BETWEEN_CYCLES_MS = config.evolution.loopDelaySeconds * 1000;
 
 export function startLoop(runOneCycle: () => Promise<void>) {
   if (loopActive) return;

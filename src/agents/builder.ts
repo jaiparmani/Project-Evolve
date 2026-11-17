@@ -1,4 +1,5 @@
 import { chatForTask } from "../llm/router.js";
+import { config } from "../core/config.js";
 import { childLogger } from "../core/logger.js";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from "fs";
 import { resolve, dirname } from "path";
@@ -48,8 +49,18 @@ export async function build(
     }
   }
 
+  // Give the model the FULL contents of every file it must rewrite (bounded so the
+  // prompt stays within free-model context windows). Truncated context is what made
+  // whole-file rewrites lossy.
+  const CONTEXT_BUDGET = 90_000;
+  let used = 0;
   const existingContext = Object.entries(existingFiles)
-    .map(([path, content]) => `--- ${path} ---\n${content.slice(0, 2000)}`)
+    .map(([path, content]) => {
+      const room = Math.max(0, CONTEXT_BUDGET - used);
+      const body = content.length <= room ? content : content.slice(0, room) + "\n/* …truncated… */";
+      used += body.length;
+      return `--- ${path} (${content.length} chars) ---\n${body}`;
+    })
     .join("\n\n");
 
   const retryContext = previousAttempt
@@ -74,7 +85,7 @@ Files to modify: ${toModify.join(", ") || "none"}
 Files to delete: ${(Array.isArray(implementationPlan.filesToDelete) ? implementationPlan.filesToDelete : []).join(", ") || "none"}
 
 EXISTING FILE CONTENTS:
-${existingContext.slice(0, 5000) || "No existing files"}
+${existingContext || "No existing files"}
 
 Generate the file changes. Return JSON:
 {
@@ -93,7 +104,9 @@ CRITICAL RULES:
 - Match the EXISTING tech stack. If the app uses plain JavaScript and HTML, write JavaScript and HTML — do NOT introduce TypeScript, React, or other frameworks unless the plan explicitly says to.
 - If creating a new file, include ALL necessary imports/requires.
 - If modifying an existing file, include the ENTIRE updated file content, not just the changed parts.
-- Keep changes minimal and focused. Do ONE thing well.
+- Be AMBITIOUS. Ship a substantial, clearly visible upgrade — a whole new feature, page, or redesign — not a tweak.
+- You may create several new files (pages, scripts, styles, API routes) and wire them together.
+- Preserve existing features unless the plan says to replace them.
 - Make sure the server can still start after your changes.
 - Do NOT create test files unless the plan specifically asks for tests.`;
 
@@ -103,7 +116,7 @@ CRITICAL RULES:
     const result = await chatForTask("implement", [
       { role: "system", content: "You are an expert developer. Reply with ONLY valid JSON containing file changes." },
       { role: "user", content: prompt },
-    ], { jsonMode: true, maxTokens: 8192 });
+    ], { jsonMode: true, maxTokens: 32000, timeoutMs: config.evolution.buildTimeoutSeconds * 1000 });
 
     const data = (result as unknown as { data: { changes: FileChange[]; summary: string } }).data;
     changes = (data.changes || []).filter((c: FileChange) => c.path && (c.action === "delete" || c.content));
@@ -148,8 +161,14 @@ CRITICAL RULES:
     const dir = dirname(fullPath);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-    if (change.action === "modify" && existsSync(fullPath)) {
+    if (existsSync(fullPath)) {
       const old = readFileSync(fullPath, "utf-8");
+      // A rewrite that keeps <25% of a large file is almost always a truncated LLM response.
+      if (old.length > 4000 && change.content.length < old.length * 0.25) {
+        buildLog.push(`Skipped ${change.path}: new content looks truncated (${change.content.length} vs ${old.length} chars)`);
+        log.warn({ file: change.path, before: old.length, after: change.content.length }, "Skipping likely-truncated rewrite");
+        continue;
+      }
       linesRemoved += old.split("\n").length;
     }
 

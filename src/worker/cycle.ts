@@ -107,7 +107,7 @@ async function updatePhase(cycleId: string, phase: CyclePhase, extra?: Record<st
   await db.update(schema.evolutionCycles).set(updates as never).where(eq(schema.evolutionCycles.id, cycleId));
 }
 
-const CYCLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes max per cycle
+const CYCLE_TIMEOUT_MS = config.evolution.cycleTimeoutMinutes * 60 * 1000;
 
 export interface UserIdea {
   title: string;
@@ -118,7 +118,7 @@ export async function runCycle(projectId: string, userIdea?: UserIdea): Promise<
   return Promise.race([
     runCycleInner(projectId, userIdea),
     new Promise<CycleResult>((_, reject) =>
-      setTimeout(() => reject(new Error("Cycle timed out after 5 minutes")), CYCLE_TIMEOUT_MS)
+      setTimeout(() => reject(new Error(`Cycle timed out after ${config.evolution.cycleTimeoutMinutes} minutes`)), CYCLE_TIMEOUT_MS)
     ),
   ]);
 }

@@ -86,7 +86,7 @@ export async function selectModel(task: TaskType): Promise<string> {
 export async function chatForTask(
   task: TaskType,
   messages: LLMMessage[],
-  opts: { maxTokens?: number; jsonMode?: boolean } = {}
+  opts: { maxTokens?: number; jsonMode?: boolean; timeoutMs?: number } = {}
 ) {
   const prefs = MODEL_PREFERENCES[task] || MODEL_PREFERENCES.classify;
   const available = await getAvailableModels();
@@ -101,9 +101,9 @@ export async function chatForTask(
     try {
       log.info({ task, model, attempt: i + 1, total: models.length }, "Trying model");
       if (opts.jsonMode) {
-        return await client.chatJson(messages, { model, maxTokens: opts.maxTokens });
+        return await client.chatJson(messages, { model, maxTokens: opts.maxTokens, timeout: opts.timeoutMs });
       }
-      return await client.chat(messages, { model, maxTokens: opts.maxTokens });
+      return await client.chat(messages, { model, maxTokens: opts.maxTokens, timeout: opts.timeoutMs });
     } catch (err) {
       lastError = err as Error;
       if (err instanceof RateLimitError) {

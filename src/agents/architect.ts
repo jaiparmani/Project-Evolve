@@ -36,11 +36,11 @@ function getProjectStructure(dir: string, depth = 3, prefix = ""): string[] {
 
 function readRelevantFiles(dir: string, fileList: string[]): string {
   const parts: string[] = [];
-  for (const f of fileList.slice(0, 8)) {
+  for (const f of fileList.slice(0, 12)) {
     try {
       const full = resolve(dir, f);
       const content = readFileSync(full, "utf-8");
-      parts.push(`--- ${f} ---\n${content.slice(0, 2000)}`);
+      parts.push(`--- ${f} ---\n${content.slice(0, 8000)}`);
     } catch {}
   }
   return parts.join("\n\n");
@@ -73,7 +73,7 @@ PROJECT STRUCTURE:
 ${structure.join("\n")}
 
 KEY FILES:
-${fileContents.slice(0, 4000)}
+${fileContents.slice(0, 40000)}
 
 SELECTED IMPROVEMENT:
 Title: ${selectedIdea.title}
@@ -95,13 +95,15 @@ Create a precise implementation plan. Return JSON:
   "estimatedComplexity": "low|medium|high"
 }
 
-Be specific about file paths and changes. Keep it minimal and focused.`;
+Be specific about file paths and changes. Think BIG: plan a substantial upgrade that a user would
+immediately notice — new pages, multi-file features, real interactivity, or a full visual redesign.
+Spread the work across as many files as it needs (new files are welcome); 3-8 steps is typical.`;
 
   try {
     const result = await chatForTask("plan", [
       { role: "system", content: "You are a senior software architect. Reply with ONLY valid JSON." },
       { role: "user", content: prompt },
-    ], { jsonMode: true });
+    ], { jsonMode: true, maxTokens: 8192, timeoutMs: 120_000 });
 
     const data = (result as unknown as { data: ImplementationPlan }).data;
     log.info({ steps: data.steps?.length, complexity: data.estimatedComplexity }, "Plan complete");

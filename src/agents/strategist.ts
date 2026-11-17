@@ -100,7 +100,7 @@ Focus ONLY on adding visible, user-facing features to the application:
 - Add a useful feature (todo list, dashboard, calculator, weather, clock, etc.)
 
 The goal is to make the app MORE INTERESTING and FUNCTIONAL for users.
-Pick the most impactful, visible feature you can add in one cycle.
+Pick the BIGGEST, most impressive feature you can ship in one cycle. Prefer bold multi-file additions over small tweaks.
 `;
   } else if (mode === "quality") {
     roadmapSection = `
@@ -147,7 +147,7 @@ ${recentlyAttempted || "None"}
 
 RULES:
 1. Generate up to 5 candidate improvements. Each must reference a specific observation it addresses.
-2. Choose the single most valuable one based on: Priority = (Impact × Confidence × Strategic Value) / Effort
+2. Choose the single most valuable one based on: Priority = Impact × Confidence × Strategic Value. Effort is NOT a penalty — large, ambitious changes are encouraged.
 3. VERIFIED high-severity issues MUST be addressed — you cannot silently skip them.
 4. For EVERY high/critical observation you do NOT address, provide an explicit reason in "dismissedFindings".
 5. If you genuinely believe no change is warranted, set selectedIdea to null and provide detailed evidence in "noActionJustification".
@@ -183,7 +183,7 @@ Return JSON:
     const result = await chatForTask("strategize", [
       { role: "system", content: "You are a thoughtful product strategist. Every decision must be justified. Reply with ONLY valid JSON." },
       { role: "user", content: prompt },
-    ], { jsonMode: true });
+    ], { jsonMode: true, timeoutMs: 90_000 });
     raw = (result as { data: Record<string, unknown> }).data;
   } catch (llmErr) {
     log.warn({ error: (llmErr as Error).message }, "LLM call failed — using mode-aware deterministic strategy");
@@ -223,8 +223,8 @@ Return JSON:
 
   if (!data.selectedIdea && data.ideas.length > 0) {
     const best = data.ideas.reduce((a, b) => {
-      const scoreA = (a.impact * a.confidence * a.strategicValue) / Math.max(a.effort, 1);
-      const scoreB = (b.impact * b.confidence * b.strategicValue) / Math.max(b.effort, 1);
+      const scoreA = a.impact * a.confidence * a.strategicValue;
+      const scoreB = b.impact * b.confidence * b.strategicValue;
       return scoreB > scoreA ? b : a;
     });
     data.selectedIdea = best;
@@ -357,7 +357,7 @@ Return JSON:
   const now = new Date().toISOString();
 
   for (const idea of data.ideas) {
-    const score = (idea.impact * idea.confidence * idea.strategicValue) / Math.max(idea.effort, 1);
+    const score = idea.impact * idea.confidence * idea.strategicValue;
     await db.insert(schema.ideas).values({
       id: nanoid(),
       projectId,

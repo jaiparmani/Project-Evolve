@@ -146,7 +146,7 @@ export class LLMClient {
           await new Promise(r => setTimeout(r, delay));
           try {
             const retryCtrl = new AbortController();
-            const retryTimeout = setTimeout(() => retryCtrl.abort(), 30000);
+            const retryTimeout = setTimeout(() => retryCtrl.abort(), opts.timeout || 30000);
             const retryRes = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: retryCtrl.signal }).finally(() => clearTimeout(retryTimeout));
             if (retryRes.ok) {
               const retryData = (await retryRes.json()) as Record<string, any>;
@@ -212,6 +212,7 @@ export class LLMClient {
       maxTokens?: number;
       expectKey?: string;
       maxAttempts?: number;
+      timeout?: number;
     } = {}
   ): Promise<{ data: T; meta: Omit<LLMResponse, "content"> }> {
     const maxAttempts = opts.maxAttempts || 2;
@@ -223,6 +224,7 @@ export class LLMClient {
         model: opts.model,
         maxTokens: opts.maxTokens,
         jsonMode: true,
+        timeout: opts.timeout,
       });
 
       try {
