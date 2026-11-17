@@ -9,6 +9,7 @@ import { childLogger } from "../core/logger.js";
 import { evaluateRoadmap, ROADMAP } from "../core/roadmap.js";
 import { config } from "../core/config.js";
 import { backupDb } from "../db/persist.js";
+import { submitIdea, queueIdea, dismissIdea, moveIdea, editIdea, analyseIdea, claimNext, finishIdea, getBoard, getIdea, peekNext, ideaBrief } from "../core/idea-queue.js";
 
 const log = childLogger("api");
 export const apiRouter = Router();
@@ -125,7 +126,19 @@ apiRouter.post("/config", async (req, res) => {
 
 export async function ensureProjectAndRunCycle(userIdea?: UserIdea) {
   setRunning(true);
+  let claimedId: string | undefined;
   try {
+    // No explicit idea: take the next one from the idea queue, if any.
+    if (!userIdea) {
+      const claimed = await claimNext().catch(() => null);
+      if (claimed) {
+        claimedId = claimed.id;
+        userIdea = { title: claimed.title, description: claimed.description, category: claimed.category, ideaId: claimed.id };
+        log.info({ idea: claimed.title }, "Building next idea from the queue");
+      }
+    } else if (userIdea.ideaId) {
+      claimedId = userIdea.ideaId;
+    }
     let projects = await db.select().from(schema.projects).limit(1);
     if (!projects.length) {
       const { nanoid } = await import("nanoid");
@@ -142,7 +155,13 @@ export async function ensureProjectAndRunCycle(userIdea?: UserIdea) {
       });
       projects = await db.select().from(schema.projects).limit(1);
     }
-    await runCycle(projects[0].id, userIdea);
+    try {
+      const result = await runCycle(projects[0].id, userIdea);
+      if (claimedId) await finishIdea(claimedId, result).catch(() => {});
+    } catch (e) {
+      if (claimedId) await finishIdea(claimedId, { status: "failed", error: (e as Error).message }).catch(() => {});
+      throw e;
+    }
     incrementCycles();
   } finally {
     setRunning(false);
@@ -163,17 +182,68 @@ apiRouter.post("/evolve", async (_req, res) => {
   setImmediate(() => { ensureProjectAndRunCycle().catch((e) => log.error({ error: (e as Error).message }, "Manual cycle failed")); });
 });
 
-// Steered evolution: user provides a specific idea to build
+// Steered evolution: put the idea at the front of the queue and build it as soon as possible
 apiRouter.post("/evolve/steer", async (req, res) => {
-  const { title, description } = req.body;
-  if (!title) return res.status(400).json({ error: "title is required" });
-  if (getRunning()) return res.status(409).json({ error: "A cycle is already running" });
+  const { title, description } = req.body || {};
+  if (!title || typeof title !== "string") return res.status(400).json({ error: "title is required" });
+  const idea = await submitIdea({ title, description, top: true });
+  const running = getRunning();
+  res.json({ ok: true, idea, message: running ? `Queued first: "${idea.title}". It starts when the current cycle ends.` : `Analysing "${idea.title}", then building it` });
+  if (!running && !isLoopActive() && canRunCycle()) {
+    setImmediate(() => { ensureProjectAndRunCycle().catch((e) => log.error({ error: (e as Error).message }, "Steered cycle failed")); });
+  }
+});
 
-  const idea: UserIdea = { title, description: description || title };
-  res.json({ ok: true, message: `Steered evolution started: ${title}` });
-  setImmediate(() => {
-    ensureProjectAndRunCycle(idea).catch((e) => log.error({ error: (e as Error).message }, "Steered cycle failed"));
-  });
+// ---------- Idea queue ----------
+apiRouter.get("/ideas/board", async (_req, res) => {
+  try { res.json(await getBoard()); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+apiRouter.get("/ideas/next", async (_req, res) => {
+  const next = await peekNext();
+  res.json({ next, brief: next ? ideaBrief(next) : null, mode: getEvolutionMode() });
+});
+
+apiRouter.post("/ideas", async (req, res) => {
+  const { title, description, top } = req.body || {};
+  if (!title || typeof title !== "string" || !title.trim()) return res.status(400).json({ error: "title is required" });
+  const idea = await submitIdea({ title, description, top: !!top });
+  res.json({ ok: true, idea });
+});
+
+apiRouter.get("/ideas/:id", async (req, res) => {
+  const idea = await getIdea(req.params.id);
+  if (!idea) return res.status(404).json({ error: "Idea not found" });
+  res.json(idea);
+});
+
+apiRouter.patch("/ideas/:id", async (req, res) => {
+  const { title, description } = req.body || {};
+  if (!title) return res.status(400).json({ error: "title is required" });
+  await editIdea(req.params.id, title, description || "");
+  res.json({ ok: true });
+});
+
+apiRouter.post("/ideas/:id/queue", async (req, res) => {
+  await queueIdea(req.params.id, !!req.body?.top);
+  res.json({ ok: true });
+});
+
+apiRouter.post("/ideas/:id/dismiss", async (req, res) => {
+  await dismissIdea(req.params.id);
+  res.json({ ok: true });
+});
+
+apiRouter.post("/ideas/:id/move", async (req, res) => {
+  const dir = req.body?.dir;
+  if (!["up", "down", "top"].includes(dir)) return res.status(400).json({ error: "dir must be up, down or top" });
+  await moveIdea(req.params.id, dir);
+  res.json({ ok: true });
+});
+
+apiRouter.post("/ideas/:id/reanalyse", async (req, res) => {
+  res.json({ ok: true });
+  setImmediate(() => { analyseIdea(req.params.id).catch(() => {}); });
 });
 
 // Idea planner: generate specific feature ideas
@@ -251,7 +321,8 @@ apiRouter.post("/idea-bank/generate", async (_req, res) => {
       await db.insert(schema.ideas).values({
         id: nanoid(),
         projectId,
-        cycleId: "planner",
+        cycleId: null,
+        source: "library",
         title: idea.title,
         description: idea.description,
         category: idea.category,

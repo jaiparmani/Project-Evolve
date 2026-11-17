@@ -83,6 +83,11 @@ CREATE TABLE IF NOT EXISTS ideas (
   priority_score REAL DEFAULT 0,
   status TEXT DEFAULT 'proposed',
   reason TEXT,
+  source TEXT DEFAULT 'system',
+  analysis TEXT,
+  queue_rank REAL,
+  picked_cycle_id TEXT,
+  updated_at TEXT,
   created_at TEXT NOT NULL
 );
 

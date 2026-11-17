@@ -112,6 +112,9 @@ const CYCLE_TIMEOUT_MS = config.evolution.cycleTimeoutMinutes * 60 * 1000;
 export interface UserIdea {
   title: string;
   description: string;
+  category?: string;
+  /** Set when the idea came from the idea queue */
+  ideaId?: string;
 }
 
 export async function runCycle(projectId: string, userIdea?: UserIdea): Promise<CycleResult> {
@@ -152,6 +155,11 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
     startedAt: now,
     createdAt: now,
   });
+
+  if (userIdea?.ideaId) {
+    const { markIdeaStarted } = await import("../core/idea-queue.js");
+    await markIdeaStarted(userIdea.ideaId, cycleId).catch(() => {});
+  }
 
   await db.insert(schema.auditLog).values({
     id: nanoid(),
@@ -195,14 +203,14 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       const userIdeaObj = {
         title: userIdea.title,
         description: userIdea.description || userIdea.title,
-        category: "feature" as const,
+        category: (userIdea.category || "feature") as "feature",
         impact: 9, confidence: 10, effort: 4, strategicValue: 9,
-        reason: "User-requested feature",
+        reason: userIdea.ideaId ? "Picked from the idea queue" : "User-requested feature",
       };
       strategy = {
         ideas: [userIdeaObj],
         selectedIdea: userIdeaObj,
-        selectionReason: `User requested: "${userIdea.title}"`,
+        selectionReason: userIdea.ideaId ? `Next in the idea queue: "${userIdea.title}"` : `User requested: "${userIdea.title}"`,
         noActionJustification: undefined,
         flaggedForReview: false,
         dismissedFindings: [],

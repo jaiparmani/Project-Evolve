@@ -62,6 +62,11 @@ app.listen(config.server.port, () => {
         log.info("Cleaned up orphaned running cycles");
       } catch (e) { log.warn({ error: (e as Error).message }, "Failed to clean up orphaned cycles"); }
 
+      try {
+        const { recoverInterrupted } = await import("../core/idea-queue.js");
+        await recoverInterrupted();
+      } catch (e) { log.warn({ error: (e as Error).message }, "Failed to recover idea queue"); }
+
       import("../api/routes.js").then(({ ensureProjectAndRunCycle }) => {
         startLoop(ensureProjectAndRunCycle);
         log.info("Auto-evolution loop started on boot");

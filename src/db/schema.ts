@@ -80,6 +80,11 @@ export const ideas = sqliteTable("ideas", {
   priorityScore: real("priority_score").default(0),
   status: text("status").default("proposed"),
   reason: text("reason"),
+  source: text("source").default("system"),
+  analysis: text("analysis"),
+  queueRank: real("queue_rank"),
+  pickedCycleId: text("picked_cycle_id"),
+  updatedAt: text("updated_at"),
   createdAt: text("created_at").notNull(),
 });
 

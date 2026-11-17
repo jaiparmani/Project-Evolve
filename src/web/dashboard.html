@@ -89,7 +89,7 @@
     }
     h1, h2, h3, p { margin: 0; }
     a { color: inherit; text-decoration: none; }
-    button, input, select { font: inherit; color: inherit; }
+    button, input, select, textarea { font: inherit; color: inherit; }
     button { cursor: pointer; }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .i { flex-shrink: 0; display: block; }
@@ -450,6 +450,70 @@
     .compare-item b { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
     .compare .arrow { color: var(--text-3); }
 
+    /* ---------- Ideas ---------- */
+    textarea.input { height: auto; min-height: 84px; padding: 10px 12px; resize: vertical; line-height: 1.5; display: block; width: 100%; }
+    .composer { display: flex; flex-direction: column; gap: 10px; }
+    .composer .input { width: 100%; }
+    .composer-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
+    .check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+    .hint { font-size: 12.5px; color: var(--text-3); display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+    .hint .i { flex-shrink: 0; margin-top: 1px; }
+    .flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--text-3); }
+    .flow b { font-weight: 500; color: var(--text-2); }
+    .next-card { position: relative; overflow: hidden; border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+    .next-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--info)); }
+    .next-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--accent-strong); text-transform: uppercase; letter-spacing: .06em; }
+    .next-title { font-size: 19px; font-weight: 650; letter-spacing: -0.02em; margin: 8px 0 6px; line-height: 1.3; }
+    .next-sum { color: var(--text-2); font-size: 13.5px; line-height: 1.6; }
+    .next-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
+    .next-steps { margin: 14px 0 0; padding-left: 20px; font-size: 13px; color: var(--text-2); display: flex; flex-direction: column; gap: 4px; }
+    .next-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    .now { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; margin-bottom: 14px; font-size: 13px;
+      background: color-mix(in srgb, var(--info) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--info) 28%, transparent); color: var(--text-2); }
+    .now b { color: var(--text); font-weight: 600; }
+    .then { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .then-label { font-size: 12px; color: var(--text-3); font-weight: 500; margin-bottom: 6px; }
+    .then-item { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; min-width: 0; }
+    .then-item .truncate { flex: 1; min-width: 0; }
+    .rank { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; font-size: 12px; font-weight: 600;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font-variant-numeric: tabular-nums; }
+    .rank.first { background: var(--accent); border-color: transparent; color: var(--on-accent); }
+    .q-item { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .12s; }
+    .q-item:last-child { border-bottom: 0; }
+    .q-item:hover, .q-item:focus-visible { background: var(--surface-2); outline: none; }
+    .q-main { flex: 1; min-width: 0; }
+    .q-title { font-weight: 550; font-size: 14px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .q-title .truncate { min-width: 0; }
+    .q-desc { color: var(--text-2); font-size: 12.5px; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .q-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .q-ctrl { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .icon-btn.sm { width: 30px; height: 30px; }
+    .icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .src { --c: var(--text-2); display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 11.5px; font-weight: 600;
+      color: var(--c); background: color-mix(in srgb, var(--c) 11%, transparent); white-space: nowrap; }
+    .src.user { --c: var(--accent-strong); }
+    .src.system { --c: var(--info); }
+    .src.library { --c: var(--warning); }
+    .score { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .score .bar { width: 48px; height: 5px; }
+    .pills { display: inline-flex; gap: 10px; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .pills b { color: var(--text-2); font-weight: 600; }
+    .verdict { display: flex; gap: 10px; align-items: flex-start; }
+    .verdict.rework { border-color: color-mix(in srgb, var(--warning) 35%, transparent); background: color-mix(in srgb, var(--warning) 8%, var(--surface)); }
+    .verdict.reject { border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
+    .verdict.build .i { color: var(--success); }
+    .verdict.rework .i { color: var(--warning); }
+    .verdict.reject .i { color: var(--danger); }
+    .check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+    .check-list li { display: flex; gap: 10px; align-items: flex-start; }
+    .check-list .i { color: var(--success); margin-top: 2px; flex-shrink: 0; }
+    .risk-list .i { color: var(--warning); }
+    .tab-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .seg .count { margin-left: 6px; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .times { font-size: 11.5px; color: var(--text-3); }
+    .edit-form { display: flex; flex-direction: column; gap: 10px; }
+
     /* ---------- Toasts ---------- */
     .toasts { position: fixed; right: 20px; bottom: 20px; z-index: 80; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 32px); }
     .toast {
@@ -507,6 +571,11 @@
       .table th, .table td { padding-left: 10px; padding-right: 10px; }
       .steer { flex-direction: column; }
       .steer .input { flex: none; }
+      .q-item { padding: 12px 16px; gap: 10px; align-items: flex-start; }
+      .q-ctrl { flex-direction: column; }
+      .tab-head { padding: 12px 16px; }
+      .seg { max-width: 100%; overflow-x: auto; }
+      .next-title { font-size: 17px; }
       .modes { grid-template-columns: minmax(0, 1fr); }
       .drawer-head, .drawer-body { padding-left: 16px; padding-right: 16px; }
       .toasts { right: 16px; left: 16px; bottom: 16px; }
@@ -601,19 +670,14 @@
                 <div class="card-head"><div><h2>Evolution mode</h2><p>Sets what the engine prioritizes next</p></div></div>
                 <div class="modes" data-mode-group></div>
               </div>
+              <div class="card next-card" id="ovNext"><div class="skel skel-line" style="width:40%"></div><div class="skel" style="height:22px;width:80%;margin:12px 0"></div><div class="skel skel-line"></div></div>
               <div class="card">
-                <div class="card-head"><div><h2>Steer evolution</h2><p>Describe a feature and the next cycle builds it</p></div></div>
-                <form class="steer" data-steer>
-                  <input class="input" name="title" type="text" autocomplete="off" placeholder="e.g. Add a dark mode toggle" aria-label="Feature to build" maxlength="200">
-                  <button class="btn primary" type="submit"><span data-icon="zap" data-size="15"></span><span>Build it</span></button>
+                <div class="card-head"><div><h2>Add an idea</h2><p>The AI thinks it through, then the next free cycle builds it</p></div></div>
+                <form class="steer" data-idea-form>
+                  <input class="input" name="title" type="text" autocomplete="off" placeholder="e.g. Add a habit tracker with streaks" aria-label="Your idea" maxlength="200" required>
+                  <button class="btn primary" type="submit"><span data-icon="plus" data-size="15"></span><span>Add to queue</span></button>
                 </form>
-              </div>
-              <div class="card">
-                <div class="card-head">
-                  <div><h2>Idea bank</h2><p>Ready-to-build feature suggestions</p></div>
-                  <button class="btn sm" type="button" data-action="generate"><span data-icon="plus" data-size="14"></span>Generate</button>
-                </div>
-                <div class="list scroll" id="ovIdeaBank"><div class="skel skel-line"></div><div class="skel skel-line" style="width:80%"></div></div>
+                <div style="margin-top:10px"><a class="link" href="#ideas">Open the idea board</a></div>
               </div>
             </div>
           </div>
@@ -696,28 +760,38 @@
         <!-- Ideas -->
         <section class="view stack" id="view-ideas" hidden>
           <div class="cols">
+            <div class="card next-card" id="ideasNext"><div class="skel skel-line" style="width:40%"></div><div class="skel" style="height:22px;width:80%;margin:12px 0"></div><div class="skel skel-line"></div></div>
             <div class="card">
-              <div class="card-head"><div><h2>Steer evolution</h2><p>The next cycle implements whatever you describe here</p></div></div>
-              <form class="steer" data-steer>
-                <input class="input" name="title" type="text" autocomplete="off" placeholder="e.g. Add keyboard shortcuts to the todo list" aria-label="Feature to build" maxlength="200">
-                <button class="btn primary" type="submit"><span data-icon="zap" data-size="15"></span><span>Build it</span></button>
+              <div class="card-head"><div><h2>Pitch an idea</h2><p>Describe what you want. Rough is fine.</p></div></div>
+              <form class="composer" data-idea-form>
+                <input class="input" name="title" type="text" autocomplete="off" placeholder="What should the app do next?" aria-label="Idea title" maxlength="200" required>
+                <textarea class="input" name="details" placeholder="Details, examples, how it should look or behave (optional)" aria-label="Idea details" maxlength="4000"></textarea>
+                <div class="composer-foot">
+                  <label class="check"><input type="checkbox" name="top"> Build it next (front of queue)</label>
+                  <button class="btn primary" type="submit"><span data-icon="plus" data-size="15"></span><span>Add idea</span></button>
+                </div>
+                <div class="flow"><b>You pitch</b>›<span>AI analyses, scores and writes a spec</span>›<span>Queued</span>›<span>Next free cycle builds it</span></div>
               </form>
             </div>
-            <div class="card">
-              <div class="card-head"><div><h2>Evolution mode</h2></div></div>
-              <div class="modes" data-mode-group></div>
-            </div>
           </div>
-          <div class="card">
-            <div class="card-head">
-              <div><h2>Idea bank</h2><p>Curated feature ideas waiting to be built</p></div>
-              <button class="btn sm" type="button" data-action="generate"><span data-icon="plus" data-size="14"></span>Generate more</button>
-            </div>
-            <div class="list" id="ideasBank"></div>
-          </div>
+
           <div class="card flush">
-            <div class="card-head"><div><h2>All ideas</h2><p>Proposals from the strategist and planner, ranked by priority</p></div></div>
-            <div class="table-wrap" id="ideasTable"></div>
+            <div class="card-head">
+              <div><h2>Build queue <span class="muted" id="queueCount" style="font-weight:500"></span></h2><p>Cycles take ideas from the top. When it's empty, the AI strategist picks on its own.</p></div>
+            </div>
+            <div id="ideasQueue"></div>
+          </div>
+
+          <div class="card flush">
+            <div class="tab-head">
+              <div class="seg" role="tablist" aria-label="Idea sources" id="ideaTabs">
+                <button type="button" role="tab" data-action="idea-tab" data-tab="system" aria-pressed="true">AI suggestions<span class="count" data-count="system"></span></button>
+                <button type="button" role="tab" data-action="idea-tab" data-tab="mine" aria-pressed="false">My ideas<span class="count" data-count="mine"></span></button>
+                <button type="button" role="tab" data-action="idea-tab" data-tab="library" aria-pressed="false">Library<span class="count" data-count="library"></span></button>
+              </div>
+              <div class="row" id="ideaTabTools"></div>
+            </div>
+            <div id="ideasTabBody"></div>
           </div>
         </section>
 
@@ -778,6 +852,14 @@
       layers: '<path d="m12 3 9 4.5-9 4.5-9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>',
       scroll: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
       history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+      arrowUp: '<path d="m6 15 6-6 6 6"/>',
+      arrowDown: '<path d="m6 9 6 6 6-6"/>',
+      top: '<path d="M5 4h14"/><path d="m7 14 5-5 5 5"/><path d="M12 9v11"/>',
+      trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+      sparkles: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+      user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+      book: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5A2.5 2.5 0 0 1 6.5 19H20"/>',
+      edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
       bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1.1 1.3 1.1 2.2h5c0-.9.5-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>',
       chart: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
       sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
@@ -849,11 +931,14 @@
     const STATUS = {
       completed: ['success', 'Completed'], failed: ['danger', 'Failed'], rejected: ['warning', 'Rejected'],
       running: ['info', 'Running'], pending: ['neutral', 'Pending'], proposed: ['info', 'Proposed'],
-      selected: ['accent', 'Selected'], implemented: ['success', 'Implemented'],
+      selected: ['accent', 'Built'], implemented: ['success', 'Implemented'],
+      evaluating: ['info', 'Analysing'], queued: ['accent', 'Queued'], building: ['info', 'Building'],
+      shipped: ['success', 'Shipped'], dismissed: ['neutral', 'Dismissed'],
     };
+    const LIVE_STATUS = new Set(['running', 'evaluating', 'building']);
     function badge(status) {
       const [k, l] = STATUS[status] || ['neutral', cap(status || 'unknown')];
-      return `<span class="badge ${k}">${status === 'running' ? '<span class="dot pulse"></span>' : ''}${esc(l)}</span>`;
+      return `<span class="badge ${k}">${LIVE_STATUS.has(status) ? '<span class="dot pulse"></span>' : ''}${esc(l)}</span>`;
     }
     function quality(before, after) {
       if (after == null) return '<span class="muted">—</span>';
@@ -904,7 +989,7 @@
 
     // ---------- State ----------
     const state = {
-      status: null, cycles: [], loop: null, roadmap: null, snapshots: [], ideaBank: [], ideas: null,
+      status: null, cycles: [], loop: null, roadmap: null, snapshots: [], ideaBank: [], board: null, ideaTab: 'system',
       usage: null, configs: null, mode: 'foundation', offline: false,
       history: { items: [], filter: 'all', loaded: false, loading: false, more: false },
       changelog: null, previewVersion: 'live', files: { cycleId: null, list: [], idx: 0 },
@@ -914,7 +999,7 @@
       versions: ['Versions', 'Preview any snapshot of the app and browse its source'],
       changelog: ['Changelog', 'What each successful cycle shipped'],
       history: ['Cycle history', 'Every evolution cycle and how it ended'],
-      ideas: ['Ideas', 'Steer evolution and manage the idea backlog'],
+      ideas: ['Ideas', 'Pitch ideas, see what gets built next, and curate the AI\'s suggestions'],
       usage: ['Model usage', 'LLM requests, tokens and estimated cost'],
       config: ['Configuration', 'Engine settings and stored system config'],
     };
@@ -950,7 +1035,8 @@
         state.loop = loop;
         renderChrome();
         renderView();
-        const [roadmap, snapshots, ideaBank] = await Promise.all([get('/roadmap'), get('/snapshots', []), get('/idea-bank', [])]);
+        const [roadmap, snapshots, ideaBank, board] = await Promise.all([get('/roadmap'), get('/snapshots', []), get('/idea-bank', []), get('/ideas/board')]);
+        if (board) state.board = board;
         state.roadmap = roadmap;
         state.snapshots = Array.isArray(snapshots) ? snapshots : [];
         state.ideaBank = Array.isArray(ideaBank) ? ideaBank : [];
@@ -962,7 +1048,8 @@
     }
     function scheduleRefresh() {
       clearTimeout(refreshTimer);
-      const delay = state.offline ? 5000 : isRunning() ? 10000 : 45000;
+      const analysing = (state.board?.queue || []).some((i) => i.status === 'evaluating');
+      const delay = state.offline ? 5000 : analysing ? 4000 : isRunning() ? 10000 : 45000;
       refreshTimer = setTimeout(() => { if (document.hidden) scheduleRefresh(); else loadCore(); }, delay);
     }
     async function loadHistory(reset) {
@@ -983,7 +1070,7 @@
       state.changelog = res.cycles || [];
       renderChangelog();
     }
-    async function loadIdeas() { state.ideas = (await get('/ideas', [])) || []; renderIdeas(); }
+    async function loadBoard() { const b = await get('/ideas/board'); if (b) state.board = b; renderView(); }
     async function loadUsage() { state.usage = await get('/usage', { usage: [], totals: {} }); renderUsage(); }
     async function loadConfigs() { state.configs = (await get('/config', [])) || []; renderConfig(); }
     async function loadIdeaBank() { state.ideaBank = (await get('/idea-bank', [])) || []; renderView(); }
@@ -1032,7 +1119,7 @@
       if (v === 'versions') { const f = $('#tlFrame'); f.dataset.armed = '1'; loadFrame(f); }
       if (v === 'history' && !state.history.loaded) loadHistory(true);
       if (v === 'changelog' && !state.changelog) loadChangelog();
-      if (v === 'ideas' && !state.ideas) loadIdeas();
+      if (v === 'ideas') loadBoard();
       if (v === 'usage' && !state.usage) loadUsage();
       if (v === 'config' && !state.configs) loadConfigs();
       renderView();
@@ -1074,7 +1161,7 @@
       renderLive();
       renderChart();
       $('#ovRecent').innerHTML = cycleTable(state.cycles.slice(0, 6), false) || empty('No cycles yet', 'Click "Evolve now" to run the first one.', 'repeat');
-      $('#ovIdeaBank').innerHTML = ideaItems(state.ideaBank, 8);
+      $('#ovNext').innerHTML = nextHtml(true);
       renderRoadmap();
       renderVersionSelect();
     }
@@ -1149,15 +1236,6 @@
         });
         g.addEventListener('mouseleave', () => tip.classList.remove('show'));
       });
-    }
-
-    function ideaItems(list, limit) {
-      const items = (list || []).filter((i) => i.status === 'proposed').slice(0, limit || 500);
-      if (!items.length) return empty('The idea bank is empty', 'Generate a batch to get feature suggestions.', 'bulb');
-      return items.map((i) => `<div class="list-item">
-        <div class="list-main"><div class="list-title">${esc(i.title)}</div><div class="list-desc">${esc(i.description || '')}</div></div>
-        <div class="list-side"><span class="tag hide-sm">${esc(i.category || 'feature')}</span><button class="btn sm" type="button" data-action="steer-idea" data-id="${esc(i.id)}">${icon('zap', 13)}Build</button></div>
-      </div>`).join('');
     }
 
     function renderRoadmap() {
@@ -1296,25 +1374,180 @@
     }
 
     // ---------- Ideas ----------
+    const SRC = { user: ['user', 'user', 'You'], system: ['system', 'sparkles', 'AI'], library: ['library', 'book', 'Library'] };
+    function srcBadge(i) {
+      const k = i.source === 'user' ? 'user' : i.source === 'library' || i.cycle_id === 'planner' ? 'library' : 'system';
+      const [c, ic, l] = SRC[k];
+      return `<span class="src ${c}">${icon(ic, 12)}${l}</span>`;
+    }
+    const ideaScore = (i) => Math.round((i.impact ?? 5) * (i.confidence ?? 5) * (i.strategic_value ?? 5));
+    function scoreHtml(i) {
+      const v = ideaScore(i);
+      return `<span class="score" title="Impact × confidence × strategic value, out of 1000"><span class="bar"><span style="width:${Math.min(100, v / 10)}%"></span></span>${v}</span>`;
+    }
+    function analysisOf(i) { const a = parseJson(i.analysis); return a && typeof a === 'object' ? a : null; }
+    function summaryOf(i) { const a = analysisOf(i); return (a && a.summary) || i.description || ''; }
+
+    function nextHtml(compact) {
+      const b = state.board;
+      if (!b) return `<div class="skel skel-line" style="width:40%"></div><div class="skel" style="height:22px;width:80%;margin:12px 0"></div><div class="skel skel-line"></div>`;
+      const running = state.cycles.find((c) => c.status === 'running');
+      const nowLine = b.building
+        ? `<div class="now"><span class="dot pulse" style="color:var(--info)"></span><span>Building now: <b>${esc(b.building.title)}</b></span></div>`
+        : running ? `<div class="now"><span class="dot pulse" style="color:var(--info)"></span><span>Cycle #${esc(running.cycle_number)} running: <b>${esc(running.selected_improvement || 'analysing the app…')}</b></span></div>` : '';
+      const queued = (b.queue || []);
+      const n = b.next;
+      const head = `<div class="next-eyebrow">${icon('zap', 14)}Next cycle will build</div>`;
+      if (!n) {
+        const pending = queued.find((q) => q.status === 'evaluating');
+        return `${nowLine}${head}
+          <div class="next-title">${pending ? esc(pending.title) : 'AI strategist decides'}</div>
+          <p class="next-sum">${pending ? 'Your idea is being analysed. It will be first in line as soon as the analysis finishes.' : esc(b.next_hint || '')}</p>
+          <div class="next-meta">${pending ? badge('evaluating') + srcBadge(pending) : `<span class="badge neutral">Mode: ${esc(cap(b.mode))}</span>`}</div>
+          ${compact ? '' : `<div class="next-actions"><button class="btn sm" type="button" data-action="idea-tab" data-tab="system">${icon('sparkles', 14)}Pick from AI suggestions</button></div>`}`;
+      }
+      const a = analysisOf(n);
+      const rest = queued.filter((q) => q.id !== n.id).slice(0, compact ? 3 : 4);
+      return `${nowLine}${head}
+        <div class="next-title">${esc(n.title)}</div>
+        <p class="next-sum">${esc(summaryOf(n))}</p>
+        <div class="next-meta">${srcBadge(n)}<span class="tag">${esc(n.category || 'feature')}</span>${scoreHtml(n)}</div>
+        ${!compact && a && a.spec && a.spec.length ? `<ol class="next-steps">${a.spec.slice(0, 5).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+        <div class="next-actions">
+          <button class="btn sm" type="button" data-action="idea-open" data-id="${esc(n.id)}">${icon('info', 14)}Full brief</button>
+          ${compact ? `<a class="btn sm ghost" href="#ideas">Manage queue</a>` : `<button class="btn sm ghost" type="button" data-action="idea-move" data-dir="down" data-id="${esc(n.id)}">${icon('arrowDown', 14)}Push back</button>`}
+        </div>
+        ${rest.length ? `<div class="then"><div class="then-label">Then</div>${rest.map((q, i) => `<div class="then-item"><span class="rank">${i + 2}</span><span class="truncate">${esc(q.title)}</span>${q.status === 'evaluating' ? badge('evaluating') : srcBadge(q)}</div>`).join('')}</div>` : ''}`;
+    }
+
+    function queueHtml() {
+      const q = state.board?.queue;
+      if (!q) return skelRows(4);
+      if (!q.length) return empty('The queue is empty', 'Pitch an idea above or queue an AI suggestion below. Until then the strategist chooses each cycle.', 'bulb');
+      let rank = 0;
+      return q.map((i, idx) => {
+        const ev = i.status === 'evaluating';
+        const r = ++rank;
+        return `<div class="q-item" data-action="idea-open" data-id="${esc(i.id)}" tabindex="0">
+          <span class="rank ${r === 1 && !ev ? 'first' : ''}">${r}</span>
+          <div class="q-main">
+            <div class="q-title"><span class="truncate">${esc(i.title)}</span></div>
+            <div class="q-desc">${ev ? 'The AI is reading your idea, scoring it and writing a build spec…' : esc(summaryOf(i))}</div>
+            <div class="q-meta">${ev ? badge('evaluating') : badge('queued')}${srcBadge(i)}${ev ? '' : `<span class="tag hide-sm">${esc(i.category || 'feature')}</span>${scoreHtml(i)}`}<span class="times">added ${ago(i.created_at)}</span></div>
+          </div>
+          <div class="q-ctrl">
+            <button class="icon-btn sm" type="button" data-action="idea-move" data-dir="top" data-id="${esc(i.id)}" title="Move to top" aria-label="Move to top" ${idx === 0 ? 'disabled' : ''}>${icon('top', 15)}</button>
+            <button class="icon-btn sm" type="button" data-action="idea-move" data-dir="up" data-id="${esc(i.id)}" title="Move up" aria-label="Move up" ${idx === 0 ? 'disabled' : ''}>${icon('arrowUp', 15)}</button>
+            <button class="icon-btn sm" type="button" data-action="idea-move" data-dir="down" data-id="${esc(i.id)}" title="Move down" aria-label="Move down" ${idx === q.length - 1 ? 'disabled' : ''}>${icon('arrowDown', 15)}</button>
+            <button class="icon-btn sm" type="button" data-action="idea-dismiss" data-id="${esc(i.id)}" title="Remove from queue" aria-label="Remove from queue">${icon('x', 15)}</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function suggestionRow(i, opts = {}) {
+      const st = i.status;
+      const open = st === 'proposed' || st === 'failed' || st === 'dismissed';
+      return `<div class="q-item" data-action="idea-open" data-id="${esc(i.id)}" tabindex="0">
+        <div class="q-main">
+          <div class="q-title"><span class="truncate">${esc(i.title)}</span></div>
+          <div class="q-desc">${esc(st === 'failed' && i.reason ? 'Last attempt: ' + i.reason : summaryOf(i))}</div>
+          <div class="q-meta">${opts.status ? badge(st) : ''}${srcBadge(i)}<span class="tag hide-sm">${esc(i.category || 'feature')}</span>${scoreHtml(i)}${i.times > 1 ? `<span class="times">proposed ${i.times}×</span>` : ''}<span class="times">${ago(i.updated_at || i.created_at)}</span></div>
+        </div>
+        <div class="q-ctrl" style="flex-direction:row">
+          ${open ? `<button class="btn sm" type="button" data-action="idea-queue" data-id="${esc(i.id)}" title="Add to the end of the queue">${icon('plus', 13)}<span class="hide-sm">Queue</span></button>
+          <button class="btn sm primary" type="button" data-action="idea-queue" data-top="1" data-id="${esc(i.id)}" title="Build this next">${icon('zap', 13)}<span class="hide-sm">Next</span></button>` : ''}
+          ${st === 'proposed' ? `<button class="icon-btn sm" type="button" data-action="idea-dismiss" data-id="${esc(i.id)}" title="Dismiss" aria-label="Dismiss">${icon('x', 15)}</button>` : ''}
+        </div>
+      </div>`;
+    }
+
     function renderIdeas() {
-      $('#ideasBank').innerHTML = ideaItems(state.ideaBank);
-      const t = $('#ideasTable');
-      if (!state.ideas) { t.innerHTML = skelRows(5); return; }
-      if (!state.ideas.length) { t.innerHTML = empty('No ideas yet', 'The strategist records proposals during each cycle.', 'bulb'); return; }
-      const maxPr = Math.max(1, ...state.ideas.map((i) => Number(i.priority_score) || 0));
-      t.innerHTML = `<table class="table"><thead><tr><th>Idea</th><th class="hide-sm">Category</th><th class="hide-sm">Impact · Conf · Effort</th><th>Priority</th><th>Status</th><th></th></tr></thead><tbody>${
-        state.ideas.map((i) => {
-          const pr = Math.round(Number(i.priority_score) || 0);
-          return `<tr>
-            <td class="cell-main"><div class="truncate" style="font-weight:500">${esc(i.title)}</div><div class="sub truncate">${esc(i.description || '')}</div></td>
-            <td class="hide-sm"><span class="tag">${esc(i.category || '—')}</span></td>
-            <td class="mono muted nowrap hide-sm">${esc(i.impact ?? '—')} · ${esc(i.confidence ?? '—')} · ${esc(i.effort ?? '—')}</td>
-            <td class="nowrap"><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:56px"><span style="width:${Math.round((pr / maxPr) * 100)}%"></span></div><span class="mono muted">${pr}</span></div></td>
-            <td>${badge(i.status)}</td>
-            <td>${i.status === 'proposed' ? `<button class="btn sm ghost" type="button" data-action="steer-idea" data-id="${esc(i.id)}">${icon('zap', 13)}Build</button>` : ''}</td>
-          </tr>`;
-        }).join('')
-      }</tbody></table>`;
+      $('#ideasNext').innerHTML = nextHtml(false);
+      const b = state.board;
+      $('#queueCount').textContent = b ? `· ${(b.queue || []).length}` : '';
+      $('#ideasQueue').innerHTML = queueHtml();
+      const lib = (state.ideaBank || []).filter((i) => i.status === 'proposed' && (i.source === 'library' || i.cycle_id === 'planner' || /idea planner/i.test(i.reason || '')));
+      const counts = { system: b ? b.system.length : '', mine: b ? b.mine.length : '', library: lib.length };
+      $$('#ideaTabs [data-count]').forEach((el) => { el.textContent = counts[el.dataset.count] === '' ? '' : counts[el.dataset.count]; });
+      $$('#ideaTabs button').forEach((btn) => btn.setAttribute('aria-pressed', String(btn.dataset.tab === state.ideaTab)));
+      $('#ideaTabTools').innerHTML = state.ideaTab === 'library'
+        ? `<button class="btn sm" type="button" data-action="generate">${icon('plus', 14)}Add 5 more</button>`
+        : state.ideaTab === 'system' ? `<span class="muted" style="font-size:12.5px">Proposed by the strategist each cycle · duplicates merged</span>` : '';
+      const body = $('#ideasTabBody');
+      if (!b) { body.innerHTML = skelRows(5); return; }
+      if (state.ideaTab === 'system') {
+        body.innerHTML = b.system.length ? b.system.map((i) => suggestionRow(i)).join('') : empty('No open suggestions', 'The strategist adds proposals every cycle.', 'sparkles');
+      } else if (state.ideaTab === 'mine') {
+        body.innerHTML = b.mine.length ? b.mine.map((i) => suggestionRow(i, { status: true })).join('') : empty("You haven't pitched anything yet", 'Use the form above. The AI will analyse and queue it.', 'user');
+      } else {
+        body.innerHTML = lib.length ? lib.map((i) => suggestionRow(i)).join('') : empty('The library is empty', 'Add a batch of ready-made feature ideas.', 'book');
+      }
+    }
+
+    async function openIdea(id) {
+      lastFocus = document.activeElement;
+      $('#drawerEyebrow').textContent = 'Idea';
+      $('#drawerTitle').textContent = 'Loading…';
+      $('#drawerBody').innerHTML = skelRows(8);
+      $('#drawer').classList.add('open');
+      $('#drawer').setAttribute('aria-hidden', 'false');
+      $('#drawerBg').classList.add('open');
+      $('#drawerClose').focus();
+      const i = await get('/ideas/' + encodeURIComponent(id));
+      if (!$('#drawer').classList.contains('open')) return;
+      if (!i) { $('#drawerTitle').textContent = 'Unavailable'; $('#drawerBody').innerHTML = empty("Couldn't load this idea", 'Try again in a moment.', 'alert'); return; }
+      const a = analysisOf(i);
+      const pos = (state.board?.queue || []).findIndex((q) => q.id === i.id);
+      const open = ['proposed', 'failed', 'dismissed'].includes(i.status);
+      const verdictIcon = { build: 'checkCircle', rework: 'alert', reject: 'x' };
+      $('#drawerEyebrow').textContent = `${i.source === 'user' ? 'Your idea' : i.source === 'library' ? 'Library idea' : 'AI suggestion'}${pos >= 0 ? ` · #${pos + 1} in queue` : ''}`;
+      $('#drawerTitle').textContent = i.title;
+      $('#drawerBody').innerHTML = `
+        <div class="badges">${badge(i.status)}${srcBadge(i)}<span class="tag">${esc(i.category || 'feature')}</span></div>
+        <div class="meta-grid">
+          <div class="meta"><div class="meta-k">Impact</div><div class="meta-v">${esc(i.impact ?? '—')}/10</div></div>
+          <div class="meta"><div class="meta-k">Confidence</div><div class="meta-v">${esc(i.confidence ?? '—')}/10</div></div>
+          <div class="meta"><div class="meta-k">Strategic value</div><div class="meta-v">${esc(i.strategic_value ?? '—')}/10</div></div>
+          <div class="meta"><div class="meta-k">Effort</div><div class="meta-v">${esc(i.effort ?? '—')}/10</div></div>
+          <div class="meta"><div class="meta-k">Priority score</div><div class="meta-v">${ideaScore(i)}</div></div>
+          <div class="meta"><div class="meta-k">Added</div><div class="meta-v">${fullDate(i.created_at)}</div></div>
+        </div>
+        <div class="next-actions">
+          ${open ? `<button class="btn sm primary" type="button" data-action="idea-queue" data-top="1" data-id="${esc(i.id)}">${icon('zap', 14)}Build next</button><button class="btn sm" type="button" data-action="idea-queue" data-id="${esc(i.id)}">${icon('plus', 14)}Add to queue</button>` : ''}
+          ${i.status === 'queued' && pos > 0 ? `<button class="btn sm" type="button" data-action="idea-move" data-dir="top" data-id="${esc(i.id)}">${icon('top', 14)}Move to top</button>` : ''}
+          ${i.source === 'user' && i.status !== 'building' ? `<button class="btn sm" type="button" data-action="idea-edit" data-id="${esc(i.id)}">${icon('edit', 14)}Edit</button>` : ''}
+          ${['queued', 'proposed', 'failed'].includes(i.status) ? `<button class="btn sm" type="button" data-action="idea-reanalyse" data-id="${esc(i.id)}">${icon('sparkles', 14)}Re-analyse</button>` : ''}
+          ${['queued', 'evaluating', 'proposed'].includes(i.status) ? `<button class="btn sm ghost" type="button" data-action="idea-dismiss" data-id="${esc(i.id)}">${icon('trash', 14)}${i.status === 'proposed' ? 'Dismiss' : 'Remove'}</button>` : ''}
+        </div>
+        <div id="ideaEdit"></div>
+        ${i.status === 'evaluating' ? `<div class="section"><div class="callout">${icon('sparkles', 14)} The AI is analysing this idea. The brief appears here in a minute or so.</div></div>` : ''}
+        ${a && a.verdict ? `<div class="section"><h3>AI verdict</h3><div class="callout verdict ${esc(a.verdict)}">${icon(verdictIcon[a.verdict] || 'info', 16)}<div><b>${esc(a.verdict === 'build' ? 'Worth building' : a.verdict === 'rework' ? 'Needs rework' : 'Not recommended')}</b>${(a.verdict_reason || a.verdictReason) ? `<div class="muted" style="margin-top:2px">${esc(a.verdict_reason || a.verdictReason)}</div>` : ''}</div></div></div>` : ''}
+        <div class="section"><h3>${a && a.summary ? 'Summary' : 'Description'}</h3><p class="prose">${esc((a && a.summary) || i.description)}</p></div>
+        ${a && a.summary && i.description && a.summary !== i.description ? `<div class="section"><h3>Original request</h3><div class="callout">${esc(i.description)}</div></div>` : ''}
+        ${a && a.spec && a.spec.length ? `<div class="section"><h3>Build spec</h3><ol class="plan-steps">${a.spec.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
+        ${a && a.acceptance && a.acceptance.length ? `<div class="section"><h3>Done when</h3><ul class="check-list">${a.acceptance.map((x) => `<li>${icon('check', 15)}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}
+        ${a && a.risks && a.risks.length ? `<div class="section"><h3>Risks & open questions</h3><ul class="check-list risk-list">${a.risks.map((x) => `<li>${icon('alert', 15)}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}
+        ${!a && i.reason && i.source !== 'user' ? `<div class="section"><h3>Why the strategist proposed it</h3><p class="prose">${esc(i.reason)}</p></div>` : ''}
+        ${i.cycle ? `<div class="section"><h3>Build</h3><div class="q-item" style="border:1px solid var(--border);border-radius:10px" data-cycle="${esc(i.cycle.id)}" tabindex="0"><div class="q-main"><div class="q-title">Cycle #${esc(i.cycle.cycle_number)}${i.cycle.new_version ? ` · v${esc(i.cycle.new_version)}` : ''}</div>${i.cycle.error_message ? `<div class="q-desc">${esc(i.cycle.error_message)}</div>` : ''}</div>${badge(i.cycle.status)}</div></div>` : ''}
+        ${i.status === 'failed' && i.reason ? `<div class="section"><h3>Why it failed</h3><div class="callout danger">${esc(i.reason)}</div></div>` : ''}
+        ${a && a.model ? `<p class="muted" style="font-size:12px;margin-top:24px">Analysed by <span class="mono">${esc(a.model)}</span></p>` : ''}
+      `;
+      $('#drawerBody').dataset.idea = JSON.stringify({ id: i.id, title: i.title, description: i.description });
+    }
+
+    async function ideaAction(path, body, okMsg, btn) {
+      setBusy(btn, true, '');
+      try {
+        await post(path, body);
+        if (okMsg) toast(okMsg, 'success');
+      } catch (err) { toast(err.message, 'error'); }
+      finally { setBusy(btn, false); }
+      await loadBoard();
+      const d = $('#drawer');
+      if (d.classList.contains('open') && $('#drawerEyebrow').textContent !== 'Cycle' && $('#drawerBody').dataset.idea) {
+        try { openIdea(JSON.parse($('#drawerBody').dataset.idea).id); } catch { /* ignore */ }
+      }
     }
 
     // ---------- Usage ----------
@@ -1388,6 +1621,7 @@
     async function openCycle(id) {
       lastFocus = document.activeElement;
       $('#drawerEyebrow').textContent = 'Cycle';
+      delete $('#drawerBody').dataset.idea;
       $('#drawerTitle').textContent = 'Loading…';
       $('#drawerBody').innerHTML = skelRows(8);
       $('#drawer').classList.add('open');
@@ -1438,24 +1672,22 @@
     }
 
     // ---------- Actions ----------
-    async function steer(title, description, btn) {
-      title = (title || '').trim();
-      if (!title) { toast('Describe what to build first.', 'error'); return false; }
-      setBusy(btn, true, 'Starting…');
+    async function submitIdea(form) {
+      const title = (form.elements.title.value || '').trim();
+      if (!title) { toast('Describe your idea first.', 'error'); form.elements.title.focus(); return; }
+      const details = form.elements.details ? form.elements.details.value.trim() : '';
+      const top = form.elements.top ? form.elements.top.checked : false;
+      const btn = form.querySelector('button[type="submit"]');
+      setBusy(btn, true, 'Adding…');
       try {
-        const r = await post('/evolve/steer', { title, description: description || title });
-        toast((r && r.message) || 'Steered evolution started', 'success');
-        return true;
-      } catch (err) {
-        toast(err.message, 'error');
-        return false;
-      } finally {
-        setBusy(btn, false);
-        setTimeout(loadCore, 1200);
-      }
-    }
-    function findIdea(id) {
-      return (state.ideaBank || []).concat(state.ideas || []).find((i) => i.id === id);
+        await post('/ideas', { title, description: details || title, top });
+        toast(top ? 'Added to the front of the queue. The AI is analysing it now.' : 'Added to the queue. The AI is analysing it now.', 'success');
+        form.reset();
+        state.ideaTab = view === 'ideas' ? state.ideaTab : 'mine';
+        await loadBoard();
+        scheduleRefresh();
+      } catch (err) { toast(err.message, 'error'); }
+      finally { setBusy(btn, false); }
     }
 
     document.addEventListener('click', async (e) => {
@@ -1503,16 +1735,47 @@
             const r = await post('/idea-bank/generate');
             toast(r && r.generated ? `Added ${r.generated} new idea${r.generated === 1 ? '' : 's'}` : (r && r.message) || 'No new ideas to add', r && r.generated ? 'success' : 'info');
             await loadIdeaBank();
-            if (state.ideas) loadIdeas();
+            loadBoard();
           } catch (err) { toast(err.message, 'error'); }
           finally { setBusy(a, false); }
           return;
         }
-        if (act === 'steer-idea') {
-          const idea = findIdea(a.dataset.id);
-          if (idea) steer(idea.title, idea.description, a);
+        if (act === 'idea-tab') { state.ideaTab = a.dataset.tab; if (view !== 'ideas') location.hash = 'ideas'; else renderIdeas(); return; }
+        if (act === 'idea-open') {
+          if (e.target.closest('button, a') && e.target.closest('button, a') !== a) return;
+          openIdea(a.dataset.id); return;
+        }
+        if (act === 'idea-queue') {
+          e.stopPropagation();
+          const top = a.dataset.top === '1';
+          ideaAction(`/ideas/${encodeURIComponent(a.dataset.id)}/queue`, { top }, top ? 'Queued first: the next cycle builds it' : 'Added to the queue', a);
           return;
         }
+        if (act === 'idea-move') {
+          e.stopPropagation();
+          ideaAction(`/ideas/${encodeURIComponent(a.dataset.id)}/move`, { dir: a.dataset.dir }, a.dataset.dir === 'top' ? 'Moved to the top' : '', a);
+          return;
+        }
+        if (act === 'idea-dismiss') {
+          e.stopPropagation();
+          ideaAction(`/ideas/${encodeURIComponent(a.dataset.id)}/dismiss`, null, 'Removed', a);
+          return;
+        }
+        if (act === 'idea-reanalyse') {
+          ideaAction(`/ideas/${encodeURIComponent(a.dataset.id)}/reanalyse`, null, 'Re-analysis started', a);
+          return;
+        }
+        if (act === 'idea-edit') {
+          let cur = {}; try { cur = JSON.parse($('#drawerBody').dataset.idea || '{}'); } catch { /* ignore */ }
+          $('#ideaEdit').innerHTML = `<form class="edit-form section" data-idea-edit="${esc(cur.id)}">
+            <input class="input" name="title" maxlength="200" required value="${esc(cur.title || '')}" aria-label="Idea title">
+            <textarea class="input" name="details" maxlength="4000" aria-label="Idea details">${esc(cur.description || '')}</textarea>
+            <div class="row" style="display:flex;gap:8px"><button class="btn sm primary" type="submit">Save and re-analyse</button><button class="btn sm ghost" type="button" data-action="idea-edit-cancel">Cancel</button></div>
+          </form>`;
+          $('#ideaEdit input').focus();
+          return;
+        }
+        if (act === 'idea-edit-cancel') { $('#ideaEdit').innerHTML = ''; return; }
         if (act === 'preview') { setPreview(a.dataset.id); return; }
         if (act === 'file') { state.files.idx = +a.dataset.i; renderFiles(); return; }
         if (act === 'hist-filter') { if (state.history.filter !== a.dataset.f) { state.history.filter = a.dataset.f; loadHistory(true); } return; }
@@ -1527,15 +1790,28 @@
       if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-cycle][tabindex]')) {
         e.preventDefault(); openCycle(e.target.dataset.cycle);
       }
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.q-item[data-action="idea-open"]')) {
+        e.preventDefault(); openIdea(e.target.dataset.id);
+      }
     });
 
     document.addEventListener('submit', async (e) => {
-      const form = e.target.closest('[data-steer]');
-      if (!form) return;
-      e.preventDefault();
-      const input = form.elements.title;
-      const ok = await steer(input.value, '', form.querySelector('button[type="submit"]'));
-      if (ok) input.value = '';
+      const form = e.target.closest('[data-idea-form]');
+      if (form) { e.preventDefault(); submitIdea(form); return; }
+      const ef = e.target.closest('[data-idea-edit]');
+      if (ef) {
+        e.preventDefault();
+        const id = ef.dataset.ideaEdit;
+        const title = ef.elements.title.value.trim();
+        if (!title) return;
+        const btn = ef.querySelector('button[type="submit"]');
+        setBusy(btn, true, 'Saving…');
+        try {
+          await api('/ideas/' + encodeURIComponent(id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, description: ef.elements.details.value.trim() || title }) });
+          toast('Saved. The AI is re-analysing it.', 'success');
+          await loadBoard(); openIdea(id); scheduleRefresh();
+        } catch (err) { toast(err.message, 'error'); setBusy(btn, false); }
+      }
     });
 
     $('#ovVersion').addEventListener('change', (e) => setPreview(e.target.value));
