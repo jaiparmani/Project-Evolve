@@ -109,7 +109,7 @@ function readFullFiles(dir: string, files: string[], maxFiles = 15): string {
   return parts.join("\n\n");
 }
 
-function gatherVerifiableFacts(appDir: string): string {
+async function gatherVerifiableFacts(appDir: string): Promise<string> {
   const facts: string[] = [];
 
   const pkgPath = resolve(appDir, "package.json");
@@ -161,7 +161,7 @@ export async function observe(
 
   const scan = scanDirectory(appDir);
   const codeContent = readFullFiles(appDir, scan.files);
-  const verifiedFacts = gatherVerifiableFacts(appDir);
+  const verifiedFacts = await gatherVerifiableFacts(appDir);
 
   const roadmapEval = evaluateRoadmap(appDir);
   const failingGates = roadmapEval.stageStatuses

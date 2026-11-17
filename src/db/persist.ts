@@ -86,7 +86,7 @@ export async function backupDb(): Promise<void> {
     return;
   }
 
-  const repoInfo = getRepoInfo();
+  const repoInfo = await getRepoInfo();
   if (!repoInfo) {
     log.warn("Could not parse GitHub repo from remote URL");
     return;
@@ -138,7 +138,7 @@ export async function backupDb(): Promise<void> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: "chore: persist DB after evolution cycle",
+        message: "chore: persist DB after evolution cycle [skip render]",
         content,
         branch: "main",
         ...(sha ? { sha } : {}),
@@ -161,7 +161,7 @@ export async function pushEvolvedFiles(appDir: string, filesChanged: string[]): 
   const token = process.env.GITHUB_TOKEN;
   if (!token) return { success: false, error: "GITHUB_TOKEN not set" };
 
-  const repoInfo = getRepoInfo();
+  const repoInfo = await getRepoInfo();
   if (!repoInfo) return { success: false, error: "Could not determine repo" };
 
   const { owner, repo } = repoInfo;
@@ -190,7 +190,7 @@ export async function pushEvolvedFiles(appDir: string, filesChanged: string[]): 
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `feat(evolve): update ${file} [auto-evolved]`,
+          message: `feat(evolve): update ${file} [auto-evolved] [skip render]`,
           content,
           branch: "main",
           ...(sha ? { sha } : {}),
