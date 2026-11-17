@@ -9,7 +9,7 @@ import { childLogger } from "../core/logger.js";
 import { evaluateRoadmap, ROADMAP } from "../core/roadmap.js";
 import { config } from "../core/config.js";
 import { backupDb } from "../db/persist.js";
-import { submitIdea, queueIdea, dismissIdea, moveIdea, editIdea, analyseIdea, claimNext, finishIdea, getBoard, getIdea, peekNext, ideaBrief } from "../core/idea-queue.js";
+import { submitIdea, queueIdea, dismissIdea, moveIdea, editIdea, analyseIdea, claimNext, finishIdea, getBoard, getIdea, peekNext, ideaBrief, autoFill, getAutoplan, setAutoplan } from "../core/idea-queue.js";
 
 const log = childLogger("api");
 export const apiRouter = Router();
@@ -130,6 +130,7 @@ export async function ensureProjectAndRunCycle(userIdea?: UserIdea) {
   try {
     // No explicit idea: take the next one from the idea queue, if any.
     if (!userIdea) {
+      await autoFill().catch(() => 0);
       const claimed = await claimNext().catch(() => null);
       if (claimed) {
         claimedId = claimed.id;
@@ -197,6 +198,13 @@ apiRouter.post("/evolve/steer", async (req, res) => {
 // ---------- Idea queue ----------
 apiRouter.get("/ideas/board", async (_req, res) => {
   try { res.json(await getBoard()); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+apiRouter.get("/ideas/autoplan", async (_req, res) => { res.json(await getAutoplan()); });
+apiRouter.post("/ideas/autoplan", async (req, res) => {
+  const { enabled, depth } = req.body || {};
+  await setAutoplan({ enabled: typeof enabled === "boolean" ? enabled : undefined, depth: Number.isFinite(Number(depth)) && depth !== undefined ? Number(depth) : undefined });
+  res.json({ ok: true, ...(await getAutoplan()) });
 });
 
 apiRouter.get("/ideas/next", async (_req, res) => {

@@ -513,6 +513,17 @@
     .seg .count { margin-left: 6px; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
     .times { font-size: 11.5px; color: var(--text-3); }
     .edit-form { display: flex; flex-direction: column; gap: 10px; }
+    .autoplan { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
+    .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .switch .track { width: 34px; height: 20px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border-strong); position: relative; transition: background .15s; flex-shrink: 0; }
+    .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-3); transition: transform .15s, background .15s; }
+    .switch input:checked + .track { background: var(--accent); border-color: transparent; }
+    .switch input:checked + .track::after { transform: translateX(14px); background: var(--on-accent); }
+    .switch input:focus-visible + .track { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+    .select.sm { height: 30px; font-size: 12.5px; padding: 0 28px 0 10px; }
+    .auto-tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 11.5px; font-weight: 500;
+      color: var(--text-3); border: 1px dashed var(--border-strong); white-space: nowrap; }
 
     /* ---------- Toasts ---------- */
     .toasts { position: fixed; right: 20px; bottom: 20px; z-index: 80; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 32px); }
@@ -574,6 +585,8 @@
       .q-item { padding: 12px 16px; gap: 10px; align-items: flex-start; }
       .q-ctrl { flex-direction: column; }
       .tab-head { padding: 12px 16px; }
+      .autoplan { justify-content: flex-start; }
+      #view-ideas .card.flush > .card-head { flex-direction: column; }
       .seg { max-width: 100%; overflow-x: auto; }
       .next-title { font-size: 17px; }
       .modes { grid-template-columns: minmax(0, 1fr); }
@@ -777,7 +790,8 @@
 
           <div class="card flush">
             <div class="card-head">
-              <div><h2>Build queue <span class="muted" id="queueCount" style="font-weight:500"></span></h2><p>Cycles take ideas from the top. When it's empty, the AI strategist picks on its own.</p></div>
+              <div><h2>Upcoming cycles <span class="muted" id="queueCount" style="font-weight:500"></span></h2><p>Each cycle builds the top idea. Reorder with the arrows or remove anything you don't want.</p></div>
+              <div class="autoplan" id="autoplan"></div>
             </div>
             <div id="ideasQueue"></div>
           </div>
@@ -1385,6 +1399,8 @@
       const v = ideaScore(i);
       return `<span class="score" title="Impact × confidence × strategic value, out of 1000"><span class="bar"><span style="width:${Math.min(100, v / 10)}%"></span></span>${v}</span>`;
     }
+    const isAuto = (i) => typeof i.reason === 'string' && i.reason.startsWith('Auto-planned');
+    const autoTag = (i) => isAuto(i) ? `<span class="auto-tag" title="The AI planned this from its suggestions. Remove it and the next-best suggestion takes its place.">${icon('sparkles', 11)}Auto-planned</span>` : '';
     function analysisOf(i) { const a = parseJson(i.analysis); return a && typeof a === 'object' ? a : null; }
     function summaryOf(i) { const a = analysisOf(i); return (a && a.summary) || i.description || ''; }
 
@@ -1411,11 +1427,11 @@
       return `${nowLine}${head}
         <div class="next-title">${esc(n.title)}</div>
         <p class="next-sum">${esc(summaryOf(n))}</p>
-        <div class="next-meta">${srcBadge(n)}<span class="tag">${esc(n.category || 'feature')}</span>${scoreHtml(n)}</div>
+        <div class="next-meta">${srcBadge(n)}${autoTag(n)}<span class="tag">${esc(n.category || 'feature')}</span>${scoreHtml(n)}</div>
         ${!compact && a && a.spec && a.spec.length ? `<ol class="next-steps">${a.spec.slice(0, 5).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
         <div class="next-actions">
           <button class="btn sm" type="button" data-action="idea-open" data-id="${esc(n.id)}">${icon('info', 14)}Full brief</button>
-          ${compact ? `<a class="btn sm ghost" href="#ideas">Manage queue</a>` : `<button class="btn sm ghost" type="button" data-action="idea-move" data-dir="down" data-id="${esc(n.id)}">${icon('arrowDown', 14)}Push back</button>`}
+          ${compact ? `<a class="btn sm ghost" href="#ideas">Manage upcoming</a>` : `<button class="btn sm ghost" type="button" data-action="idea-move" data-dir="down" data-id="${esc(n.id)}">${icon('arrowDown', 14)}Push back</button><button class="btn sm ghost" type="button" data-action="idea-dismiss" data-id="${esc(n.id)}">${icon('x', 14)}Skip it</button>`}
         </div>
         ${rest.length ? `<div class="then"><div class="then-label">Then</div>${rest.map((q, i) => `<div class="then-item"><span class="rank">${i + 2}</span><span class="truncate">${esc(q.title)}</span>${q.status === 'evaluating' ? badge('evaluating') : srcBadge(q)}</div>`).join('')}</div>` : ''}`;
     }
@@ -1423,7 +1439,7 @@
     function queueHtml() {
       const q = state.board?.queue;
       if (!q) return skelRows(4);
-      if (!q.length) return empty('The queue is empty', 'Pitch an idea above or queue an AI suggestion below. Until then the strategist chooses each cycle.', 'bulb');
+      if (!q.length) return empty('Nothing planned yet', state.board?.autoplan?.enabled ? 'Pitch an idea above or queue an AI suggestion below.' : 'Auto-planning is off. Pitch an idea or queue a suggestion, otherwise the strategist chooses each cycle.', 'bulb');
       let rank = 0;
       return q.map((i, idx) => {
         const ev = i.status === 'evaluating';
@@ -1433,7 +1449,7 @@
           <div class="q-main">
             <div class="q-title"><span class="truncate">${esc(i.title)}</span></div>
             <div class="q-desc">${ev ? 'The AI is reading your idea, scoring it and writing a build spec…' : esc(summaryOf(i))}</div>
-            <div class="q-meta">${ev ? badge('evaluating') : badge('queued')}${srcBadge(i)}${ev ? '' : `<span class="tag hide-sm">${esc(i.category || 'feature')}</span>${scoreHtml(i)}`}<span class="times">added ${ago(i.created_at)}</span></div>
+            <div class="q-meta">${ev ? badge('evaluating') : badge('queued')}${srcBadge(i)}${autoTag(i)}${ev ? '' : `<span class="tag hide-sm">${esc(i.category || 'feature')}</span>${scoreHtml(i)}`}<span class="times">added ${ago(i.created_at)}</span></div>
           </div>
           <div class="q-ctrl">
             <button class="icon-btn sm" type="button" data-action="idea-move" data-dir="top" data-id="${esc(i.id)}" title="Move to top" aria-label="Move to top" ${idx === 0 ? 'disabled' : ''}>${icon('top', 15)}</button>
@@ -1466,6 +1482,10 @@
       $('#ideasNext').innerHTML = nextHtml(false);
       const b = state.board;
       $('#queueCount').textContent = b ? `· ${(b.queue || []).length}` : '';
+      const ap = b && b.autoplan;
+      $('#autoplan').innerHTML = ap ? `
+        <label class="switch" title="Keep the list topped up with the AI's best suggestions"><input type="checkbox" data-autoplan-toggle ${ap.enabled ? 'checked' : ''}><span class="track"></span>AI auto-plans</label>
+        <select class="select sm" data-autoplan-depth aria-label="How many cycles to plan ahead" ${ap.enabled ? '' : 'disabled'}>${[1, 2, 3, 5, 8, 10].map((n) => `<option value="${n}" ${n === ap.depth ? 'selected' : ''}>${n} ahead</option>`).join('')}</select>` : '';
       $('#ideasQueue').innerHTML = queueHtml();
       const lib = (state.ideaBank || []).filter((i) => i.status === 'proposed' && (i.source === 'library' || i.cycle_id === 'planner' || /idea planner/i.test(i.reason || '')));
       const counts = { system: b ? b.system.length : '', mine: b ? b.mine.length : '', library: lib.length };
@@ -1528,7 +1548,7 @@
         ${a && a.spec && a.spec.length ? `<div class="section"><h3>Build spec</h3><ol class="plan-steps">${a.spec.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
         ${a && a.acceptance && a.acceptance.length ? `<div class="section"><h3>Done when</h3><ul class="check-list">${a.acceptance.map((x) => `<li>${icon('check', 15)}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}
         ${a && a.risks && a.risks.length ? `<div class="section"><h3>Risks & open questions</h3><ul class="check-list risk-list">${a.risks.map((x) => `<li>${icon('alert', 15)}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}
-        ${!a && i.reason && i.source !== 'user' ? `<div class="section"><h3>Why the strategist proposed it</h3><p class="prose">${esc(i.reason)}</p></div>` : ''}
+        ${!a && i.reason && i.source !== 'user' ? `<div class="section"><h3>Why the AI proposed it</h3><p class="prose">${esc(isAuto(i) ? i.reason.replace(/^Auto-planned by AI\s*·\s*/, '') : i.reason)}</p>${isAuto(i) ? '<p class="muted" style="font-size:12.5px;margin-top:8px">The AI planned this from its suggestions. Remove it and the next-best suggestion takes its place.</p>' : ''}</div>` : ''}
         ${i.cycle ? `<div class="section"><h3>Build</h3><div class="q-item" style="border:1px solid var(--border);border-radius:10px" data-cycle="${esc(i.cycle.id)}" tabindex="0"><div class="q-main"><div class="q-title">Cycle #${esc(i.cycle.cycle_number)}${i.cycle.new_version ? ` · v${esc(i.cycle.new_version)}` : ''}</div>${i.cycle.error_message ? `<div class="q-desc">${esc(i.cycle.error_message)}</div>` : ''}</div>${badge(i.cycle.status)}</div></div>` : ''}
         ${i.status === 'failed' && i.reason ? `<div class="section"><h3>Why it failed</h3><div class="callout danger">${esc(i.reason)}</div></div>` : ''}
         ${a && a.model ? `<p class="muted" style="font-size:12px;margin-top:24px">Analysed by <span class="mono">${esc(a.model)}</span></p>` : ''}
@@ -1815,6 +1835,16 @@
     });
 
     $('#ovVersion').addEventListener('change', (e) => setPreview(e.target.value));
+    document.addEventListener('change', async (e) => {
+      const t = e.target;
+      if (!t.matches || !(t.matches('[data-autoplan-toggle]') || t.matches('[data-autoplan-depth]'))) return;
+      const body = t.matches('[data-autoplan-toggle]') ? { enabled: t.checked } : { depth: +t.value };
+      try {
+        await post('/ideas/autoplan', body);
+        toast(body.enabled === false ? 'Auto-planning off: the strategist picks when the list is empty' : body.enabled ? 'Auto-planning on: the AI keeps upcoming cycles planned' : `Planning ${body.depth} cycle${body.depth === 1 ? '' : 's'} ahead`, 'success');
+      } catch (err) { toast(err.message, 'error'); }
+      loadBoard();
+    });
     window.addEventListener('hashchange', () => setView(location.hash.slice(1)));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) loadCore(); });
     let resizeT;

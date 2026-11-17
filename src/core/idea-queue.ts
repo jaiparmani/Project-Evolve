@@ -46,13 +46,90 @@ async function projectId(): Promise<string> {
   return id;
 }
 
-async function nextRank(top = false): Promise<number> {
-  const [row] = await db
-    .select({ lo: sql<number>`min(${schema.ideas.queueRank})`, hi: sql<number>`max(${schema.ideas.queueRank})` })
+export const AUTO_PREFIX = "Auto-planned by AI";
+const isAuto = (i: { reason?: string | null; status?: string | null }) => !!i.reason?.startsWith(AUTO_PREFIX);
+
+/**
+ * Rank for a newly queued idea. "top" goes first; otherwise it goes after the
+ * ideas people queued by hand but ahead of the AI's auto-planned ones.
+ */
+async function nextRank(top = false, append = false): Promise<number> {
+  const open = await db.select({ rank: schema.ideas.queueRank, reason: schema.ideas.reason, status: schema.ideas.status })
     .from(schema.ideas)
-    .where(inArray(schema.ideas.status, OPEN_STATUSES));
-  if (top) return (row?.lo ?? 1) - 1;
-  return (row?.hi ?? 0) + 1;
+    .where(inArray(schema.ideas.status, OPEN_STATUSES))
+    .orderBy(asc(schema.ideas.queueRank));
+  const ranks = open.map((o) => o.rank ?? 0);
+  if (top) return (ranks.length ? Math.min(...ranks) : 1) - 1;
+  if (!append) {
+    const firstAuto = open.findIndex((o) => o.status === "queued" && isAuto(o));
+    if (firstAuto >= 0) {
+      const autoRank = open[firstAuto].rank ?? 0;
+      const prev = firstAuto > 0 ? open[firstAuto - 1].rank ?? autoRank - 1 : autoRank - 1;
+      return (prev + autoRank) / 2;
+    }
+  }
+  return (ranks.length ? Math.max(...ranks) : 0) + 1;
+}
+
+// ---------- Auto-planning ----------
+export interface AutoplanSettings { enabled: boolean; depth: number }
+
+export async function getAutoplan(): Promise<AutoplanSettings> {
+  const rows = await db.select().from(schema.systemConfig)
+    .where(inArray(schema.systemConfig.key, ["idea_autoplan", "idea_autoplan_depth"]));
+  const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const depth = Math.min(10, Math.max(1, parseInt(m.idea_autoplan_depth || "3", 10) || 3));
+  return { enabled: m.idea_autoplan !== "off", depth };
+}
+
+export async function setAutoplan(next: Partial<AutoplanSettings>) {
+  const now = nowIso();
+  const put = (key: string, value: string) => db.insert(schema.systemConfig).values({ key, value, updatedAt: now })
+    .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value, updatedAt: now } });
+  if (next.enabled !== undefined) await put("idea_autoplan", next.enabled ? "on" : "off");
+  if (next.depth !== undefined) await put("idea_autoplan_depth", String(Math.min(10, Math.max(1, Math.round(next.depth)))));
+  if (next.enabled === false) {
+    // Turning auto-planning off hands those slots back to the strategist.
+    await db.update(schema.ideas).set({ status: "proposed", queueRank: null, updatedAt: now })
+      .where(and(eq(schema.ideas.status, "queued"), sql`${schema.ideas.reason} like ${AUTO_PREFIX + "%"}`));
+  }
+  await autoFill();
+}
+
+let filling = false;
+/** Keep the queue topped up with the AI's best suggestions so upcoming cycles are always visible. */
+export async function autoFill(): Promise<number> {
+  if (filling) return 0;
+  filling = true;
+  try {
+    const { enabled, depth } = await getAutoplan();
+    if (!enabled) return 0;
+    const queued = await db.select({ id: schema.ideas.id }).from(schema.ideas).where(inArray(schema.ideas.status, ["queued", "evaluating"]));
+    let need = depth - queued.length;
+    if (need <= 0) return 0;
+    const picks = (await rankedSuggestions(need)).slice(0, need);
+    for (const p of picks) {
+      await db.update(schema.ideas).set({
+        status: "queued",
+        queueRank: await nextRank(false, true),
+        reason: `${AUTO_PREFIX} · ${p.reason || "highest-ranked suggestion"}`.slice(0, 500),
+        updatedAt: nowIso(),
+      }).where(eq(schema.ideas.id, p.id));
+      need--;
+    }
+    if (picks.length) log.info({ added: picks.map((p) => p.title) }, "Auto-planned upcoming cycles");
+    return picks.length;
+  } finally {
+    filling = false;
+  }
+}
+
+/** True when the AI's suggestion pool is thin or stale and the strategist should propose more. */
+export async function suggestionsNeedRefresh(): Promise<boolean> {
+  const pool = await rankedSuggestions(60);
+  if (pool.length < 8) return true;
+  const newest = pool.reduce((m, p) => (p.createdAt > m ? p.createdAt : m), "");
+  return Date.now() - new Date(newest).getTime() > 3 * 3600_000;
 }
 
 function score(i: { impact?: number | null; confidence?: number | null; strategicValue?: number | null }) {
@@ -265,36 +342,70 @@ export async function recoverInterrupted() {
   if (stuck.length || evaluating.length) log.info({ requeued: stuck.length, reanalysing: evaluating.length }, "Recovered idea queue");
 }
 
+const MODE_CATEGORIES: Record<string, string[]> = {
+  foundation: ["architecture", "testing", "correctness", "reliability", "foundation", "security"],
+  features: ["feature", "features", "ui", "ux", "interactive", "tool", "devtool", "design"],
+  quality: ["accessibility", "performance", "security", "testing", "quality", "reliability"],
+  polish: ["design", "ui", "ux", "polish", "docs", "documentation", "animation"],
+};
+
 function norm(t: string) { return t.toLowerCase().replace(/\bv\d+\b/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
+
+const STOP = new Set(["a", "an", "the", "and", "or", "to", "of", "for", "with", "in", "on", "add", "adds", "adding", "new", "simple", "basic",
+  "interactive", "implement", "introduce", "create", "build", "page", "feature", "improve", "enhanced", "version", "robust", "app", "user", "users", "via", "into", "using"]);
+function keywords(t: string): Set<string> {
+  return new Set(norm(t).split(" ").map((w) => w.replace(/s$/, "")).filter((w) => w.length > 2 && !STOP.has(w)));
+}
+/** Two titles describe the same thing when most of the shorter one's keywords appear in the other. */
+function similar(a: Set<string>, b: Set<string>): boolean {
+  if (!a.size || !b.size) return false;
+  let shared = 0;
+  for (const w of a) if (b.has(w)) shared++;
+  return shared >= Math.max(1, Math.ceil(Math.min(a.size, b.size) * 0.67)) && (shared >= 2 || Math.min(a.size, b.size) === 1);
+}
+
+/**
+ * The strategist's open proposals, deduped by title (it re-proposes the same
+ * things often), minus anything already built, queued, dismissed or failed,
+ * best first. Library ideas are excluded.
+ */
+async function rankedSuggestions(limit = 60) {
+  const [system, recent] = await Promise.all([
+    db.select().from(schema.ideas)
+      .where(and(eq(schema.ideas.status, "proposed"), sql`coalesce(${schema.ideas.source}, 'system') = 'system'`))
+      .orderBy(desc(schema.ideas.createdAt)).limit(400),
+    db.select({ title: schema.ideas.title }).from(schema.ideas)
+      .where(inArray(schema.ideas.status, ["selected", "shipped", "building", "queued", "evaluating", "dismissed", "failed"])),
+  ]);
+  const takenKeys = recent.map((r) => keywords(r.title));
+  const seen: Array<IdeaRow & { times: number; kw: Set<string> }> = [];
+  for (const s of system) {
+    const kw = keywords(s.title);
+    if (!kw.size || takenKeys.some((t) => similar(kw, t))) continue;
+    const prev = seen.find((x) => similar(kw, x.kw));
+    if (prev) { prev.times++; continue; }
+    seen.push({ ...s, times: 1, kw });
+  }
+  // Favour suggestions that match what the current evolution mode is for.
+  const fit = MODE_CATEGORIES[getEvolutionMode()] || [];
+  const rank = (i: IdeaRow & { times: number; priorityScore: number }) =>
+    i.priorityScore + Math.min(i.times, 5) * 20 + (fit.includes((i.category || "").toLowerCase()) ? 250 : 0);
+  return seen
+    .map(({ kw: _kw, ...s }) => ({ ...s, priorityScore: score(s) }))
+    .sort((a, b) => rank(b) - rank(a))
+    .slice(0, limit);
+}
 
 /** Everything the Ideas page needs in one call. */
 export async function getBoard() {
-  const [queue, building, mine, system, recent] = await Promise.all([
+  await autoFill().catch((e) => log.warn({ error: (e as Error).message }, "Auto-fill failed"));
+  const [queue, building, mine, systemIdeas, autoplan] = await Promise.all([
     getQueue(),
     db.select().from(schema.ideas).where(eq(schema.ideas.status, "building")).limit(1),
     db.select().from(schema.ideas).where(eq(schema.ideas.source, "user")).orderBy(desc(schema.ideas.createdAt)).limit(100),
-    db.select().from(schema.ideas)
-      .where(and(eq(schema.ideas.status, "proposed"), sql`coalesce(${schema.ideas.source}, 'system') != 'user'`))
-      .orderBy(desc(schema.ideas.createdAt)).limit(400),
-    db.select({ title: schema.ideas.title }).from(schema.ideas)
-      .where(inArray(schema.ideas.status, ["selected", "shipped", "building", "queued", "evaluating"])),
+    rankedSuggestions(60),
+    getAutoplan(),
   ]);
-
-  // Dedupe system proposals by title (the strategist re-proposes the same things often)
-  // and hide ones that were already built or queued.
-  const taken = new Set(recent.map((r) => norm(r.title)));
-  const seen = new Map<string, IdeaRow & { times: number }>();
-  for (const s of system) {
-    const k = norm(s.title);
-    if (!k || taken.has(k)) continue;
-    const prev = seen.get(k);
-    if (prev) { prev.times++; continue; }
-    seen.set(k, { ...s, times: 1 });
-  }
-  const systemIdeas = [...seen.values()]
-    .map((s) => ({ ...s, priorityScore: score(s) }))
-    .sort((a, b) => (b.priorityScore + b.times * 20) - (a.priorityScore + a.times * 20))
-    .slice(0, 60);
 
   const next = queue.find((q) => q.status === "queued") || null;
   const mode = getEvolutionMode();
@@ -308,7 +419,10 @@ export async function getBoard() {
     buildingCycle: building[0] ? null : lastCycle?.status === "running" ? lastCycle.improvement : null,
     next,
     nextSource: next ? "queue" : "strategist",
-    nextHint: next ? null : `The strategist will choose based on the latest observations in "${mode}" mode. Add an idea or promote a suggestion to decide for it.`,
+    nextHint: next ? null : autoplan.enabled
+      ? `No suggestions left to plan from. The strategist will choose based on the latest observations in "${mode}" mode.`
+      : `Auto-planning is off, so the strategist chooses each cycle based on the latest observations in "${mode}" mode. Add an idea or promote a suggestion to decide for it.`,
+    autoplan,
     queue,
     mine,
     system: systemIdeas,

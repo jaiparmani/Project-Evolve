@@ -1,5 +1,5 @@
 import { db, schema } from "../db/index.js";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { observe } from "../agents/observer.js";
 import { strategize } from "../agents/strategist.js";
 import { plan } from "../agents/architect.js";
@@ -192,6 +192,23 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       observation: JSON.stringify(observations.observations),
       qualityBefore: observations.qualityScore,
     });
+
+    // When building from the queue the strategist is skipped, so top up the
+    // AI's suggestion pool in the background when it runs thin or stale.
+    if (userIdea) {
+      void (async () => {
+        try {
+          const { suggestionsNeedRefresh, autoFill } = await import("../core/idea-queue.js");
+          if (!(await suggestionsNeedRefresh())) return;
+          log.info({ cycleId }, "Refreshing AI suggestions in the background");
+          await strategize(projectId, cycleId, observations);
+          // The strategist marks its favourite as "selected"; here it is only a proposal.
+          await db.update(schema.ideas).set({ status: "proposed" } as never)
+            .where(and(eq(schema.ideas.cycleId, cycleId), eq(schema.ideas.status, "selected")));
+          await autoFill();
+        } catch (e) { log.warn({ error: (e as Error).message }, "Background suggestion refresh failed"); }
+      })();
+    }
 
     // Phase 2: Strategize (skip if user provided an idea)
     await updatePhase(cycleId, "strategizing");
