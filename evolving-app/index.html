@@ -270,5 +270,19 @@
   </div>
   <script>(function(){const el=document.getElementById("notepad-edit");el.value=localStorage.getItem("quicknotes")||"";function md(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>").replace(/`(.+?)`/g,'<code style="background:rgba(96,165,250,0.15);padding:2px 4px;border-radius:3px">$1</code>').replace(/^### (.+)/gm,'<h4 style="color:#60a5fa;margin:8px 0 4px">$1</h4>').replace(/^## (.+)/gm,'<h3 style="color:#60a5fa;margin:8px 0 4px">$1</h3>').replace(/^# (.+)/gm,'<h2 style="color:#60a5fa;margin:8px 0 4px">$1</h2>').replace(/^- (.+)/gm,'<li style="margin-left:16px">$1</li>').replace(/\n/g,"<br>")}window.renderNotes=function(){const v=el.value;localStorage.setItem("quicknotes",v);document.getElementById("notepad-preview").innerHTML=md(v)||'<span style="color:#444">Preview appears here...</span>';const words=v.trim()?v.trim().split(/\s+/).length:0;document.getElementById("notepad-wc").textContent=words+" words"};window.downloadNotes=function(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([el.value],{type:"text/plain"}));a.download="notes.txt";a.click()};renderNotes()})();</script>
 >>>>>>> evolve/exp-QY173-eW
+
+  <div id="json-formatter" style="margin-top:24px;max-width:520px;width:100%;padding:20px 24px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+    <h2 style="font-size:16px;color:#a78bfa;margin-bottom:12px">{ } JSON Formatter</h2>
+    <textarea id="json-input" placeholder='Paste JSON here...
+{"key": "value"}' style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e0e0e0;font:13px/1.4 ui-monospace,monospace;outline:none;min-height:120px;resize:vertical;font-size:12px" oninput="fmtJson()"></textarea>
+    <div style="display:flex;gap:6px;margin:8px 0">
+      <button onclick="fmtJson()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:#a78bfa;color:#0a0a0a;font-weight:600;font-size:12px">Format</button>
+      <button onclick="minJson()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:12px">Minify</button>
+      <button onclick="copyJson()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:12px">Copy</button>
+      <span id="json-status" style="margin-left:auto;font-size:11px;display:flex;align-items:center;color:#555"></span>
+    </div>
+    <pre id="json-output" style="padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:11px;color:#5ee0c8;overflow-x:auto;max-height:200px;margin:0;white-space:pre-wrap"></pre>
+  </div>
+  <script>window.fmtJson=function(){const inp=document.getElementById("json-input"),out=document.getElementById("json-output"),st=document.getElementById("json-status");try{const o=JSON.parse(inp.value);out.textContent=JSON.stringify(o,null,2);st.textContent="✓ Valid JSON";st.style.color="#5ee0c8"}catch(e){out.textContent=e.message;st.textContent="✗ Invalid";st.style.color="#f87171"}};window.minJson=function(){try{document.getElementById("json-input").value=JSON.stringify(JSON.parse(document.getElementById("json-input").value));fmtJson()}catch{}};window.copyJson=function(){navigator.clipboard.writeText(document.getElementById("json-output").textContent);if(typeof showToast==="function")showToast("Copied!","success")};</script>
 </body>
 </html>
