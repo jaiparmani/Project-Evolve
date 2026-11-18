@@ -6,29 +6,13 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/server.js",
-    "test": "node test/todos.test.js",
-<<<<<<< HEAD
-    "lint": "eslint . --ext .ts,.js"
-=======
-    "lint": "eslint src test --ext .ts,.js",
-    "lint:fix": "eslint src test --ext .ts,.js --fix"
->>>>>>> evolve/exp-N7qcucl3
+    "test": "node test/todos.test.js"
   },
   "dependencies": {
     "express": "^5.1.0",
     "helmet": "^7.0.0"
   },
   "devDependencies": {
-<<<<<<< HEAD
-    "typescript": "^5.4.0",
-    "eslint": "^8.57.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0"
-=======
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.0",
     "typescript": "^5.4.0"
->>>>>>> evolve/exp-N7qcucl3
   }
 }
