@@ -25,6 +25,7 @@ const IDEA_COLUMNS: Record<string, string> = {
   queue_rank: "REAL",
   picked_cycle_id: "TEXT",
   updated_at: "TEXT",
+  attempts: "INTEGER DEFAULT 0",
 };
 try {
   const cols = new Set((sqlite.prepare("PRAGMA table_info(ideas)").all() as Array<{ name: string }>).map((c) => c.name));

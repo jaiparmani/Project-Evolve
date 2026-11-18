@@ -9,6 +9,7 @@ import { childLogger } from "../core/logger.js";
 import { evaluateRoadmap, ROADMAP } from "../core/roadmap.js";
 import { config } from "../core/config.js";
 import { backupDb } from "../db/persist.js";
+import { deployGateStatus, triggerDeploy, checkForUpdates, holdForDeploy } from "../deploy/update-gate.js";
 import { submitIdea, queueIdea, dismissIdea, moveIdea, editIdea, analyseIdea, claimNext, finishIdea, getBoard, getIdea, peekNext, ideaBrief, autoFill, getAutoplan, setAutoplan } from "../core/idea-queue.js";
 
 const log = childLogger("api");
@@ -32,6 +33,7 @@ apiRouter.get("/status", async (_req, res) => {
     deploy,
     llm: llmStats,
     todayCycles: todayCycles[0]?.count || 0,
+    deployGate: deployGateStatus(),
   });
 });
 
@@ -171,7 +173,22 @@ export async function ensureProjectAndRunCycle(userIdea?: UserIdea) {
   }
 }
 
+apiRouter.get("/deploy/status", async (_req, res) => {
+  await checkForUpdates();
+  res.json(deployGateStatus());
+});
+
+// Deploy waiting code now. Mid-cycle this interrupts the cycle (its idea is re-queued).
+apiRouter.post("/deploy/now", async (_req, res) => {
+  const s = deployGateStatus();
+  if (!s.hookConfigured) return res.status(400).json({ error: "No deploy hook configured. Add RENDER_DEPLOY_HOOK_URL in Render." });
+  const ok = await triggerDeploy(getRunning() ? "manual, mid-cycle" : "manual");
+  if (!ok) return res.status(500).json({ error: deployGateStatus().lastError || "Deploy hook failed" });
+  res.json({ ok: true, message: "Deploy started. The app restarts in a few minutes." });
+});
+
 apiRouter.post("/evolve", async (_req, res) => {
+  if (holdForDeploy()) return res.status(409).json({ error: "A deploy is in progress; cycles resume after it" });
   if (getRunning()) {
     return res.status(409).json({ error: "A cycle is already running" });
   }

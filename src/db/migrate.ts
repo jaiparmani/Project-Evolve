@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS ideas (
   queue_rank REAL,
   picked_cycle_id TEXT,
   updated_at TEXT,
+  attempts INTEGER DEFAULT 0,
   created_at TEXT NOT NULL
 );
 

@@ -15,6 +15,9 @@ interface CheckResult {
 
 interface CodeReview {
   approved: boolean;
+  /** Did the change actually deliver the improvement it was meant to? */
+  goalMet: boolean;
+  goalGaps: string[];
   feedback: string;
   qualityScore: number;
   findings: Array<{
@@ -50,7 +53,8 @@ async function runCommand(cmd: string, cwd: string): Promise<CheckResult> {
 export async function evaluate(
   workDir: string,
   changes: { filesChanged: string[]; log: string },
-  idea: { title: string; description: string }
+  idea: { title: string; description: string },
+  plan?: { filesToCreate?: string[]; acceptanceCriteria?: string[] }
 ): Promise<EvaluationResult> {
   log.info({ workDir, files: changes.filesChanged.length }, "Starting evaluation");
 
@@ -98,10 +102,23 @@ export async function evaluate(
     } catch {}
   }
 
+  // Deterministic goal check: files the plan said to create must exist.
+  const planned = (plan?.filesToCreate || []).filter(Boolean);
+  const missingFiles = planned.filter((f) => !changes.filesChanged.includes(f) && !existsSync(resolve(workDir, f)));
+  const acceptance = (plan?.acceptanceCriteria || []).filter(Boolean);
+
   const prompt = `You are a code reviewer evaluating changes made by an AI developer.
 
 IMPROVEMENT GOAL: ${idea.title}
 Description: ${idea.description}
+
+ACCEPTANCE CRITERIA:
+${acceptance.map((a) => `- ${a}`).join("\n") || "- The improvement goal above is visibly implemented"}
+
+FILES THE PLAN SAID TO CREATE: ${planned.join(", ") || "none"}
+${missingFiles.length ? `NOT CREATED: ${missingFiles.join(", ")}` : ""}
+
+ALL FILES CHANGED: ${changes.filesChanged.join(", ")}
 
 CHANGES MADE:
 ${changes.log}
@@ -129,8 +146,14 @@ Return JSON:
       "filePath": "path/to/file if applicable"
     }
   ],
-  "rejectionReason": "Only if rejected — the single most important reason"
+  "rejectionReason": "Only if rejected — the single most important reason",
+  "goalMet": true/false,
+  "goalGaps": ["Each part of the goal or acceptance criteria that is NOT done yet"]
 }
+
+goalMet is separate from approval: approve code that is safe, but set goalMet to false
+if the change does not substantially deliver the IMPROVEMENT GOAL (for example it only
+tweaks styles when the goal asked for new pages or a restructure).
 
 IMPORTANT: Your default should be to APPROVE. Only reject for serious issues:
 - Changes introduce a clear, specific bug (cite the exact code)
@@ -148,6 +171,8 @@ The goal is FORWARD PROGRESS. Any change that doesn't break the app should be ap
 
   let codeReview: CodeReview = {
     approved: true,
+    goalMet: true,
+    goalGaps: [],
     feedback: "Review skipped — automated checks only",
     qualityScore: 50,
     findings: [],
@@ -163,6 +188,8 @@ The goal is FORWARD PROGRESS. Any change that doesn't break the app should be ap
     const reviewData = (result as { data: Record<string, unknown> }).data;
     codeReview = {
       approved: reviewData.approved === true,
+      goalMet: reviewData.goalMet !== false,
+      goalGaps: Array.isArray(reviewData.goalGaps) ? (reviewData.goalGaps as unknown[]).map(String).slice(0, 8) : [],
       feedback: String(reviewData.feedback || ""),
       qualityScore: typeof reviewData.qualityScore === "number" ? reviewData.qualityScore : 50,
       findings: Array.isArray(reviewData.findings) ? (reviewData.findings as CodeReview["findings"]) : [],
@@ -172,6 +199,13 @@ The goal is FORWARD PROGRESS. Any change that doesn't break the app should be ap
     }
   } catch (e) {
     log.warn("Code review LLM call failed, using automated checks only");
+  }
+
+  // More than half the planned new files missing means the goal wasn't delivered,
+  // whatever the reviewer model thinks.
+  if (planned.length && missingFiles.length > planned.length / 2) {
+    codeReview.goalMet = false;
+    codeReview.goalGaps = [`Planned files not created: ${missingFiles.join(", ")}`, ...codeReview.goalGaps];
   }
 
   const overallPassed = codeReview.approved;
@@ -193,6 +227,7 @@ The goal is FORWARD PROGRESS. Any change that doesn't break the app should be ap
       buildCheck: buildCheck.passed,
       testCheck: testCheck.passed,
       reviewApproved: codeReview.approved,
+      goalMet: codeReview.goalMet,
       findings: codeReview.findings.length,
     },
     "Evaluation complete"

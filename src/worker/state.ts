@@ -67,7 +67,8 @@ export function incrementCycles() {
 export function canRunCycle(): boolean {
   const today = new Date().toDateString();
   if (today !== lastDayReset) { cyclesRanToday = 0; lastDayReset = today; }
-  return cyclesRanToday < config.evolution.maxCyclesPerDay;
+  const max = config.evolution.maxCyclesPerDay;
+  return !(max > 0) || cyclesRanToday < max;
 }
 
 export function isLoopActive() { return loopActive; }
@@ -90,6 +91,15 @@ export function startLoop(runOneCycle: () => Promise<void>) {
       loopTimer = setTimeout(tick, 10_000);
       return;
     }
+    // New code waiting? Deploy now, between cycles, instead of mid-cycle.
+    try {
+      const { maybeDeployBetweenCycles } = await import("../deploy/update-gate.js");
+      if (await maybeDeployBetweenCycles()) {
+        log.info("Holding cycles while the new version deploys");
+        loopTimer = setTimeout(tick, 30_000);
+        return;
+      }
+    } catch (e) { log.warn({ error: (e as Error).message }, "Deploy gate check failed"); }
     try {
       await runOneCycle();
     } catch (e) {

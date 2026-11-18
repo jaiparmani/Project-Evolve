@@ -403,6 +403,9 @@
       font-size: 13.5px;
     }
     .banner .i { color: var(--warning); }
+    .banner.update { border-color: color-mix(in srgb, var(--info) 35%, transparent); background: color-mix(in srgb, var(--info) 8%, var(--surface)); }
+    .banner.update .i { color: var(--info); }
+    .banner small { display: block; color: var(--text-2); font-size: 12.5px; margin-top: 2px; }
     .banner span { flex: 1; }
 
     /* ---------- Drawer ---------- */
@@ -644,6 +647,7 @@
           <span>Can't reach the server. It may be waking up from sleep; retrying automatically.</span>
           <button class="btn sm" type="button" data-action="retry">Retry now</button>
         </div>
+        <div class="banner update" id="updateBanner" role="status" hidden></div>
 
         <!-- Overview -->
         <section class="view stack" id="view-overview">
@@ -1090,7 +1094,23 @@
     async function loadIdeaBank() { state.ideaBank = (await get('/idea-bank', [])) || []; renderView(); }
 
     // ---------- Chrome ----------
+    function renderUpdateBanner() {
+      const g = state.status?.deploy_gate;
+      const el = $('#updateBanner');
+      if (!g || (!g.pending?.length && !g.deploying)) { el.hidden = true; return; }
+      el.hidden = false;
+      if (g.deploying) {
+        el.innerHTML = `${icon('repeat', 16)}<span>Deploying the new version<small>Cycles are paused. The app restarts in a few minutes and picks up where it left off.</small></span>`;
+        return;
+      }
+      const n = g.pending.length;
+      const what = `${n} code update${n === 1 ? '' : 's'} waiting: ${esc(g.pending[n - 1].message)}`;
+      el.innerHTML = g.hook_configured
+        ? `${icon('info', 16)}<span>${what}<small>${isRunning() ? 'Deploys automatically when the current cycle finishes, so it is not interrupted.' : 'Deploying before the next cycle starts.'}</small></span><button class="btn sm" type="button" data-action="deploy-now">${isRunning() ? 'Deploy now (stops this cycle)' : 'Deploy now'}</button>`
+        : `${icon('info', 16)}<span>${what}<small>Render deploys pushes immediately, which interrupts running cycles. Turn off Auto-Deploy and add a deploy hook (RENDER_DEPLOY_HOOK_URL) to deploy between cycles instead.</small></span>`;
+    }
     function renderChrome() {
+      renderUpdateBanner();
       const [k, l] = engineState();
       $('#engineChip').innerHTML = `<span class="badge ${k}"><span class="dot ${k === 'info' ? 'pulse' : ''}"></span>${l}</span>`;
       $('#appVersion').textContent = 'v' + (state.status?.project?.current_version || '0.0.0');
@@ -1170,7 +1190,7 @@
         kpi('Live version', 'tag', `<span class="mono" style="font-size:.85em">v${esc(p.current_version || '0.0.0')}</span>`, `Updated ${ago(p.updated_at)}`) +
         kpi('Evolution cycles', 'repeat', fmtNum(total), `${rate}% successful · ${fmtNum(p.failed_cycles || 0)} failed`) +
         kpi('Engine', 'cpu', `<span class="badge ${ek}" style="font-size:13px;height:26px;padding:0 10px"><span class="dot ${ek === 'info' ? 'pulse' : ''}"></span>${el}</span>`,
-          `${today} of ${w.max_cycles_per_day ?? '—'} cycles today · ${state.loop?.active ? 'continuous' : 'manual'}`);
+          `${today} cycles today${w.max_cycles_per_day > 0 ? ` of ${w.max_cycles_per_day} allowed` : ' · no daily limit'} · ${state.loop?.active ? 'continuous' : 'manual'}`);
 
       renderLive();
       renderChart();
@@ -1449,7 +1469,7 @@
           <div class="q-main">
             <div class="q-title"><span class="truncate">${esc(i.title)}</span></div>
             <div class="q-desc">${ev ? 'The AI is reading your idea, scoring it and writing a build spec…' : esc(summaryOf(i))}</div>
-            <div class="q-meta">${ev ? badge('evaluating') : badge('queued')}${srcBadge(i)}${autoTag(i)}${ev ? '' : `<span class="tag hide-sm">${esc(i.category || 'feature')}</span>${scoreHtml(i)}`}<span class="times">added ${ago(i.created_at)}</span></div>
+            <div class="q-meta">${ev ? badge('evaluating') : badge('queued')}${i.attempts > 0 ? `<span class="badge warning" title="${esc(i.reason || '')}">Attempt ${i.attempts + 1} of 3</span>` : ''}${srcBadge(i)}${autoTag(i)}${ev ? '' : `<span class="tag hide-sm">${esc(i.category || 'feature')}</span>${scoreHtml(i)}`}<span class="times">added ${ago(i.created_at)}</span></div>
           </div>
           <div class="q-ctrl">
             <button class="icon-btn sm" type="button" data-action="idea-move" data-dir="top" data-id="${esc(i.id)}" title="Move to top" aria-label="Move to top" ${idx === 0 ? 'disabled' : ''}>${icon('top', 15)}</button>
@@ -1463,7 +1483,7 @@
 
     function suggestionRow(i, opts = {}) {
       const st = i.status;
-      const open = st === 'proposed' || st === 'failed' || st === 'dismissed';
+      const open = st === 'proposed' || st === 'failed' || st === 'dismissed' || st === 'shipped';
       return `<div class="q-item" data-action="idea-open" data-id="${esc(i.id)}" tabindex="0">
         <div class="q-main">
           <div class="q-title"><span class="truncate">${esc(i.title)}</span></div>
@@ -1519,7 +1539,7 @@
       if (!i) { $('#drawerTitle').textContent = 'Unavailable'; $('#drawerBody').innerHTML = empty("Couldn't load this idea", 'Try again in a moment.', 'alert'); return; }
       const a = analysisOf(i);
       const pos = (state.board?.queue || []).findIndex((q) => q.id === i.id);
-      const open = ['proposed', 'failed', 'dismissed'].includes(i.status);
+      const open = ['proposed', 'failed', 'dismissed', 'shipped'].includes(i.status);
       const verdictIcon = { build: 'checkCircle', rework: 'alert', reject: 'x' };
       $('#drawerEyebrow').textContent = `${i.source === 'user' ? 'Your idea' : i.source === 'library' ? 'Library idea' : 'AI suggestion'}${pos >= 0 ? ` · #${pos + 1} in queue` : ''}`;
       $('#drawerTitle').textContent = i.title;
@@ -1545,6 +1565,7 @@
         ${a && a.verdict ? `<div class="section"><h3>AI verdict</h3><div class="callout verdict ${esc(a.verdict)}">${icon(verdictIcon[a.verdict] || 'info', 16)}<div><b>${esc(a.verdict === 'build' ? 'Worth building' : a.verdict === 'rework' ? 'Needs rework' : 'Not recommended')}</b>${(a.verdict_reason || a.verdictReason) ? `<div class="muted" style="margin-top:2px">${esc(a.verdict_reason || a.verdictReason)}</div>` : ''}</div></div></div>` : ''}
         <div class="section"><h3>${a && a.summary ? 'Summary' : 'Description'}</h3><p class="prose">${esc((a && a.summary) || i.description)}</p></div>
         ${a && a.summary && i.description && a.summary !== i.description ? `<div class="section"><h3>Original request</h3><div class="callout">${esc(i.description)}</div></div>` : ''}
+        ${a && a.remaining && a.remaining.length && i.status !== 'shipped' ? `<div class="section"><h3>Still to do from earlier attempts</h3><ul class="check-list risk-list">${a.remaining.map((x) => `<li>${icon('alert', 15)}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}
         ${a && a.spec && a.spec.length ? `<div class="section"><h3>Build spec</h3><ol class="plan-steps">${a.spec.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
         ${a && a.acceptance && a.acceptance.length ? `<div class="section"><h3>Done when</h3><ul class="check-list">${a.acceptance.map((x) => `<li>${icon('check', 15)}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}
         ${a && a.risks && a.risks.length ? `<div class="section"><h3>Risks & open questions</h3><ul class="check-list risk-list">${a.risks.map((x) => `<li>${icon('alert', 15)}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}
@@ -1724,6 +1745,14 @@
           return;
         }
         if (act === 'retry') { loadCore(); return; }
+        if (act === 'deploy-now') {
+          if (isRunning() && !confirm('Deploy now? The running cycle will stop and its idea goes back to the front of the queue.')) return;
+          setBusy(a, true, 'Deploying…');
+          try { const r = await post('/deploy/now'); toast(r.message || 'Deploy started', 'success'); }
+          catch (err) { toast(err.message, 'error'); setBusy(a, false); }
+          loadCore();
+          return;
+        }
         if (act === 'evolve') {
           setBusy(a, true, 'Starting…');
           try { await post('/evolve'); toast('Evolution cycle started', 'success'); }

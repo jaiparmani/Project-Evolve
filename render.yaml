@@ -23,8 +23,12 @@ services:
       - key: EVOLVE_INTERVAL_MINUTES
         value: 30
       - key: EVOLVE_MAX_CYCLES_PER_DAY
-        value: 200
+        value: 0
       - key: EVOLVE_LOOP_DELAY_SECONDS
         value: 15
       - key: EVOLVE_CYCLE_TIMEOUT_MINUTES
         value: 12
+      # Deploy between cycles instead of mid-cycle: turn off Auto-Deploy for this
+      # service, create a Deploy Hook (Settings > Deploy Hook) and paste it here.
+      - key: RENDER_DEPLOY_HOOK_URL
+        sync: false

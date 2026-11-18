@@ -55,7 +55,8 @@ export const config = {
 
   evolution: {
     intervalMinutes: envInt("EVOLVE_INTERVAL_MINUTES", 30),
-    maxCyclesPerDay: envInt("EVOLVE_MAX_CYCLES_PER_DAY", 200),
+    // 0 (default) = no daily limit
+    maxCyclesPerDay: envInt("EVOLVE_MAX_CYCLES_PER_DAY", 0),
     loopDelaySeconds: envInt("EVOLVE_LOOP_DELAY_SECONDS", 15),
     cycleTimeoutMinutes: envInt("EVOLVE_CYCLE_TIMEOUT_MINUTES", 12),
     buildTimeoutSeconds: envInt("EVOLVE_BUILD_TIMEOUT_SECONDS", 240),

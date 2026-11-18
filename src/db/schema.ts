@@ -85,6 +85,7 @@ export const ideas = sqliteTable("ideas", {
   queueRank: real("queue_rank"),
   pickedCycleId: text("picked_cycle_id"),
   updatedAt: text("updated_at"),
+  attempts: integer("attempts").default(0),
   createdAt: text("created_at").notNull(),
 });
 

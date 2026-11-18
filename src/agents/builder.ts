@@ -108,7 +108,9 @@ CRITICAL RULES:
 - You may create several new files (pages, scripts, styles, API routes) and wire them together.
 - Preserve existing features unless the plan says to replace them.
 - Make sure the server can still start after your changes.
-- Do NOT create test files unless the plan specifically asks for tests.`;
+- Do NOT create test files unless the plan specifically asks for tests.
+- Every file under "Files to create" MUST appear in "changes" with full content. Skipping one means the goal is not met.
+- The app is served as static files under /app/: link every new page or script from index.html (or the shared navigation) so users can reach it.`;
 
   let changes: FileChange[] = [];
   let source = "llm";

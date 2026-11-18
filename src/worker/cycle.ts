@@ -98,6 +98,9 @@ interface CycleResult {
   qualityAfter?: number;
   tokensUsed: number;
   error?: string;
+  /** False when the change shipped but did not deliver the whole goal. */
+  goalMet?: boolean;
+  goalGaps?: string[];
 }
 
 async function updatePhase(cycleId: string, phase: CyclePhase, extra?: Record<string, unknown>) {
@@ -155,6 +158,8 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
     startedAt: now,
     createdAt: now,
   });
+
+  { const { setCycleId } = await import("./state.js"); setCycleId(cycleId); }
 
   if (userIdea?.ideaId) {
     const { markIdeaStarted } = await import("../core/idea-queue.js");
@@ -280,18 +285,9 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
     try {
       implPlan = await plan(proj.appDir, selectedIdea, observations);
     } catch (planErr) {
-      log.warn({ error: (planErr as Error).message }, "Planning failed — using minimal plan, cycle continues");
-      implPlan = {
-        title: selectedIdea.title,
-        approach: selectedIdea.description,
-        steps: [{ step: 1, description: selectedIdea.description, files: ["index.html"] }],
-        filesToCreate: [],
-        filesToModify: ["index.html"],
-        filesToDelete: [],
-        acceptanceCriteria: ["Changes applied successfully"],
-        regressionRisks: [],
-        estimatedComplexity: "low" as const,
-      };
+      log.warn({ error: (planErr as Error).message }, "Planning failed — using the idea's brief as the plan");
+      const { planFromBrief } = await import("../agents/architect.js");
+      implPlan = planFromBrief(proj.appDir, selectedIdea, ["index.html"], (planErr as Error).message);
     }
 
     await updatePhase(cycleId, "planning", {
@@ -396,7 +392,7 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       await updatePhase(cycleId, "evaluating");
       log.info({ cycleId, attempt }, `Phase 5: Evaluating (attempt ${attempt}/${maxRetries})`);
 
-      evalResult = await evaluate(buildDir, buildResult, selectedIdea);
+      evalResult = await evaluate(buildDir, buildResult, selectedIdea, safePlan);
 
       const evaluationId = nanoid();
       await db.insert(schema.evaluations).values({
@@ -417,9 +413,20 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
         createdAt: new Date().toISOString(),
       });
 
-      if (evalResult.overallPassed) {
-        log.info({ cycleId, attempt }, "Evaluation passed");
+      const goal = evalResult.codeReview;
+      if (evalResult.overallPassed && (goal.goalMet || attempt >= 2 || attempt >= maxRetries)) {
+        log.info({ cycleId, attempt, goalMet: goal.goalMet }, "Evaluation passed");
         break;
+      }
+      if (evalResult.overallPassed && !goal.goalMet) {
+        // Safe code that missed the point: one more try with the gaps spelled out.
+        log.warn({ cycleId, attempt, gaps: goal.goalGaps }, "Change is safe but did not deliver the goal — retrying with the gaps");
+        previousAttempt = {
+          rejectionReason: "The change did not deliver the goal",
+          feedback: `Still missing:\n${goal.goalGaps.map((g) => `- ${g}`).join("\n") || "- " + goal.feedback}\nCreate every planned file and wire it into the app.`,
+          attempt,
+        };
+        continue;
       }
 
       if (attempt < maxRetries) {
@@ -528,7 +535,13 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
     // Phase 8: Learn
     await updatePhase(cycleId, "learning");
     log.info({ cycleId }, "Phase 8: Learning");
-    const lessons = `Successfully implemented: ${selectedIdea.title}. Quality: ${evalResult.codeReview.qualityScore}/100.`;
+    const goalMet = evalResult.codeReview.goalMet !== false;
+    const goalGaps = evalResult.codeReview.goalGaps || [];
+    const planNote = (implPlan as { planSource?: string; planError?: string }).planSource === "brief"
+      ? ` Plan built from the idea brief (planner failed: ${String((implPlan as { planError?: string }).planError || "").slice(0, 160)}).` : "";
+    const lessons = goalMet
+      ? `Successfully implemented: ${selectedIdea.title}. Quality: ${evalResult.codeReview.qualityScore}/100.${planNote}`
+      : `Partly implemented: ${selectedIdea.title}. Shipped safe progress, but the goal is not done yet. Missing: ${goalGaps.join("; ") || "see reviewer feedback"}.${planNote}`;
 
     await addMemory(projectId, "success", `Improvement: ${selectedIdea.title} - ${selectedIdea.description}`);
 
@@ -564,6 +577,8 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       qualityBefore: observations.qualityScore,
       qualityAfter: evalResult.codeReview.qualityScore,
       tokensUsed,
+      goalMet,
+      goalGaps,
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

@@ -30,6 +30,7 @@ export interface IdeaAnalysis {
   verdictReason: string;
   model?: string;
   fallback?: boolean;
+  remaining?: string[];
 }
 
 const OPEN_STATUSES = ["evaluating", "queued", "building"];
@@ -257,7 +258,7 @@ Reply with ONLY a JSON object:
 /** Put any open idea (usually a system proposal) into the queue. */
 export async function queueIdea(id: string, top = false) {
   await db.update(schema.ideas)
-    .set({ status: "queued", queueRank: await nextRank(top), updatedAt: nowIso() })
+    .set({ status: "queued", queueRank: await nextRank(top), attempts: 0, updatedAt: nowIso() })
     .where(eq(schema.ideas.id, id));
   scheduleBackup();
 }
@@ -327,6 +328,8 @@ export function ideaBrief(idea: IdeaRow) {
   if (idea.description && a?.summary && a.summary !== idea.description) parts.push(`Operator's request: ${idea.description}`);
   if (a?.spec?.length) parts.push("Implementation steps:\n" + a.spec.map((s, i) => `${i + 1}. ${s}`).join("\n"));
   if (a?.acceptance?.length) parts.push("Done when:\n" + a.acceptance.map((s) => `- ${s}`).join("\n"));
+  const remaining = (a as { remaining?: string[] } | null)?.remaining;
+  if (remaining?.length) parts.push("A previous attempt left these parts undone. Finish them first:\n" + remaining.map((s) => `- ${s}`).join("\n"));
   return { title: idea.title, description: parts.join("\n\n"), category: idea.category || "feature" };
 }
 
@@ -334,14 +337,48 @@ export async function markIdeaStarted(id: string, cycleId: string) {
   await db.update(schema.ideas).set({ pickedCycleId: cycleId, updatedAt: nowIso() }).where(eq(schema.ideas.id, id));
 }
 
-export async function finishIdea(id: string, result: { cycleId?: string; status: string; error?: string }) {
-  const shipped = result.status === "completed";
-  await db.update(schema.ideas).set({
-    status: shipped ? "shipped" : "failed",
-    pickedCycleId: result.cycleId || null,
-    reason: shipped ? "Built and deployed" : (result.error || `Cycle ${result.status}`).slice(0, 500),
-    updatedAt: nowIso(),
-  }).where(eq(schema.ideas.id, id));
+export const MAX_IDEA_ATTEMPTS = 3;
+
+/**
+ * Record how a cycle went for an idea. Only a cycle that delivered the goal
+ * marks it shipped; partial progress or a failure puts it back at the front of
+ * the queue with what's missing added to its brief, up to MAX_IDEA_ATTEMPTS.
+ */
+export async function finishIdea(id: string, result: { cycleId?: string; status: string; error?: string; goalMet?: boolean; goalGaps?: string[] }) {
+  const [idea] = await db.select().from(schema.ideas).where(eq(schema.ideas.id, id));
+  if (!idea) return;
+  const attempts = (idea.attempts || 0) + 1;
+  const delivered = result.status === "completed" && result.goalMet !== false;
+  const partial = result.status === "completed" && result.goalMet === false;
+  const now = nowIso();
+
+  if (delivered) {
+    await db.update(schema.ideas).set({ status: "shipped", attempts, pickedCycleId: result.cycleId || null, reason: "Built and deployed", updatedAt: now })
+      .where(eq(schema.ideas.id, id));
+  } else if (attempts < MAX_IDEA_ATTEMPTS) {
+    const gaps = result.goalGaps?.length ? result.goalGaps : [result.error || `Cycle ${result.status}`];
+    const a = parseAnalysis(idea.analysis);
+    const analysis = a ? { ...a, remaining: gaps } : null;
+    await db.update(schema.ideas).set({
+      status: "queued",
+      attempts,
+      queueRank: await nextRank(true),
+      pickedCycleId: result.cycleId || null,
+      analysis: analysis ? JSON.stringify(analysis) : idea.analysis,
+      reason: `${partial ? "Partly done" : "Attempt failed"} (attempt ${attempts} of ${MAX_IDEA_ATTEMPTS}). Still to do: ${gaps.join("; ")}`.slice(0, 500),
+      updatedAt: now,
+    }).where(eq(schema.ideas.id, id));
+    log.info({ id, attempts, partial }, "Idea not finished — re-queued at the front");
+  } else {
+    await db.update(schema.ideas).set({
+      status: "failed",
+      attempts,
+      pickedCycleId: result.cycleId || null,
+      reason: `${partial ? "Only partly done" : "Failed"} after ${attempts} attempts: ${(result.goalGaps?.join("; ") || result.error || result.status)}`.slice(0, 500),
+      updatedAt: now,
+    }).where(eq(schema.ideas.id, id));
+  }
+  scheduleBackup();
 }
 
 /**
