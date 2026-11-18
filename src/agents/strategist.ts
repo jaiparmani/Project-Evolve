@@ -1,4 +1,5 @@
 import { chatForTask } from "../llm/router.js";
+import { rethrowIfQuota } from "../llm/quota.js";
 import { db, schema } from "../db/index.js";
 import { eq, desc } from "drizzle-orm";
 import { childLogger } from "../core/logger.js";
@@ -186,6 +187,7 @@ Return JSON:
     ], { jsonMode: true, timeoutMs: 90_000 });
     raw = (result as { data: Record<string, unknown> }).data;
   } catch (llmErr) {
+    rethrowIfQuota(llmErr);
     log.warn({ error: (llmErr as Error).message }, "LLM call failed — using mode-aware deterministic strategy");
     const { getEvolutionMode } = await import("../worker/state.js");
     const mode = getEvolutionMode();

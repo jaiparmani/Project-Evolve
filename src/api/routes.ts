@@ -9,6 +9,7 @@ import { childLogger } from "../core/logger.js";
 import { evaluateRoadmap, ROADMAP } from "../core/roadmap.js";
 import { config } from "../core/config.js";
 import { backupDb } from "../db/persist.js";
+import { quotaPause, clearQuotaPause } from "../llm/quota.js";
 import { deployGateStatus, triggerDeploy, checkForUpdates, holdForDeploy } from "../deploy/update-gate.js";
 import { submitIdea, queueIdea, dismissIdea, moveIdea, editIdea, analyseIdea, claimNext, finishIdea, getBoard, getIdea, peekNext, ideaBrief, autoFill, getAutoplan, setAutoplan } from "../core/idea-queue.js";
 
@@ -34,6 +35,7 @@ apiRouter.get("/status", async (_req, res) => {
     llm: llmStats,
     todayCycles: todayCycles[0]?.count || 0,
     deployGate: deployGateStatus(),
+    llmPause: quotaPause(),
   });
 });
 
@@ -173,6 +175,9 @@ export async function ensureProjectAndRunCycle(userIdea?: UserIdea) {
   }
 }
 
+// Try the AI again now (e.g. after adding keys to the gateway).
+apiRouter.post("/llm/resume", (_req, res) => { clearQuotaPause(); res.json({ ok: true }); });
+
 apiRouter.get("/deploy/status", async (_req, res) => {
   await checkForUpdates();
   res.json(deployGateStatus());
@@ -189,6 +194,8 @@ apiRouter.post("/deploy/now", async (_req, res) => {
 
 apiRouter.post("/evolve", async (_req, res) => {
   if (holdForDeploy()) return res.status(409).json({ error: "A deploy is in progress; cycles resume after it" });
+  const pause = quotaPause();
+  if (pause) return res.status(503).json({ error: `The AI quota is used up until ${new Date(pause.until).toUTCString()}. Add more keys to the LLM gateway, or wait.` });
   if (getRunning()) {
     return res.status(409).json({ error: "A cycle is already running" });
   }

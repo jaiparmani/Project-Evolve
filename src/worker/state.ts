@@ -91,6 +91,17 @@ export function startLoop(runOneCycle: () => Promise<void>) {
       loopTimer = setTimeout(tick, 10_000);
       return;
     }
+    // AI quota used up: wait for the reset instead of running cycles that can only fail.
+    try {
+      const { quotaPause } = await import("../llm/quota.js");
+      const pause = quotaPause();
+      if (pause) {
+        const wait = Math.min(Math.max(Date.parse(pause.until) - Date.now(), 60_000), 15 * 60_000);
+        log.info({ until: pause.until }, "AI quota used up — waiting for the reset");
+        loopTimer = setTimeout(tick, wait);
+        return;
+      }
+    } catch { /* ignore */ }
     // New code waiting? Deploy now, between cycles, instead of mid-cycle.
     try {
       const { maybeDeployBetweenCycles } = await import("../deploy/update-gate.js");

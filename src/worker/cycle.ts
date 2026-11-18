@@ -1,4 +1,5 @@
 import { db, schema } from "../db/index.js";
+import { rethrowIfQuota, isQuotaError } from "../llm/quota.js";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { observe } from "../agents/observer.js";
 import { strategize } from "../agents/strategist.js";
@@ -101,9 +102,20 @@ interface CycleResult {
   /** False when the change shipped but did not deliver the whole goal. */
   goalMet?: boolean;
   goalGaps?: string[];
+  /** Stopped because the LLM quota ran out; not the idea's fault. */
+  quotaPaused?: boolean;
+  /** Stopped by the cycle timeout. */
+  timedOut?: boolean;
 }
 
+class CycleCancelled extends Error {
+  constructor(msg: string) { super(msg); this.name = "CycleCancelled"; }
+}
+/** Cycles the timeout gave up on; they stop at their next phase change. */
+const cancelledCycles = new Set<string>();
+
 async function updatePhase(cycleId: string, phase: CyclePhase, extra?: Record<string, unknown>) {
+  if (cancelledCycles.has(cycleId) && phase !== "failed") throw new CycleCancelled("Cycle was cancelled after timing out");
   const updates: Record<string, unknown> = { phase, status: phase === "failed" || phase === "rejected" ? phase : "running" };
   if (phase === "completed") updates.status = "completed";
   if (extra) Object.assign(updates, extra);
@@ -121,15 +133,31 @@ export interface UserIdea {
 }
 
 export async function runCycle(projectId: string, userIdea?: UserIdea): Promise<CycleResult> {
-  return Promise.race([
-    runCycleInner(projectId, userIdea),
-    new Promise<CycleResult>((_, reject) =>
-      setTimeout(() => reject(new Error(`Cycle timed out after ${config.evolution.cycleTimeoutMinutes} minutes`)), CYCLE_TIMEOUT_MS)
-    ),
-  ]);
+  const ctl: { cycleId: string | null } = { cycleId: null };
+  const inner = runCycleInner(projectId, userIdea, ctl);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<"timeout">((r) => { timer = setTimeout(() => r("timeout"), CYCLE_TIMEOUT_MS); });
+  const first = await Promise.race([inner, timeout]);
+  clearTimeout(timer);
+  if (first !== "timeout") return first;
+
+  // Timed out. Before this, the race just moved on and the old cycle kept running
+  // (and committing) alongside the next one. Now it is told to stop at its next
+  // phase change, and we wait for it so two cycles never overlap.
+  const msg = `Cycle timed out after ${config.evolution.cycleTimeoutMinutes} minutes`;
+  log.warn({ cycleId: ctl.cycleId }, msg + " — stopping it");
+  if (ctl.cycleId) cancelledCycles.add(ctl.cycleId);
+  await Promise.race([inner.catch(() => null), new Promise((r) => setTimeout(r, 6 * 60_000))]);
+  if (ctl.cycleId) {
+    await db.update(schema.evolutionCycles).set({
+      status: "failed", phase: "failed", completedAt: new Date().toISOString(), errorMessage: msg, lessonsLearned: msg,
+    } as never).where(and(eq(schema.evolutionCycles.id, ctl.cycleId), sql`${schema.evolutionCycles.status} != 'completed'`));
+    cancelledCycles.delete(ctl.cycleId);
+  }
+  return { cycleId: ctl.cycleId || "", status: "failed", tokensUsed: 0, error: msg, timedOut: true };
 }
 
-async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<CycleResult> {
+async function runCycleInner(projectId: string, userIdea: UserIdea | undefined, ctl: { cycleId: string | null }): Promise<CycleResult> {
   const now = new Date().toISOString();
   const git = getGitManager();
 
@@ -146,6 +174,7 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
 
   const cycleNumber = (lastCycle[0]?.cycleNumber || 0) + 1;
   const cycleId = nanoid();
+  ctl.cycleId = cycleId;
   let tokensUsed = 0;
 
   await db.insert(schema.evolutionCycles).values({
@@ -183,6 +212,7 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
     try {
       observations = await observe(projectId, cycleId, proj.appDir);
     } catch (obsErr) {
+      rethrowIfQuota(obsErr);
       log.warn({ error: (obsErr as Error).message }, "Observation failed — using minimal baseline, cycle continues");
       observations = {
         observations: [{ category: "feature", description: "App needs more features", severity: "medium" as const, details: "Deterministic fallback — LLM unavailable", confidence: 0.5, verified: false }],
@@ -241,6 +271,7 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       try {
         strategy = await strategize(projectId, cycleId, observations);
       } catch (stratErr) {
+        rethrowIfQuota(stratErr);
         log.warn({ error: (stratErr as Error).message }, "Strategy failed — using deterministic idea, cycle continues");
         const { getEvolutionMode } = await import("./state.js");
         const mode = getEvolutionMode();
@@ -285,6 +316,7 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
     try {
       implPlan = await plan(proj.appDir, selectedIdea, observations);
     } catch (planErr) {
+      rethrowIfQuota(planErr);
       log.warn({ error: (planErr as Error).message }, "Planning failed — using the idea's brief as the plan");
       const { planFromBrief } = await import("../agents/architect.js");
       implPlan = planFromBrief(proj.appDir, selectedIdea, ["index.html"], (planErr as Error).message);
@@ -581,8 +613,11 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       goalGaps,
     };
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    log.error({ cycleId, error: msg }, "Cycle failed");
+    const quota = isQuotaError(error);
+    const msg = quota
+      ? `Stopped: the AI quota is used up${(error as { resetAt?: string | null }).resetAt ? ` until ${(error as { resetAt?: string | null }).resetAt}` : ""}. Cycles resume automatically after it resets.`
+      : error instanceof Error ? error.message : String(error);
+    log.error({ cycleId, error: msg }, quota ? "Cycle stopped — LLM quota used up" : "Cycle failed");
 
     await updatePhase(cycleId, "failed", {
       completedAt: new Date().toISOString(),
@@ -599,7 +634,7 @@ async function runCycleInner(projectId: string, userIdea?: UserIdea): Promise<Cy
       })
       .where(eq(schema.projects.id, projectId));
 
-    return { cycleId, status: "failed", tokensUsed, error: msg };
+    return { cycleId, status: "failed", tokensUsed, error: msg, quotaPaused: quota, timedOut: error instanceof CycleCancelled };
   }
 }
 

@@ -1,4 +1,5 @@
 import { chatForTask } from "../llm/router.js";
+import { rethrowIfQuota } from "../llm/quota.js";
 import { db, schema } from "../db/index.js";
 import { eq, desc } from "drizzle-orm";
 import { childLogger } from "../core/logger.js";
@@ -288,6 +289,7 @@ Focus on meaningful, evidence-backed improvements. Prefer fewer high-confidence 
     ], { jsonMode: true });
     raw = (result as { data: Record<string, unknown> }).data;
   } catch (llmErr) {
+    rethrowIfQuota(llmErr);
     log.warn({ error: (llmErr as Error).message }, "LLM call failed — falling back to baseline observations");
   }
 

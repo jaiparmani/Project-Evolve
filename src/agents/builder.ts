@@ -1,4 +1,5 @@
 import { chatForTask } from "../llm/router.js";
+import { rethrowIfQuota } from "../llm/quota.js";
 import { config } from "../core/config.js";
 import { childLogger } from "../core/logger.js";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from "fs";
@@ -130,6 +131,7 @@ CRITICAL RULES:
       source = "deterministic";
     }
   } catch (err) {
+    rethrowIfQuota(err);
     log.warn({ error: (err as Error).message }, "LLM build failed — trying deterministic fallback");
     changes = getDeterministicChanges(workDir, implementationPlan.title);
     source = "deterministic";

@@ -1,4 +1,5 @@
 import { getClient, type LLMMessage, type ModelInfo, RateLimitError } from "./openrouter.js";
+import { QuotaExhaustedError, isQuotaError, pauseForQuota, quotaPause } from "./quota.js";
 import { childLogger } from "../core/logger.js";
 import { config } from "../core/config.js";
 
@@ -141,6 +142,8 @@ export async function chatForTask(
   messages: LLMMessage[],
   opts: { maxTokens?: number; jsonMode?: boolean; timeoutMs?: number } = {}
 ) {
+  const pause = quotaPause();
+  if (pause) throw new QuotaExhaustedError(`LLM quota used up until ${pause.until}: ${pause.reason}`, pause.until);
   const models = await modelsForTask(task);
   const client = getClient();
   const errors: TaskAttemptError[] = [];
@@ -160,6 +163,11 @@ export async function chatForTask(
       void recordUsage(task, res.model || model, res, Date.now() - t0);
       return res;
     } catch (err) {
+      if (isQuotaError(err)) {
+        pauseForQuota(err);
+        log.warn({ task, resetAt: err.resetAt }, "LLM quota used up — pausing until it resets");
+        throw err;
+      }
       const e = err as Error;
       const msg = e.name === "AbortError" ? `timed out after ${Math.round((Date.now() - t0) / 1000)}s` : e.message;
       errors.push({ model: model || "gateway", error: msg.slice(0, 300), ms: Date.now() - t0 });

@@ -1,4 +1,5 @@
 import { chatForTask } from "../llm/router.js";
+import { rethrowIfQuota } from "../llm/quota.js";
 import { childLogger } from "../core/logger.js";
 import { readdirSync, readFileSync, existsSync } from "fs";
 import { resolve, extname } from "path";
@@ -164,6 +165,7 @@ The app is served as static files: any new page or script must be linked from in
     log.info({ steps: data.steps?.length, complexity: data.estimatedComplexity }, "Plan complete");
     return { ...data, planSource: "llm" } as ImplementationPlan;
   } catch (err) {
+    rethrowIfQuota(err);
     const reason = (err as Error).message;
     log.warn({ error: reason }, "LLM planning failed — building the plan from the idea's brief");
     return planFromBrief(appDir, selectedIdea, keyFiles, reason);

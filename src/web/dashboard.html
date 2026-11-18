@@ -1097,6 +1097,15 @@
     function renderUpdateBanner() {
       const g = state.status?.deploy_gate;
       const el = $('#updateBanner');
+      const q = state.status?.llm_pause;
+      if (q) {
+        el.hidden = false;
+        el.className = 'banner';
+        const t = new Date(q.until);
+        el.innerHTML = `${icon('pause', 16)}<span>AI quota used up: cycles paused until ${t.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}<small>Every key in the LLM gateway has hit its limit. Add keys for more providers (Groq, Cerebras, Gemini, Mistral) in the gateway console, then retry.</small></span><button class="btn sm" type="button" data-action="llm-resume">Retry now</button>`;
+        return;
+      }
+      el.className = 'banner update';
       if (!g || (!g.pending?.length && !g.deploying)) { el.hidden = true; return; }
       el.hidden = false;
       if (g.deploying) {
@@ -1745,6 +1754,11 @@
           return;
         }
         if (act === 'retry') { loadCore(); return; }
+        if (act === 'llm-resume') {
+          try { await post('/llm/resume'); toast('Retrying the AI on the next cycle', 'success'); } catch (err) { toast(err.message, 'error'); }
+          loadCore();
+          return;
+        }
         if (act === 'deploy-now') {
           if (isRunning() && !confirm('Deploy now? The running cycle will stop and its idea goes back to the front of the queue.')) return;
           setBusy(a, true, 'Deploying…');
@@ -1756,7 +1770,7 @@
         if (act === 'evolve') {
           setBusy(a, true, 'Starting…');
           try { await post('/evolve'); toast('Evolution cycle started', 'success'); }
-          catch (err) { toast(err.status === 409 ? 'A cycle is already running.' : err.status === 429 ? 'Daily cycle limit reached.' : err.message, 'error'); }
+          catch (err) { toast(err.status === 429 ? 'Daily cycle limit reached.' : err.message, 'error'); }
           finally { setBusy(a, false); renderChrome(); setTimeout(loadCore, 1200); }
           return;
         }

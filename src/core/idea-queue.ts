@@ -344,9 +344,16 @@ export const MAX_IDEA_ATTEMPTS = 3;
  * marks it shipped; partial progress or a failure puts it back at the front of
  * the queue with what's missing added to its brief, up to MAX_IDEA_ATTEMPTS.
  */
-export async function finishIdea(id: string, result: { cycleId?: string; status: string; error?: string; goalMet?: boolean; goalGaps?: string[] }) {
+export async function finishIdea(id: string, result: { cycleId?: string; status: string; error?: string; goalMet?: boolean; goalGaps?: string[]; quotaPaused?: boolean; timedOut?: boolean }) {
   const [idea] = await db.select().from(schema.ideas).where(eq(schema.ideas.id, id));
   if (!idea) return;
+  if (result.quotaPaused) {
+    // Not the idea's fault: back to the front, no attempt used.
+    await db.update(schema.ideas).set({ status: "queued", queueRank: await nextRank(true), reason: "Waiting for the AI quota to reset", updatedAt: nowIso() })
+      .where(eq(schema.ideas.id, id));
+    scheduleBackup();
+    return;
+  }
   const attempts = (idea.attempts || 0) + 1;
   const delivered = result.status === "completed" && result.goalMet !== false;
   const partial = result.status === "completed" && result.goalMet === false;

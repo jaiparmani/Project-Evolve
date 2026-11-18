@@ -1,4 +1,5 @@
 import { config } from "../core/config.js";
+import { quotaErrorFrom } from "./quota.js";
 import { childLogger } from "../core/logger.js";
 
 const log = childLogger("llm");
@@ -135,6 +136,9 @@ export class LLMClient {
 
       if (res.status === 429 || res.status >= 500) {
         const text = await res.text();
+        // The gateway's "every key is spent until <reset_at>": retrying only burns calls.
+        const quota = quotaErrorFrom(res.status, text);
+        if (quota) throw quota;
         const maxRetries = res.status === 429 ? 3 : 2;
         for (let retry = 0; retry < maxRetries; retry++) {
           // Aggressive exponential backoff: 429 starts at 15s, 500+ at 5s

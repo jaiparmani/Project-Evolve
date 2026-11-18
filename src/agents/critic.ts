@@ -1,4 +1,5 @@
 import { chatForTask } from "../llm/router.js";
+import { rethrowIfQuota } from "../llm/quota.js";
 import { childLogger } from "../core/logger.js";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -198,7 +199,12 @@ The goal is FORWARD PROGRESS. Any change that doesn't break the app should be ap
       rejectionReason = String(reviewData.rejectionReason);
     }
   } catch (e) {
+    rethrowIfQuota(e);
     log.warn("Code review LLM call failed, using automated checks only");
+    // Without a review nobody has checked the goal, so don't claim it was met
+    // unless the plan's files are all there to show for it.
+    codeReview.goalMet = planned.length > 0 && missingFiles.length === 0;
+    if (!codeReview.goalMet) codeReview.goalGaps = ["Not verified: the reviewer could not run"];
   }
 
   // More than half the planned new files missing means the goal wasn't delivered,
