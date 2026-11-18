@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+*.min.js
+*.config.js
+*.config.ts
+.eslintrc.json
+.github/
+.vscode/
+*.log
+.DS_Store
