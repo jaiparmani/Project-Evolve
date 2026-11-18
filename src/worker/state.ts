@@ -93,10 +93,18 @@ export function startLoop(runOneCycle: () => Promise<void>) {
     }
     // AI quota used up: wait for the reset instead of running cycles that can only fail.
     try {
-      const { quotaPause } = await import("../llm/quota.js");
+      const { quotaPause, gatewayAvailability, clearQuotaPause, pauseForQuota, QuotaExhaustedError } = await import("../llm/quota.js");
+      // Ask the gateway first: resume early if a key freed up (or one was added),
+      // or pause before spending a whole cycle finding out there are none.
+      const avail = await gatewayAvailability();
+      if (avail?.available) clearQuotaPause();
+      else if (avail && !avail.available) pauseForQuota(new QuotaExhaustedError("No LLM gateway key is available right now", avail.nextResetAt));
       const pause = quotaPause();
       if (pause) {
-        const wait = Math.min(Math.max(Date.parse(pause.until) - Date.now(), 60_000), 15 * 60_000);
+        // With the gateway's availability endpoint, recheck often (it's a cheap GET)
+        // so cycles resume as soon as a key frees up or one is added.
+        const cap = avail ? 2 * 60_000 : 15 * 60_000;
+        const wait = Math.min(Math.max(Date.parse(pause.until) - Date.now(), 60_000), cap);
         log.info({ until: pause.until }, "AI quota used up — waiting for the reset");
         loopTimer = setTimeout(tick, wait);
         return;

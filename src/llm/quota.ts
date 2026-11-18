@@ -54,3 +54,26 @@ export function quotaErrorFrom(status: number, body: string): QuotaExhaustedErro
   } catch { /* not JSON */ }
   return null;
 }
+
+/**
+ * Ask the LLM gateway whether any key can serve a call right now
+ * (GET /v1/availability). Returns null when it can't tell — older gateway
+ * without the endpoint, network error — so callers fall back to finding out
+ * from a 429 as before.
+ */
+export async function gatewayAvailability(): Promise<{ available: boolean; nextResetAt: string | null; keys?: Record<string, number> } | null> {
+  const { config } = await import("../core/config.js");
+  if (config.llm.provider !== "gateway" || !config.llm.gateway.token || !config.llm.gateway.url) return null;
+  try {
+    const res = await fetch(`${config.llm.gateway.url}/v1/availability`, {
+      headers: { Authorization: `Bearer ${config.llm.gateway.token}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { available?: boolean; nextResetAt?: string | null; keys?: Record<string, number> };
+    if (typeof j.available !== "boolean") return null;
+    return { available: j.available, nextResetAt: j.nextResetAt ?? null, keys: j.keys };
+  } catch {
+    return null;
+  }
+}
