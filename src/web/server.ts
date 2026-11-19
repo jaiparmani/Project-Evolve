@@ -6,6 +6,7 @@ import { childLogger } from "../core/logger.js";
 import { apiRouter } from "../api/routes.js";
 import { resolve } from "path";
 import { readFileSync, existsSync } from "fs";
+import { sql } from "drizzle-orm";
 
 const log = childLogger("server");
 const app = express();
@@ -65,8 +66,19 @@ app.listen(config.server.port, () => {
       } catch (e) { log.warn({ error: (e as Error).message }, "Failed to clean up orphaned cycles"); }
 
       try {
-        const { recoverInterrupted, importRoadmap } = await import("../core/idea-queue.js");
+        // Restore an AI-quota pause saved before a restart, and record the boot
+        // (count + time) so unexpected restarts show up in Configuration.
+        const { loadQuotaPause } = await import("../llm/quota.js");
+        await loadQuotaPause();
+        const { db: bootDb, schema: bootSchema } = await import("../db/index.js");
+        const nowIso = new Date().toISOString();
+        await bootDb.insert(bootSchema.systemConfig).values({ key: "boot_count", value: "1", updatedAt: nowIso })
+          .onConflictDoUpdate({ target: bootSchema.systemConfig.key, set: { value: sql`cast(${bootSchema.systemConfig.value} as integer) + 1`, updatedAt: nowIso } });
+        await bootDb.insert(bootSchema.systemConfig).values({ key: "last_boot_at", value: nowIso, updatedAt: nowIso })
+          .onConflictDoUpdate({ target: bootSchema.systemConfig.key, set: { value: nowIso, updatedAt: nowIso } });
+        const { recoverInterrupted, importRoadmap, reopenUnverifiedShipped } = await import("../core/idea-queue.js");
         await recoverInterrupted();
+        await reopenUnverifiedShipped();
         await importRoadmap();
       } catch (e) { log.warn({ error: (e as Error).message }, "Failed to recover idea queue"); }
 

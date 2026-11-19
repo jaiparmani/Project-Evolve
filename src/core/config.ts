@@ -58,7 +58,7 @@ export const config = {
     // 0 (default) = no daily limit
     maxCyclesPerDay: envInt("EVOLVE_MAX_CYCLES_PER_DAY", 0),
     loopDelaySeconds: envInt("EVOLVE_LOOP_DELAY_SECONDS", 15),
-    cycleTimeoutMinutes: envInt("EVOLVE_CYCLE_TIMEOUT_MINUTES", 12),
+    cycleTimeoutMinutes: envInt("EVOLVE_CYCLE_TIMEOUT_MINUTES", 20),
     buildTimeoutSeconds: envInt("EVOLVE_BUILD_TIMEOUT_SECONDS", 240),
     maxRequestsPerCycle: envInt("EVOLVE_MAX_REQUESTS_PER_CYCLE", 20),
     maxTokensPerCycle: envInt("EVOLVE_MAX_TOKENS_PER_CYCLE", 50000),

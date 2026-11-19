@@ -443,6 +443,34 @@ export async function importRoadmap(file = resolve(process.cwd(), "roadmap", "id
   return added;
 }
 
+/**
+ * One-time repair: before the goal check existed (Nov 18), a cycle that only
+ * touched index.html still marked its idea "shipped". Reopen those ideas, at
+ * the front of the queue in their original order, so they actually get built.
+ */
+export async function reopenUnverifiedShipped(): Promise<number> {
+  const FLAG = "reopened_unverified_shipped_v1";
+  const [done] = await db.select().from(schema.systemConfig).where(eq(schema.systemConfig.key, FLAG));
+  if (done) return 0;
+  const rows = await db.select().from(schema.ideas)
+    .where(and(eq(schema.ideas.status, "shipped"), eq(schema.ideas.source, "user"), sql`coalesce(${schema.ideas.attempts}, 0) = 0`, sql`coalesce(${schema.ideas.updatedAt}, ${schema.ideas.createdAt}) < '2026-11-18T05:20:00Z'`))
+    .orderBy(asc(schema.ideas.queueRank), asc(schema.ideas.createdAt));
+  let rank = (await nextRank(true)) - rows.length;
+  for (const r of rows) {
+    await db.update(schema.ideas).set({
+      status: "queued",
+      queueRank: rank++,
+      reason: "Re-opened: it was marked shipped before goal checks existed, but was never actually built",
+      updatedAt: nowIso(),
+    }).where(eq(schema.ideas.id, r.id));
+  }
+  const now = nowIso();
+  await db.insert(schema.systemConfig).values({ key: FLAG, value: String(rows.length), updatedAt: now })
+    .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value: String(rows.length), updatedAt: now } });
+  if (rows.length) { log.info({ reopened: rows.map((r) => r.title) }, "Re-opened ideas wrongly marked shipped"); scheduleBackup(5_000, "after re-opening ideas"); }
+  return rows.length;
+}
+
 /** On boot, anything left "building" was interrupted by a restart: put it back at the front. */
 export async function recoverInterrupted() {
   const stuck = await db.select().from(schema.ideas).where(eq(schema.ideas.status, "building"));

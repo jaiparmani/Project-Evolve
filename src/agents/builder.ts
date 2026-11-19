@@ -8,9 +8,34 @@ import { resolve, dirname } from "path";
 const log = childLogger("builder");
 
 interface FileChange {
-  action: "create" | "modify" | "delete";
+  action: "create" | "modify" | "delete" | "patch";
   path: string;
   content?: string;
+  /** For "patch": exact-text replacements, so a large file needn't be rewritten whole. */
+  edits?: Array<{ find: string; replace: string }>;
+}
+
+/** Files above this size should be patched, not rewritten: free models truncate long outputs. */
+const PATCH_THRESHOLD = 12_000;
+
+/**
+ * Apply find/replace edits. Each `find` must appear exactly once (after
+ * normalising line endings) so an edit can't land in the wrong place.
+ */
+export function applyEdits(original: string, edits: Array<{ find: string; replace: string }>): { content: string; applied: number; skipped: string[] } {
+  let content = original.replace(/\r\n/g, "\n");
+  let applied = 0;
+  const skipped: string[] = [];
+  for (const e of edits) {
+    if (!e || typeof e.find !== "string" || typeof e.replace !== "string" || !e.find) { skipped.push("(invalid edit)"); continue; }
+    const find = e.find.replace(/\r\n/g, "\n");
+    const first = content.indexOf(find);
+    if (first < 0) { skipped.push(`not found: ${find.slice(0, 60)}`); continue; }
+    if (content.indexOf(find, first + 1) >= 0) { skipped.push(`ambiguous: ${find.slice(0, 60)}`); continue; }
+    content = content.slice(0, first) + e.replace + content.slice(first + find.length);
+    applied++;
+  }
+  return { content, applied, skipped };
 }
 
 interface BuildResult {
@@ -92,19 +117,25 @@ Generate the file changes. Return JSON:
 {
   "changes": [
     {
-      "action": "create|modify|delete",
+      "action": "create|modify|delete|patch",
       "path": "relative/path/to/file",
-      "content": "full file content (for create/modify)"
+      "content": "full file content (for create/modify)",
+      "edits": [ { "find": "exact existing text, copied verbatim and unique in the file", "replace": "new text" } ]
     }
   ],
   "summary": "What was done"
 }
 
+For any existing file larger than ${Math.round(PATCH_THRESHOLD / 1000)} KB (${Object.entries(existingFiles).filter(([, c]) => c.length > PATCH_THRESHOLD).map(([p, c]) => `${p}: ${Math.round(c.length / 1000)} KB`).join(", ") || "none here"}),
+use "patch" instead of rewriting it: each "find" must be copied exactly from the file and occur once.
+To move a section out of a big file into its own page, create the new page with "create" and use
+"patch" to replace that section in the big file with a link or loader.
+
 CRITICAL RULES:
 - Write COMPLETE file contents, not partial snippets or diffs.
 - Match the EXISTING tech stack. If the app uses plain JavaScript and HTML, write JavaScript and HTML — do NOT introduce TypeScript, React, or other frameworks unless the plan explicitly says to.
 - If creating a new file, include ALL necessary imports/requires.
-- If modifying an existing file, include the ENTIRE updated file content, not just the changed parts.
+- If modifying an existing small file with "modify", include the ENTIRE updated file content. For large files use "patch".
 - Be AMBITIOUS. Ship a substantial, clearly visible upgrade — a whole new feature, page, or redesign — not a tweak.
 - You may create several new files (pages, scripts, styles, API routes) and wire them together.
 - Preserve existing features unless the plan says to replace them.
@@ -122,7 +153,7 @@ CRITICAL RULES:
     ], { jsonMode: true, maxTokens: 32000, timeoutMs: config.evolution.buildTimeoutSeconds * 1000 });
 
     const data = (result as unknown as { data: { changes: FileChange[]; summary: string } }).data;
-    changes = (data.changes || []).filter((c: FileChange) => c.path && (c.action === "delete" || c.content));
+    changes = (data.changes || []).filter((c: FileChange) => c.path && (c.action === "delete" || c.content || (c.action === "patch" && Array.isArray(c.edits) && c.edits.length)));
     if (changes.length > 0) {
       log.info({ changes: changes.length }, "LLM produced changes");
     } else {
@@ -157,6 +188,20 @@ CRITICAL RULES:
         filesChanged.push(change.path);
         buildLog.push(`Deleted: ${change.path}`);
       }
+      continue;
+    }
+
+    if (change.action === "patch") {
+      if (!existsSync(fullPath)) { buildLog.push(`Skipped patch ${change.path}: file does not exist`); continue; }
+      const old = readFileSync(fullPath, "utf-8");
+      const { content, applied, skipped } = applyEdits(old, change.edits || []);
+      if (skipped.length) log.warn({ file: change.path, skipped }, "Some edits did not apply");
+      if (!applied) { buildLog.push(`Skipped patch ${change.path}: no edit matched (${skipped.slice(0, 3).join("; ")})`); continue; }
+      writeFileSync(fullPath, content, "utf-8");
+      linesRemoved += old.split("\n").length;
+      linesAdded += content.split("\n").length;
+      filesChanged.push(change.path);
+      buildLog.push(`Patched: ${change.path} (${applied} edit${applied === 1 ? "" : "s"}${skipped.length ? `, ${skipped.length} skipped` : ""})`);
       continue;
     }
 

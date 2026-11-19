@@ -20,8 +20,38 @@ const FALLBACK_PAUSE_MS = 30 * 60_000;
 export function pauseForQuota(err: QuotaExhaustedError) {
   const t = err.resetAt ? Date.parse(err.resetAt) : NaN;
   const until = Number.isFinite(t) && t > Date.now() ? t : Date.now() + FALLBACK_PAUSE_MS;
-  if (!pausedUntil || until > pausedUntil) pausedUntil = until;
+  const changed = !pausedUntil || until > pausedUntil;
+  if (changed) pausedUntil = until;
   pauseReason = err.message.slice(0, 300);
+  if (changed) void persistPause();
+}
+
+// The pause is saved in the DB so it survives restarts: Render's free plan
+// restarts the process on its own, and each fresh process used to run one
+// cycle straight into the spent quota before rediscovering it.
+async function persistPause() {
+  try {
+    const { db, schema } = await import("../db/index.js");
+    const value = JSON.stringify({ until: pausedUntil ? new Date(pausedUntil).toISOString() : null, reason: pauseReason });
+    const now = new Date().toISOString();
+    await db.insert(schema.systemConfig).values({ key: "llm_quota_pause", value, updatedAt: now })
+      .onConflictDoUpdate({ target: schema.systemConfig.key, set: { value, updatedAt: now } });
+    const { scheduleBackup } = await import("../db/persist.js");
+    scheduleBackup(5_000, "after quota pause");
+  } catch { /* best effort */ }
+}
+
+/** Restore a saved pause on boot (ignored once its reset time has passed). */
+export async function loadQuotaPause() {
+  try {
+    const { db, schema } = await import("../db/index.js");
+    const { eq } = await import("drizzle-orm");
+    const [row] = await db.select().from(schema.systemConfig).where(eq(schema.systemConfig.key, "llm_quota_pause"));
+    if (!row) return;
+    const saved = JSON.parse(row.value) as { until: string | null; reason?: string };
+    const t = saved.until ? Date.parse(saved.until) : NaN;
+    if (Number.isFinite(t) && t > Date.now()) { pausedUntil = t; pauseReason = saved.reason || "LLM quota used up"; }
+  } catch { /* best effort */ }
 }
 
 /** The active pause, or null. Clears itself once the reset time passes. */
@@ -30,7 +60,11 @@ export function quotaPause(): { until: string; reason: string } | null {
   return pausedUntil ? { until: new Date(pausedUntil).toISOString(), reason: pauseReason } : null;
 }
 
-export function clearQuotaPause() { pausedUntil = null; }
+export function clearQuotaPause() {
+  if (pausedUntil === null) return;
+  pausedUntil = null;
+  void persistPause();
+}
 
 export function isQuotaError(e: unknown): e is QuotaExhaustedError {
   return e instanceof QuotaExhaustedError || (e as Error)?.name === "QuotaExhaustedError";
