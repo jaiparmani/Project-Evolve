@@ -1098,11 +1098,12 @@
       const g = state.status?.deploy_gate;
       const el = $('#updateBanner');
       const q = state.status?.llm_pause;
+      const waiting = g && g.hook_configured && g.pending?.length && !g.deploying;
       if (q) {
         el.hidden = false;
         el.className = 'banner';
         const t = new Date(q.until);
-        el.innerHTML = `${icon('pause', 16)}<span>AI quota used up: cycles paused until ${t.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}<small>Every key in the LLM gateway has hit its limit. Add keys for more providers (Groq, Cerebras, Gemini, Mistral) in the gateway console, then retry.</small></span><button class="btn sm" type="button" data-action="llm-resume">Retry now</button>`;
+        el.innerHTML = `${icon('pause', 16)}<span>AI quota used up: cycles paused until ${t.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}<small>Every key in the LLM gateway has hit its limit. Add keys for more providers (Groq, Cerebras, Gemini, Mistral) in the gateway console, then retry.${waiting ? ` ${g.pending.length} code update${g.pending.length === 1 ? ' is' : 's are'} waiting to deploy.` : ''}</small></span>${waiting ? '<button class="btn sm" type="button" data-action="deploy-now">Deploy now</button>' : ''}<button class="btn sm" type="button" data-action="llm-resume">Retry now</button>`;
         return;
       }
       el.className = 'banner update';

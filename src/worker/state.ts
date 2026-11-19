@@ -91,6 +91,17 @@ export function startLoop(runOneCycle: () => Promise<void>) {
       loopTimer = setTimeout(tick, 10_000);
       return;
     }
+    // New code waiting? Deploy now, between cycles, instead of mid-cycle.
+    // This comes before the quota check: a paused engine is idle, which is
+    // the best time to deploy (and the fix may be what ends the pause).
+    try {
+      const { maybeDeployBetweenCycles } = await import("../deploy/update-gate.js");
+      if (await maybeDeployBetweenCycles()) {
+        log.info("Holding cycles while the new version deploys");
+        loopTimer = setTimeout(tick, 30_000);
+        return;
+      }
+    } catch (e) { log.warn({ error: (e as Error).message }, "Deploy gate check failed"); }
     // AI quota used up: wait for the reset instead of running cycles that can only fail.
     try {
       const { quotaPause, gatewayAvailability, clearQuotaPause, pauseForQuota, QuotaExhaustedError } = await import("../llm/quota.js");
@@ -110,15 +121,6 @@ export function startLoop(runOneCycle: () => Promise<void>) {
         return;
       }
     } catch { /* ignore */ }
-    // New code waiting? Deploy now, between cycles, instead of mid-cycle.
-    try {
-      const { maybeDeployBetweenCycles } = await import("../deploy/update-gate.js");
-      if (await maybeDeployBetweenCycles()) {
-        log.info("Holding cycles while the new version deploys");
-        loopTimer = setTimeout(tick, 30_000);
-        return;
-      }
-    } catch (e) { log.warn({ error: (e as Error).message }, "Deploy gate check failed"); }
     try {
       await runOneCycle();
     } catch (e) {
