@@ -54,10 +54,11 @@
   <style>@keyframes gradient-anim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}h1{background-size:200% 200%!important;animation:gradient-anim 4s ease infinite!important}</style>
 </head>
 <body>
+<main role="main" aria-label="Main content">
   <div class="container">
-    <h1>Evolving App</h1>
-    <p>This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
-    <p>Watch it grow.</p>
+    <h1 aria-level="1">Evolving App</h1>
+    <p role="text">This application improves itself autonomously. Every 30 minutes, an AI agent inspects the code, identifies improvements, implements changes, and deploys updates.</p>
+    <p role="text">Watch it grow.</p>
     <span class="version">v0.1.0</span>
   </div>
 
@@ -337,5 +338,14 @@
   </div>
   <script>(function(){function hexToRgb(h){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return[r,g,b]}function rgbToHsl(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h,s,l=(max+min)/2;if(max===min){h=s=0}else{const d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;default:h=((r-g)/d+4)/6}}return[Math.round(h*360),Math.round(s*100),Math.round(l*100)]}function hslToHex(h,s,l){s/=100;l/=100;const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h/30)%12;const color=l-a*Math.max(Math.min(k-3,9-k,1),-1);return Math.round(255*color).toString(16).padStart(2,"0")};return"#"+f(0)+f(8)+f(4)}window.ctUpdate=function(hex){if(!/^#[0-9a-f]{6}$/i.test(hex))return;document.getElementById("ct-picker").value=hex;document.getElementById("ct-hex").value=hex;const[r,g,b]=hexToRgb(hex);const[h,s,l]=rgbToHsl(r,g,b);document.getElementById("ct-rgb").textContent="rgb("+r+","+g+","+b+")";document.getElementById("ct-hsl").textContent="hsl("+h+","+s+"%,"+l+"%)"};window.ctGenPalette=function(type){const hex=document.getElementById("ct-picker").value;const[r,g,b]=hexToRgb(hex);const[h,s,l]=rgbToHsl(r,g,b);let colors=[];if(type==="complement")colors=[hex,hslToHex((h+180)%360,s,l),hslToHex((h+120)%360,s,l),hslToHex((h+240)%360,s,l),hslToHex((h+60)%360,s,l)];else if(type==="analogous")colors=[hslToHex((h-30+360)%360,s,l),hslToHex((h-15+360)%360,s,l),hex,hslToHex((h+15)%360,s,l),hslToHex((h+30)%360,s,l)];else colors=[hslToHex(h,s,Math.max(l-30,5)),hslToHex(h,s,Math.max(l-15,5)),hex,hslToHex(h,s,Math.min(l+15,95)),hslToHex(h,s,Math.min(l+30,95))];document.getElementById("ct-palette").innerHTML=colors.map(c=>'<div onclick="ctUpdate(\''+c+"\');navigator.clipboard.writeText('"+c+"')" style="flex:1;height:40px;border-radius:6px;background:"+c+";cursor:pointer" title=""+c+'"></div>').join("")};ctGenPalette("shades")})();</script>
 >>>>>>> evolve/exp-tFl2SUCY
+</main>
+
+  <div id="base64-tool" style="margin-top:24px;max-width:520px;width:100%;padding:20px 24px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+    <h2 style="font-size:16px;color:#22d3ee;margin-bottom:12px">🔄 Base64 Encode/Decode</h2>
+    <textarea id="b64-input" placeholder="Type or paste text here..." style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e0e0e0;font:13px/1.4 ui-monospace,monospace;outline:none;min-height:80px;resize:vertical;font-size:12px" oninput="b64Encode()"></textarea>
+    <div style="display:flex;gap:6px;margin:8px 0"><button onclick="b64Encode()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:#22d3ee;color:#0a0a0a;font-weight:600;font-size:12px">Encode</button><button onclick="b64Decode()" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:rgba(34,211,238,0.15);color:#22d3ee;font-size:12px">Decode</button><button onclick="navigator.clipboard.writeText(document.getElementById('b64-output').textContent)" style="padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;border:none;transition:all 0.2s;background:rgba(34,211,238,0.15);color:#22d3ee;font-size:12px">Copy Output</button></div>
+    <pre id="b64-output" style="padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:11px;color:#22d3ee;overflow-x:auto;max-height:120px;margin:0;white-space:pre-wrap;word-break:break-all"></pre>
+  </div>
+  <script>window.b64Encode=function(){try{document.getElementById("b64-output").textContent=btoa(unescape(encodeURIComponent(document.getElementById("b64-input").value)))}catch(e){document.getElementById("b64-output").textContent="Error: "+e.message}};window.b64Decode=function(){try{document.getElementById("b64-output").textContent=decodeURIComponent(escape(atob(document.getElementById("b64-input").value.trim())))}catch(e){document.getElementById("b64-output").textContent="Error: "+e.message}};</script>
 </body>
 </html>
